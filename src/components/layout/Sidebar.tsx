@@ -18,10 +18,11 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
   ];
 
   return (
-    <nav
+    <aside
       className={cn(
-        "fixed top-0 bottom-0 left-0 w-64 bg-white shadow-lg z-40 overflow-hidden lg:relative lg:block",
-        isOpen ? "block" : "lg:block hidden"
+        "h-screen bg-white shadow-lg z-40 w-64 flex-shrink-0",
+        "fixed lg:sticky top-0 left-0",
+        isOpen ? "block" : "hidden lg:block"
       )}
     >
       <div className="flex flex-col h-full">
@@ -58,6 +59,6 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
           </div>
         </div>
       </div>
-    </nav>
+    </aside>
   );
 };

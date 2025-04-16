@@ -14,11 +14,13 @@ export const Layout = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      <Navbar toggleSidebar={toggleSidebar} />
       <Sidebar isOpen={sidebarOpen} />
-      <main className="flex-1 overflow-y-auto p-4 md:p-6">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col">
+        <Navbar toggleSidebar={toggleSidebar} />
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <Outlet />
+        </main>
+      </div>
       <Toaster position="top-right" />
     </div>
   );
