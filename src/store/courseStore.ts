@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -31,6 +30,7 @@ export interface Course {
   modules: Module[];
   createdAt: Date;
   updatedAt: Date;
+  experienceSections: ExperienceSection[];
 }
 
 interface CourseStore {
@@ -46,6 +46,7 @@ interface CourseStore {
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
   reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
+  updateExperienceSection: (courseId: string, sectionId: string, data: Partial<ExperienceSection>) => void;
 }
 
 // Generate a unique ID
@@ -225,6 +226,22 @@ export const useCourseStore = create<CourseStore>()(
           ),
         };
       }),
+      
+      updateExperienceSection: (courseId, sectionId, data) => set((state) => ({
+        courses: state.courses.map((course) =>
+          course.id === courseId
+            ? {
+                ...course,
+                experienceSections: course.experienceSections?.map((section) =>
+                  section.id === sectionId
+                    ? { ...section, ...data }
+                    : section
+                ) || [],
+                updatedAt: new Date(),
+              }
+            : course
+        ),
+      })),
     }),
     {
       name: 'course-storage',

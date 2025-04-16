@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCourseStore, Course } from "@/store/courseStore";
@@ -32,6 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { ExperienceCanvas } from "@/components/courses/ExperienceCanvas";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -41,7 +41,7 @@ const CourseDetail = () => {
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"designer" | "presentation">("designer");
+  const [activeTab, setActiveTab] = useState<"designer" | "presentation" | "experience">("designer");
 
   useEffect(() => {
     if (courseId) {
@@ -81,14 +81,12 @@ const CourseDetail = () => {
     );
   }
 
-  // Format the created date
   const formattedDate = format(
     new Date(course.createdAt), 
     "dd 'de' MMMM 'de' yyyy", 
     { locale: ptBR }
   );
 
-  // Calculate total duration
   const totalMinutes = course.modules.reduce((total, module) => {
     return total + module.lessons.reduce((moduleTotal, lesson) => {
       return moduleTotal + lesson.duration;
@@ -100,7 +98,6 @@ const CourseDetail = () => {
     ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
     : `${minutes}min`;
 
-  // Count lessons
   const totalLessons = course.modules.reduce((count, module) => {
     return count + module.lessons.length;
   }, 0);
@@ -271,12 +268,13 @@ const CourseDetail = () => {
             <h2 className="text-2xl font-semibold">Estrutura do Curso</h2>
             <Tabs 
               value={activeTab} 
-              onValueChange={(value) => setActiveTab(value as "designer" | "presentation")}
+              onValueChange={(value) => setActiveTab(value as "designer" | "presentation" | "experience")}
               className="w-auto"
             >
               <TabsList>
                 <TabsTrigger value="designer">Designer</TabsTrigger>
                 <TabsTrigger value="presentation">Apresentação</TabsTrigger>
+                <TabsTrigger value="experience">Experiência</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -378,6 +376,9 @@ const CourseDetail = () => {
                   <p>Atualizado em {format(new Date(course.updatedAt), "dd/MM/yyyy", { locale: ptBR })}</p>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="experience" className="mt-0">
+              {course && <ExperienceCanvas courseId={course.id} />}
             </TabsContent>
           </Tabs>
         </motion.div>
