@@ -1,3 +1,4 @@
+
 import { Bell, Menu, Settings, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,9 +23,8 @@ export const Navbar = ({
           <Menu className="h-5 w-5" />
         </Button>
         
-        
         <h1 className="text-xl font-semibold text-primary md:hidden">
-          SPW
+          LD
         </h1>
       </div>
       <div className="flex items-center gap-2">

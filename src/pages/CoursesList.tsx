@@ -2,7 +2,7 @@
 import { useCourseStore } from "@/store/courseStore";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, Filter } from "lucide-react";
+import { PlusCircle, Search, Filter, Tag, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -14,6 +14,8 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const CoursesList = () => {
   const { courses } = useCourseStore();
@@ -21,32 +23,52 @@ const CoursesList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "modules">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const handleAddCourse = () => {
     navigate("/courses/new");
   };
 
-  const filteredCourses = courses
-    .filter((course) =>
-      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === "date") {
-        return sortOrder === "asc"
-          ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (sortBy === "name") {
-        return sortOrder === "asc"
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name);
-      }
-      // sort by modules count
+  // Get all unique tags across all courses
+  const allTags = courses.reduce((acc, course) => {
+    if (course.tags && course.tags.length > 0) {
+      course.tags.forEach(tag => {
+        if (!acc.includes(tag)) {
+          acc.push(tag);
+        }
+      });
+    }
+    return acc;
+  }, [] as string[]);
+
+  // Filter by search term
+  const searchFiltered = courses.filter((course) =>
+    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter by tag if one is selected
+  const tagFiltered = selectedTag 
+    ? searchFiltered.filter(course => course.tags && course.tags.includes(selectedTag))
+    : searchFiltered;
+
+  // Apply sorting
+  const filteredCourses = tagFiltered.sort((a, b) => {
+    if (sortBy === "date") {
       return sortOrder === "asc"
-        ? a.modules.length - b.modules.length
-        : b.modules.length - a.modules.length;
-    });
+        ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    if (sortBy === "name") {
+      return sortOrder === "asc"
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+    // sort by modules count
+    return sortOrder === "asc"
+      ? a.modules.length - b.modules.length
+      : b.modules.length - a.modules.length;
+  });
 
   return (
     <>
@@ -67,6 +89,37 @@ const CoursesList = () => {
             <span>Novo Curso</span>
           </Button>
         </motion.div>
+
+        {/* Tags Section */}
+        {allTags.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-medium">Tags</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map(tag => (
+                <Badge 
+                  key={tag}
+                  variant={selectedTag === tag ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer py-1 px-3 text-sm", 
+                    selectedTag === tag ? "bg-primary" : "hover:bg-secondary"
+                  )}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>{tag}</span>
+                    {selectedTag === tag && (
+                      <X className="h-3.5 w-3.5 ml-1" />
+                    )}
+                  </div>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative w-full">

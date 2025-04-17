@@ -1,35 +1,33 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Layout } from "./components/layout/Layout";
-import Dashboard from "./pages/Dashboard";
-import CoursesList from "./pages/CoursesList";
+
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "./components/theme-provider";
+import { Toaster } from "./components/ui/toaster";
+import Layout from "./components/layout/Layout";
 import CourseDetail from "./pages/CourseDetail";
+import CoursesList from "./pages/CoursesList";
 import CreateCourse from "./pages/CreateCourse";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import DynamicsBank from "./pages/DynamicsBank";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
+function App() {
+  return (
+    <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
+      <Router>
         <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/courses" element={<CoursesList />} />
-            <Route path="/courses/:courseId" element={<CourseDetail />} />
-            <Route path="/courses/new" element={<CreateCourse />} />
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="courses" element={<CoursesList />} />
+            <Route path="courses/new" element={<CreateCourse />} />
+            <Route path="courses/:courseId" element={<CourseDetail />} />
+            <Route path="dynamics" element={<DynamicsBank />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
-          <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      </Router>
+      <Toaster />
+    </ThemeProvider>
+  );
+}
 
 export default App;
