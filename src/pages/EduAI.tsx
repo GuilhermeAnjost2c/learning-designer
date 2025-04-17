@@ -1,12 +1,14 @@
 
-import { useState } from "react";
-import { Bot, FileText, LayoutTemplate, User, Brain, RefreshCw, CheckCircle, Lightbulb, Target, Puzzle, Award, MessageSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bot, FileText, LayoutTemplate, User, Brain, RefreshCw, CheckCircle, Lightbulb, Target, Puzzle, Award, MessageSquare, SearchIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Tool = {
   id: string;
@@ -35,6 +37,8 @@ const EduAI = () => {
     isLoading: false,
     result: null,
   });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const { toast } = useToast();
   
   const tools: Tool[] = [
@@ -125,16 +129,21 @@ const EduAI = () => {
     },
   ];
 
-  // Agrupar ferramentas por categoria
-  const toolsByCategory = tools.reduce((acc: Record<string, Tool[]>, tool) => {
-    if (!acc[tool.category]) {
-      acc[tool.category] = [];
-    }
-    acc[tool.category].push(tool);
-    return acc;
-  }, {});
+  // Extrair todas as categorias únicas dos tools
+  const allCategories = ["all", ...Array.from(new Set(tools.map(tool => tool.category)))];
 
-  const categories = Object.keys(toolsByCategory).sort();
+  // Filtrar ferramentas com base na pesquisa e categoria
+  const filteredTools = tools.filter(tool => {
+    const matchesSearch = 
+      searchQuery === "" || 
+      tool.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tool.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      tool.category.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = categoryFilter === "all" || tool.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
+  });
 
   const selectTool = (tool: Tool) => {
     setDialogState({
@@ -294,7 +303,7 @@ Posso ajudar a aprofundar qualquer uma dessas dimensões ou explorar outros aspe
   return (
     <div className="container py-6 max-w-7xl mx-auto">
       <div className="flex flex-col space-y-6">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
               <Bot className="h-8 w-8" /> 
@@ -304,49 +313,87 @@ Posso ajudar a aprofundar qualquer uma dessas dimensões ou explorar outros aspe
               Ferramentas especializadas para design de experiências de aprendizagem
             </p>
           </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input 
+                placeholder="Pesquisar ferramenta..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+              {searchQuery && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6" 
+                  onClick={() => setSearchQuery("")}
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filtrar por categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                {allCategories.map(category => (
+                  <SelectItem key={category} value={category}>
+                    {category === "all" ? "Todas categorias" : category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </header>
 
-        {categories.map((category) => (
-          <div key={category} className="space-y-4">
-            <h2 className="text-xl font-semibold text-foreground">{category}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {toolsByCategory[category].map((tool) => (
-                <Card 
-                  key={tool.id} 
-                  className="overflow-hidden border bg-card hover:shadow-md transition-all duration-300 hover:translate-y-[-4px]"
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {filteredTools.map((tool) => (
+            <Card 
+              key={tool.id} 
+              className="overflow-hidden border bg-card hover:shadow-md transition-all duration-300 hover:translate-y-[-4px] flex flex-col"
+            >
+              <CardHeader className="pb-2 flex-1">
+                <div className="flex justify-between items-start">
+                  <div className="mb-1">{tool.icon}</div>
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    {tool.isNew && <Badge className="bg-rose-500">Novo</Badge>}
+                  </div>
+                </div>
+                <CardTitle className="mt-2 text-xl">{tool.name}</CardTitle>
+                <Badge variant="secondary" className="mt-1 mb-2">
+                  {tool.category}
+                </Badge>
+                <CardDescription className="line-clamp-2 h-10">
+                  {tool.description}
+                </CardDescription>
+              </CardHeader>
+              <CardFooter className="pt-2">
+                <Button 
+                  onClick={() => selectTool(tool)}
+                  className="w-full bg-primary hover:bg-primary/90"
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <div className="mb-1">{tool.icon}</div>
-                      <div className="flex gap-1 flex-wrap justify-end">
-                        {tool.isNew && <Badge className="bg-rose-500">Novo</Badge>}
-                        {tool.tags?.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                    <CardTitle className="mt-2 text-xl">{tool.name}</CardTitle>
-                    <CardDescription className="line-clamp-2 h-10">
-                      {tool.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardFooter>
-                    <Button 
-                      onClick={() => selectTool(tool)}
-                      className="w-full bg-primary hover:bg-primary/90"
-                    >
-                      Usar ferramenta
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
+                  Usar ferramenta
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+
+        {filteredTools.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Bot className="h-16 w-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-medium">Nenhuma ferramenta encontrada</h3>
+            <p className="text-muted-foreground mt-2">
+              Tente ajustar seus filtros ou termos de pesquisa.
+            </p>
           </div>
-        ))}
+        )}
 
         <Dialog open={dialogState.isOpen} onOpenChange={closeDialog}>
-          <DialogContent className="sm:max-w-xl">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-2 text-2xl">
                 {dialogState.tool?.icon && <span className="h-6 w-6">{dialogState.tool.icon}</span>} 
                 {dialogState.tool?.name}
@@ -354,39 +401,52 @@ Posso ajudar a aprofundar qualquer uma dessas dimensões ou explorar outros aspe
               <DialogDescription>{dialogState.tool?.description}</DialogDescription>
             </DialogHeader>
 
-            {!dialogState.result ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="prompt" className="text-sm font-medium">
-                    Detalhe sua solicitação:
-                  </label>
-                  <Textarea
-                    id="prompt"
-                    value={dialogState.inputValue}
-                    onChange={(e) => setDialogState(prev => ({ ...prev, inputValue: e.target.value }))}
-                    placeholder="Descreva em detalhes o que você precisa..."
-                    className="min-h-[120px]"
-                    disabled={dialogState.isLoading}
-                  />
+            <div className="flex-1 overflow-y-auto">
+              {!dialogState.result ? (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="prompt" className="text-sm font-medium">
+                      Detalhe sua solicitação:
+                    </label>
+                    <Textarea
+                      id="prompt"
+                      value={dialogState.inputValue}
+                      onChange={(e) => setDialogState(prev => ({ ...prev, inputValue: e.target.value }))}
+                      placeholder="Descreva em detalhes o que você precisa..."
+                      className="min-h-[120px]"
+                      disabled={dialogState.isLoading}
+                    />
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-muted p-4 rounded-md overflow-auto max-h-[50vh]">
+                    <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-line">
+                      {dialogState.result}
+                    </div>
+                  </div>
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={closeDialog} disabled={dialogState.isLoading}>
+              )}
+            </div>
+
+            <DialogFooter className="flex-shrink-0 pt-4 border-t mt-4">
+              {!dialogState.result ? (
+                <div className="flex w-full flex-col sm:flex-row justify-between gap-2">
+                  <Button type="button" variant="outline" onClick={closeDialog} className="sm:w-auto w-full">
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={dialogState.isLoading || !dialogState.inputValue.trim()}>
+                  <Button 
+                    type="button" 
+                    onClick={handleSubmit} 
+                    disabled={dialogState.isLoading || !dialogState.inputValue?.trim()} 
+                    className="sm:w-auto w-full"
+                  >
                     {dialogState.isLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
                     {dialogState.isLoading ? "Gerando..." : "Gerar conteúdo"}
                   </Button>
-                </DialogFooter>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-muted p-4 rounded-md overflow-auto max-h-[60vh]">
-                  <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-line">
-                    {dialogState.result}
-                  </div>
                 </div>
-                <DialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between sm:space-x-2">
+              ) : (
+                <div className="flex w-full flex-col sm:flex-row justify-between gap-2">
                   <Button 
                     type="button" 
                     variant="outline" 
@@ -395,30 +455,32 @@ Posso ajudar a aprofundar qualquer uma dessas dimensões ou explorar outros aspe
                   >
                     Fechar
                   </Button>
-                  <Button 
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(dialogState.result || "");
-                      toast({
-                        title: "Copiado para a área de transferência",
-                        description: "O conteúdo foi copiado com sucesso.",
-                      });
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Copiar conteúdo
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setDialogState(prev => ({ ...prev, result: null }))}
-                    className="w-full sm:w-auto"
-                  >
-                    Nova consulta
-                  </Button>
-                </DialogFooter>
-              </div>
-            )}
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setDialogState(prev => ({ ...prev, result: null }))}
+                      className="w-full sm:w-auto flex-1"
+                    >
+                      Nova consulta
+                    </Button>
+                    <Button 
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(dialogState.result || "");
+                        toast({
+                          title: "Copiado para a área de transferência",
+                          description: "O conteúdo foi copiado com sucesso.",
+                        });
+                      }}
+                      className="w-full sm:w-auto flex-1"
+                    >
+                      Copiar conteúdo
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
