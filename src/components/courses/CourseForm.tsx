@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,7 @@ const formSchema = z.object({
     .min(1, "A duração deve ser pelo menos 1 minuto")
     .max(10000, "A duração deve ser no máximo 10000 minutos"),
   thumbnail: z.string().optional(),
+  tags: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -55,6 +55,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       targetAudience: course?.targetAudience || "",
       estimatedDuration: course?.estimatedDuration || 60,
       thumbnail: course?.thumbnail || "",
+      tags: course?.tags?.join(", ") || "",
     },
   });
 
@@ -62,9 +63,14 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
     setIsSubmitting(true);
     
     try {
+      const tagsArray = values.tags 
+        ? values.tags.split(",").map(tag => tag.trim()).filter(tag => tag !== "") 
+        : [];
+      
       if (isEditing && course) {
         updateCourse(course.id, {
           ...values,
+          tags: tagsArray,
           updatedAt: new Date(),
         });
         toast.success("Curso atualizado com sucesso!");
@@ -78,6 +84,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           estimatedDuration: values.estimatedDuration,
           thumbnail: values.thumbnail,
           modules: [],
+          tags: tagsArray,
         });
         toast.success("Curso criado com sucesso!");
         navigate("/courses");
@@ -225,6 +232,24 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="tags"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tags (separadas por vírgula)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="design, inovação, gestão, etc" 
+                        {...field} 
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </form>
           </Form>
         </div>

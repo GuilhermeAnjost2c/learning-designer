@@ -1,4 +1,3 @@
-
 import { Course, ActivityType } from "@/store/courseStore";
 
 // Gera um ID aleatório
@@ -20,6 +19,7 @@ export const designThinkingCourse: Course = {
   targetAudience: "Profissionais de UX/UI, Gestores de Produto, Empreendedores e qualquer pessoa interessada em metodologias de inovação",
   estimatedDuration: 480,
   thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2670&auto=format&fit=crop",
+  tags: ["design", "inovação", "metodologias"],
   modules: [
     {
       id: generateId(),
@@ -136,6 +136,7 @@ export const agileCourse: Course = {
   targetAudience: "Gerentes de Projeto, Product Owners, Scrum Masters, membros de equipe de desenvolvimento e interessados em metodologias ágeis",
   estimatedDuration: 420,
   thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=2670&auto=format&fit=crop",
+  tags: ["agile", "scrum", "gestão de projetos"],
   modules: [
     {
       id: generateId(),
