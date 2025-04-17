@@ -1,5 +1,5 @@
 
-import { Home, BookOpen, Database } from "lucide-react";
+import { Home, BookOpen, Database, Baby } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -13,6 +13,7 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
     { name: "Dashboard", icon: Home, path: "/" },
     { name: "Cursos", icon: BookOpen, path: "/courses" },
     { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
+    { name: "Edu", icon: Baby, path: "/edu" },
   ];
 
   return (
