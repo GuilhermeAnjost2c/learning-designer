@@ -1,5 +1,5 @@
 
-import { Home, BookOpen, Calendar, Users, BarChart } from "lucide-react";
+import { Home, BookOpen, Folder } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -12,9 +12,6 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
   const navItems = [
     { name: "Dashboard", icon: Home, path: "/" },
     { name: "Cursos", icon: BookOpen, path: "/courses" },
-    { name: "Calendário", icon: Calendar, path: "/calendar" },
-    { name: "Participantes", icon: Users, path: "/participants" },
-    { name: "Relatórios", icon: BarChart, path: "/reports" },
   ];
 
   return (
@@ -27,7 +24,7 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
     >
       <div className="flex flex-col h-full">
         <div className="flex justify-center items-center h-16 border-b">
-          <h1 className="text-xl font-bold text-primary">Skill Path</h1>
+          <h1 className="text-xl font-bold text-primary">Learning Designer</h1>
         </div>
         
         <div className="flex-1 py-4 overflow-y-auto">
@@ -55,7 +52,7 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
         
         <div className="p-4 border-t">
           <div className="text-xs text-muted-foreground text-center">
-            © 2025 Skill Path Weaver
+            © 2025 Learning Designer
           </div>
         </div>
       </div>

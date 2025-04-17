@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -30,7 +31,7 @@ export interface Course {
   modules: Module[];
   createdAt: Date;
   updatedAt: Date;
-  experienceSections: ExperienceSection[];
+  tags: string[];
 }
 
 interface CourseStore {
@@ -46,7 +47,8 @@ interface CourseStore {
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
   reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
-  updateExperienceSection: (courseId: string, sectionId: string, data: Partial<ExperienceSection>) => void;
+  addTagToCourse: (courseId: string, tag: string) => void;
+  removeTagFromCourse: (courseId: string, tag: string) => void;
 }
 
 // Generate a unique ID
@@ -65,6 +67,7 @@ export const useCourseStore = create<CourseStore>()(
           modules: [],
           createdAt: now,
           updatedAt: now,
+          tags: courseData.tags || [],
         };
         return { courses: [...state.courses, newCourse] };
       }),
@@ -227,16 +230,26 @@ export const useCourseStore = create<CourseStore>()(
         };
       }),
       
-      updateExperienceSection: (courseId, sectionId, data) => set((state) => ({
+      addTagToCourse: (courseId, tag) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
-                experienceSections: course.experienceSections?.map((section) =>
-                  section.id === sectionId
-                    ? { ...section, ...data }
-                    : section
-                ) || [],
+                tags: course.tags ? 
+                  (course.tags.includes(tag) ? course.tags : [...course.tags, tag]) 
+                  : [tag],
+                updatedAt: new Date(),
+              }
+            : course
+        ),
+      })),
+      
+      removeTagFromCourse: (courseId, tag) => set((state) => ({
+        courses: state.courses.map((course) =>
+          course.id === courseId
+            ? {
+                ...course,
+                tags: course.tags ? course.tags.filter(t => t !== tag) : [],
                 updatedAt: new Date(),
               }
             : course

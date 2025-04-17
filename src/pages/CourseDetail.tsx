@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCourseStore, Course } from "@/store/courseStore";
@@ -14,7 +15,10 @@ import {
   Calendar, 
   Users, 
   Target,
-  GraduationCap
+  GraduationCap,
+  Download,
+  Tag,
+  X
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,17 +35,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ExperienceCanvas } from "@/components/courses/ExperienceCanvas";
+import { Badge } from "@/components/ui/badge";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { courses, deleteCourse } = useCourseStore();
+  const { courses, deleteCourse, addTagToCourse, removeTagFromCourse } = useCourseStore();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"designer" | "presentation" | "experience">("designer");
+  const [activeTab, setActiveTab] = useState<"designer" | "export">("designer");
+  const [newTag, setNewTag] = useState("");
 
   useEffect(() => {
     if (courseId) {
@@ -65,6 +70,25 @@ const CourseDetail = () => {
 
   const handleBack = () => {
     navigate("/courses");
+  };
+
+  const handleExport = () => {
+    toast.success("Funcionalidade de exportação será implementada em breve");
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && course) {
+      addTagToCourse(course.id, newTag.trim());
+      setNewTag("");
+      toast.success(`Tag "${newTag.trim()}" adicionada com sucesso`);
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    if (course) {
+      removeTagFromCourse(course.id, tag);
+      toast.success(`Tag "${tag}" removida com sucesso`);
+    }
   };
 
   if (!course) {
@@ -143,6 +167,45 @@ const CourseDetail = () => {
                 <Trash className="h-4 w-4" />
                 <span>Excluir</span>
               </Button>
+            </div>
+          </div>
+
+          {/* Tags Section */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-4 w-4 text-primary" />
+              <h3 className="text-md font-medium">Tags</h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {course.tags && course.tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="gap-1 py-1">
+                  {tag}
+                  <button 
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Nova tag"
+                  className="h-8 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleAddTag}
+                  disabled={!newTag.trim()}
+                >
+                  Adicionar
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -268,13 +331,15 @@ const CourseDetail = () => {
             <h2 className="text-2xl font-semibold">Estrutura do Curso</h2>
             <Tabs 
               value={activeTab} 
-              onValueChange={(value) => setActiveTab(value as "designer" | "presentation" | "experience")}
+              onValueChange={(value) => setActiveTab(value as "designer" | "export")}
               className="w-auto"
             >
               <TabsList>
                 <TabsTrigger value="designer">Designer</TabsTrigger>
-                <TabsTrigger value="presentation">Apresentação</TabsTrigger>
-                <TabsTrigger value="experience">Experiência</TabsTrigger>
+                <TabsTrigger value="export" className="flex items-center gap-1">
+                  <Download className="h-4 w-4" />
+                  <span>Exportar</span>
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -319,9 +384,15 @@ const CourseDetail = () => {
                 </>
               )}
             </TabsContent>
-            <TabsContent value="presentation" className="mt-0">
+            <TabsContent value="export" className="mt-0">
               <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-2xl font-bold mb-6 text-center">{course.name}</h2>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-center">{course.name}</h2>
+                  <Button onClick={handleExport} className="gap-2">
+                    <Download className="h-4 w-4" />
+                    <span>Exportar PDF</span>
+                  </Button>
+                </div>
                 
                 <div className="mb-8">
                   <h3 className="text-lg font-semibold mb-2">Descrição</h3>
@@ -376,9 +447,6 @@ const CourseDetail = () => {
                   <p>Atualizado em {format(new Date(course.updatedAt), "dd/MM/yyyy", { locale: ptBR })}</p>
                 </div>
               </div>
-            </TabsContent>
-            <TabsContent value="experience" className="mt-0">
-              {course && <ExperienceCanvas courseId={course.id} />}
             </TabsContent>
           </Tabs>
         </motion.div>
