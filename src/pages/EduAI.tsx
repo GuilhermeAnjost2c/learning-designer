@@ -1,20 +1,12 @@
 
-import { useState, useRef, useEffect } from "react";
-import { Bot, Send, RefreshCw, Brain, FileText, LayoutTemplate, User, Save, Trash } from "lucide-react";
+import { useState } from "react";
+import { Bot, FileText, LayoutTemplate, User, Brain, RefreshCw, CheckCircle, Lightbulb, Target, Puzzle, Award, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/components/ui/use-toast";
-
-type Message = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-};
 
 type Tool = {
   id: string;
@@ -22,21 +14,27 @@ type Tool = {
   description: string;
   icon: React.ReactNode;
   prompt: string;
+  category: string;
+  tags?: string[];
+  isNew?: boolean;
+};
+
+type DialogState = {
+  isOpen: boolean;
+  tool: Tool | null;
+  inputValue: string;
+  isLoading: boolean;
+  result: string | null;
 };
 
 const EduAI = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Olá! Sou o Edu, seu consultor de Design de Experiência de Aprendizagem. Como posso ajudar você hoje?",
-      timestamp: new Date(),
-    },
-  ]);
-  const [inputValue, setInputValue] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
-  const messageEndRef = useRef<HTMLDivElement>(null);
+  const [dialogState, setDialogState] = useState<DialogState>({
+    isOpen: false,
+    tool: null,
+    inputValue: "",
+    isLoading: false,
+    result: null,
+  });
   const { toast } = useToast();
   
   const tools: Tool[] = [
@@ -44,82 +42,149 @@ const EduAI = () => {
       id: "content-review",
       name: "Revisão de Conteúdo",
       description: "Analisa e melhora o conteúdo existente para maior eficácia de aprendizagem",
-      icon: <FileText className="h-5 w-5" />,
-      prompt: "Por favor, revise o seguinte conteúdo de aprendizagem e sugira melhorias:\n\n"
+      icon: <FileText className="h-14 w-14 text-blue-500" />,
+      prompt: "Revisão de conteúdo educacional",
+      category: "Conteúdo",
+      isNew: true,
     },
     {
       id: "training-matrix",
       name: "Matriz de Treinamento",
       description: "Cria uma matriz estruturada para programas de treinamento completos",
-      icon: <LayoutTemplate className="h-5 w-5" />,
-      prompt: "Preciso de uma matriz de treinamento para o seguinte tema ou habilidade:\n\n"
+      icon: <LayoutTemplate className="h-14 w-14 text-indigo-500" />,
+      prompt: "Desenvolvimento de matriz de treinamento",
+      category: "Planejamento",
     },
     {
       id: "learner-profile",
       name: "Perfil do Aprendiz",
       description: "Ajuda a definir personas de aprendizes para personalizar a experiência",
-      icon: <User className="h-5 w-5" />,
-      prompt: "Ajude-me a criar um perfil de aprendiz para o seguinte contexto:\n\n"
+      icon: <User className="h-14 w-14 text-purple-500" />,
+      prompt: "Criação de perfil de aprendiz",
+      category: "Análise",
+      tags: ["Personalização", "UX"],
     },
     {
       id: "learning-design",
       name: "Design Instrucional",
       description: "Assistência no design de experiências de aprendizagem eficazes",
-      icon: <Brain className="h-5 w-5" />,
-      prompt: "Preciso criar um design instrucional para o seguinte objetivo de aprendizagem:\n\n"
+      icon: <Brain className="h-14 w-14 text-rose-500" />,
+      prompt: "Design instrucional para objetivo de aprendizagem",
+      category: "Design",
+    },
+    {
+      id: "learning-objectives",
+      name: "Objetivos de Aprendizagem",
+      description: "Desenvolvimento de objetivos claros e mensuráveis para seu treinamento",
+      icon: <Target className="h-14 w-14 text-green-500" />,
+      prompt: "Elaboração de objetivos de aprendizagem",
+      category: "Planejamento",
+      isNew: true,
+    },
+    {
+      id: "engagement-strategies",
+      name: "Estratégias de Engajamento",
+      description: "Técnicas para aumentar o envolvimento e a participação dos aprendizes",
+      icon: <Puzzle className="h-14 w-14 text-amber-500" />,
+      prompt: "Estratégias de engajamento para treinamento",
+      category: "Engajamento",
+    },
+    {
+      id: "learning-evaluation",
+      name: "Avaliação de Aprendizagem",
+      description: "Métodos para avaliar a eficácia do seu programa de treinamento",
+      icon: <CheckCircle className="h-14 w-14 text-cyan-500" />,
+      prompt: "Métodos de avaliação de aprendizagem",
+      category: "Avaliação",
+    },
+    {
+      id: "innovation-insights",
+      name: "Insights de Inovação",
+      description: "Tendências e inovações em educação corporativa para inspirar seu projeto",
+      icon: <Lightbulb className="h-14 w-14 text-yellow-500" />,
+      prompt: "Tendências de inovação em educação corporativa",
+      category: "Inovação",
+      tags: ["Tendências", "Futuro"],
+      isNew: true,
+    },
+    {
+      id: "certification-design",
+      name: "Design de Certificação",
+      description: "Estruturação de programas de certificação interna ou externa",
+      icon: <Award className="h-14 w-14 text-emerald-500" />,
+      prompt: "Criação de programa de certificação",
+      category: "Certificação",
+    },
+    {
+      id: "training-script",
+      name: "Roteiro de Treinamento",
+      description: "Desenvolvimento de roteiros detalhados para sessões de treinamento",
+      icon: <MessageSquare className="h-14 w-14 text-pink-500" />,
+      prompt: "Elaboração de roteiro de treinamento",
+      category: "Conteúdo",
     },
   ];
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  // Agrupar ferramentas por categoria
+  const toolsByCategory = tools.reduce((acc: Record<string, Tool[]>, tool) => {
+    if (!acc[tool.category]) {
+      acc[tool.category] = [];
+    }
+    acc[tool.category].push(tool);
+    return acc;
+  }, {});
 
-  const scrollToBottom = () => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const categories = Object.keys(toolsByCategory).sort();
+
+  const selectTool = (tool: Tool) => {
+    setDialogState({
+      isOpen: true,
+      tool,
+      inputValue: "",
+      isLoading: false,
+      result: null,
+    });
+  };
+
+  const closeDialog = () => {
+    setDialogState({
+      isOpen: false,
+      tool: null,
+      inputValue: "",
+      isLoading: false,
+      result: null,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!inputValue.trim()) return;
+    if (!dialogState.inputValue.trim() || !dialogState.tool) return;
     
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: inputValue,
-      timestamp: new Date(),
-    };
-    
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue("");
-    setIsLoading(true);
+    setDialogState(prev => ({ ...prev, isLoading: true }));
     
     try {
       const response = await askDeepseek(
-        selectedTool 
-          ? `${selectedTool.prompt}${inputValue}`
-          : inputValue
+        `${dialogState.tool.prompt}: ${dialogState.inputValue}`
       );
       
-      setMessages((prev) => [
+      setDialogState(prev => ({
         ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: response,
-          timestamp: new Date(),
-        },
-      ]);
+        isLoading: false,
+        result: response,
+      }));
       
-      setSelectedTool(null);
+      toast({
+        title: "Resposta gerada com sucesso",
+        description: "Seu conteúdo foi gerado pela IA.",
+      });
     } catch (error) {
       toast({
         title: "Erro",
         description: "Não foi possível obter uma resposta. Tente novamente.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      setDialogState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -132,9 +197,7 @@ const EduAI = () => {
         
         // Simulate different responses based on the message content
         if (message.includes("matriz de treinamento")) {
-          resolve(`Aqui está uma matriz de treinamento sugerida para seu tema:
-
-## Matriz de Treinamento
+          resolve(`## Matriz de Treinamento
 
 ### Nível 1: Fundamentos
 - **Módulo 1.1**: Conceitos Básicos (2 horas)
@@ -201,7 +264,7 @@ Estou à disposição para trabalhar em revisões mais detalhadas de seções es
 - Incluir elementos de networking com outros gestores
 - Oferecer recursos complementares para aprofundamento opcional`);
         } else {
-          resolve(`Obrigado por sua pergunta sobre design de experiência de aprendizagem.
+          resolve(`Obrigado por sua solicitação sobre design de experiência de aprendizagem.
 
 Para criar experiências de aprendizagem verdadeiramente eficazes, recomendo considerar estas dimensões-chave:
 
@@ -228,182 +291,137 @@ Posso ajudar a aprofundar qualquer uma dessas dimensões ou explorar outros aspe
     });
   };
 
-  const resetConversation = () => {
-    setMessages([
-      {
-        id: "welcome",
-        role: "assistant",
-        content: "Olá! Sou o Edu, seu consultor de Design de Experiência de Aprendizagem. Como posso ajudar você hoje?",
-        timestamp: new Date(),
-      },
-    ]);
-    toast({
-      title: "Conversa reiniciada",
-      description: "Todas as mensagens anteriores foram removidas.",
-    });
-  };
-
-  const selectTool = (tool: Tool) => {
-    setSelectedTool(tool);
-    setInputValue(tool.prompt);
-    toast({
-      title: `Ferramenta: ${tool.name}`,
-      description: "Adicione suas informações específicas à solicitação.",
-    });
-  };
-
-  const saveConversation = () => {
-    const conversationData = JSON.stringify(messages);
-    const blob = new Blob([conversationData], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `edu-conversation-${new Date().toISOString().split("T")[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Conversa salva",
-      description: "O arquivo foi baixado para seu computador.",
-    });
-  };
-
   return (
-    <div className="container py-4 max-w-6xl mx-auto">
-      <Tabs defaultValue="chat" className="w-full">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold flex items-center gap-2 text-primary">
-            <Bot className="h-6 w-6" /> Edu - Consultor de Aprendizagem
-          </h1>
-          <TabsList>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="tools">Ferramentas</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="chat" className="space-y-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex gap-4 h-[calc(100vh-300px)]">
-                <div className="flex-1 flex flex-col">
-                  <ScrollArea className="flex-1 pr-4 h-full">
-                    <div className="space-y-4">
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={`flex ${
-                            message.role === "user" ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          <div
-                            className={`max-w-[80%] p-4 rounded-lg ${
-                              message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            }`}
-                          >
-                            <div className="whitespace-pre-line">{message.content}</div>
-                            <div
-                              className={`text-xs mt-2 ${
-                                message.role === "user"
-                                  ? "text-primary-foreground/70"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {message.timestamp.toLocaleTimeString()}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={messageEndRef} />
-                    </div>
-                  </ScrollArea>
-                  
-                  <form onSubmit={handleSubmit} className="mt-4 flex gap-2">
-                    <Textarea
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      placeholder="Digite sua pergunta ou desafio de aprendizagem..."
-                      className="flex-1 min-h-[80px]"
-                      disabled={isLoading}
-                    />
-                    <div className="flex flex-col gap-2">
-                      <Button type="submit" disabled={isLoading || !inputValue.trim()}>
-                        {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="icon"
-                        title="Reiniciar conversa"
-                        onClick={resetConversation}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="icon"
-                        title="Salvar conversa"
-                        onClick={saveConversation}
-                      >
-                        <Save className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </form>
-                </div>
-                
-                {selectedTool && (
-                  <div className="w-64 p-4 border rounded-lg">
-                    <h3 className="font-semibold flex items-center gap-2 mb-2">
-                      {selectedTool.icon}
-                      {selectedTool.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {selectedTool.description}
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => setSelectedTool(null)}
-                    >
-                      Limpar ferramenta
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="tools">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tools.map((tool) => (
-              <Card key={tool.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {tool.icon}
-                    {tool.name}
-                  </CardTitle>
-                  <CardDescription>{tool.description}</CardDescription>
-                </CardHeader>
-                <CardFooter>
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
-                    onClick={() => selectTool(tool)}
-                  >
-                    Usar ferramenta
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+    <div className="container py-6 max-w-7xl mx-auto">
+      <div className="flex flex-col space-y-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-primary flex items-center gap-3">
+              <Bot className="h-8 w-8" /> 
+              Edu - Consultor de Aprendizagem
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Ferramentas especializadas para design de experiências de aprendizagem
+            </p>
           </div>
-        </TabsContent>
-      </Tabs>
+        </header>
+
+        {categories.map((category) => (
+          <div key={category} className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">{category}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {toolsByCategory[category].map((tool) => (
+                <Card 
+                  key={tool.id} 
+                  className="overflow-hidden border bg-card hover:shadow-md transition-all duration-300 hover:translate-y-[-4px]"
+                >
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="mb-1">{tool.icon}</div>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {tool.isNew && <Badge className="bg-rose-500">Novo</Badge>}
+                        {tool.tags?.map(tag => (
+                          <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <CardTitle className="mt-2 text-xl">{tool.name}</CardTitle>
+                    <CardDescription className="line-clamp-2 h-10">
+                      {tool.description}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardFooter>
+                    <Button 
+                      onClick={() => selectTool(tool)}
+                      className="w-full bg-primary hover:bg-primary/90"
+                    >
+                      Usar ferramenta
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <Dialog open={dialogState.isOpen} onOpenChange={closeDialog}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-2xl">
+                {dialogState.tool?.icon && <span className="h-6 w-6">{dialogState.tool.icon}</span>} 
+                {dialogState.tool?.name}
+              </DialogTitle>
+              <DialogDescription>{dialogState.tool?.description}</DialogDescription>
+            </DialogHeader>
+
+            {!dialogState.result ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="prompt" className="text-sm font-medium">
+                    Detalhe sua solicitação:
+                  </label>
+                  <Textarea
+                    id="prompt"
+                    value={dialogState.inputValue}
+                    onChange={(e) => setDialogState(prev => ({ ...prev, inputValue: e.target.value }))}
+                    placeholder="Descreva em detalhes o que você precisa..."
+                    className="min-h-[120px]"
+                    disabled={dialogState.isLoading}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={closeDialog} disabled={dialogState.isLoading}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={dialogState.isLoading || !dialogState.inputValue.trim()}>
+                    {dialogState.isLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {dialogState.isLoading ? "Gerando..." : "Gerar conteúdo"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-md overflow-auto max-h-[60vh]">
+                  <div className="prose prose-sm max-w-none dark:prose-invert whitespace-pre-line">
+                    {dialogState.result}
+                  </div>
+                </div>
+                <DialogFooter className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:justify-between sm:space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={closeDialog}
+                    className="w-full sm:w-auto"
+                  >
+                    Fechar
+                  </Button>
+                  <Button 
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(dialogState.result || "");
+                      toast({
+                        title: "Copiado para a área de transferência",
+                        description: "O conteúdo foi copiado com sucesso.",
+                      });
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    Copiar conteúdo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDialogState(prev => ({ ...prev, result: null }))}
+                    className="w-full sm:w-auto"
+                  >
+                    Nova consulta
+                  </Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
