@@ -2,7 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./components/theme-provider";
 import { Toaster } from "./components/ui/toaster";
-import Layout from "./components/layout/Layout";
+import { Layout } from "./components/layout/Layout";
 import CourseDetail from "./pages/CourseDetail";
 import CoursesList from "./pages/CoursesList";
 import CreateCourse from "./pages/CreateCourse";
