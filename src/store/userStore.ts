@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useCourseStore } from './courseStore';
 
 export type UserRole = 'admin' | 'user';
 
@@ -34,7 +35,7 @@ interface UserStore {
   users: User[];
   departments: string[];
   currentUser: CurrentUser;
-  addUser: (user: Omit<User, 'id' | 'createdAt' | 'invitedCourses'>) => void;
+  addUser: (user: Omit<User, 'id' | 'createdAt' | 'invitedCourses' | 'lessonsProgress'>) => void;
   updateUser: (id: string, userData: Partial<User>) => void;
   deleteUser: (id: string) => void;
   addDepartment: (department: string) => void;
@@ -217,7 +218,7 @@ export const useUserStore = create<UserStore>()(
       },
       
       getStatistics: () => {
-        const { users, courses } = get();
+        const { users } = get();
         const currentDate = new Date();
         const thirtyDaysAgo = new Date(currentDate.setDate(currentDate.getDate() - 30));
         
@@ -231,9 +232,12 @@ export const useUserStore = create<UserStore>()(
           });
         });
         
+        // Import the course store to get the courses count
+        const totalCourses = useCourseStore.getState().courses.length;
+        
         return {
           totalUsers: users.length,
-          totalCourses: courses?.length || 0,
+          totalCourses,
           completedLessons,
           inProgressLessons,
         };

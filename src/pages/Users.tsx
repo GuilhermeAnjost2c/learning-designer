@@ -135,6 +135,7 @@ const Users = () => {
       email: data.email,
       department: data.department,
       role: data.role,
+      lessonsProgress: [], // Add the missing lessonsProgress property
     });
     
     toast({
