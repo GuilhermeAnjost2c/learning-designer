@@ -62,7 +62,7 @@ const Users = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   
   const { 
     users, 
@@ -86,7 +86,7 @@ const Users = () => {
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase());
       
-    const matchesDepartment = departmentFilter === "" || 
+    const matchesDepartment = departmentFilter === "all" || 
       user.department === departmentFilter;
       
     return matchesSearch && matchesDepartment;
@@ -355,7 +355,7 @@ const Users = () => {
             <SelectValue placeholder="All Departments" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Departments</SelectItem>
+            <SelectItem value="all">All Departments</SelectItem>
             {departments.map(dept => (
               <SelectItem key={dept} value={dept}>
                 {dept}

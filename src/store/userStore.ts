@@ -167,6 +167,12 @@ export const useUserStore = create<UserStore>()(
         const user = users.find(u => u.id === currentUser.id);
         if (!user) return false;
         
+        // If the filter is empty, show all courses the user has access to
+        if (!courseDepartment) {
+          return user.department === courseDepartment || 
+                 user.invitedCourses.includes(courseId);
+        }
+        
         return user.department === courseDepartment || 
                user.invitedCourses.includes(courseId);
       },

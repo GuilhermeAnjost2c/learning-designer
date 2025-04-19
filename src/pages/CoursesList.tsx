@@ -17,8 +17,8 @@ import {
 
 const CoursesList = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [tagFilter, setTagFilter] = useState<string>("");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const { courses } = useCourseStore();
   const { currentUser, departments, hasAccessToCourse } = useUserStore();
 
@@ -30,7 +30,7 @@ const CoursesList = () => {
   // Filter courses based on search term, tag, and user access
   const filteredCourses = courses.filter((course) => {
     // Check if user has access to the course (department match or invited)
-    const hasAccess = hasAccessToCourse(course.id, departmentFilter);
+    const hasAccess = hasAccessToCourse(course.id, departmentFilter === "all" ? "" : departmentFilter);
     
     if (!currentUser.isAuthenticated || !hasAccess) {
       return false;
@@ -44,7 +44,7 @@ const CoursesList = () => {
     
     // Check tag filter
     const matchesTag =
-      tagFilter === "" || course.tags.includes(tagFilter);
+      tagFilter === "all" || course.tags.includes(tagFilter);
     
     return matchesSearch && matchesTag;
   });
@@ -79,7 +79,7 @@ const CoursesList = () => {
             <SelectValue placeholder="Filtrar por tag" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todas as tags</SelectItem>
+            <SelectItem value="all">Todas as tags</SelectItem>
             {allTags.map((tag) => (
               <SelectItem key={tag} value={tag}>
                 {tag}
@@ -97,7 +97,7 @@ const CoursesList = () => {
             <SelectValue placeholder="Filtrar por departamento" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os departamentos</SelectItem>
+            <SelectItem value="all">Todos os departamentos</SelectItem>
             {departments.map((dept) => (
               <SelectItem key={dept} value={dept}>
                 {dept}
@@ -124,7 +124,7 @@ const CoursesList = () => {
         <div className="text-center py-10">
           <h2 className="text-xl font-medium mb-2">No courses found</h2>
           <p className="text-muted-foreground">
-            {searchTerm || tagFilter
+            {searchTerm || tagFilter !== "all"
               ? "Try adjusting your search or filters."
               : "There are no courses available yet."}
           </p>
