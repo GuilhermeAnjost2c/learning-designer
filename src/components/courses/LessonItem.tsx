@@ -16,10 +16,17 @@ interface LessonItemProps {
 
 export const LessonItem = ({ lesson, index, readOnly }: LessonItemProps) => {
   const { currentUser, updateLessonStatus, getLessonStatus } = useUserStore();
-  const status = getLessonStatus(lesson.id);
+  
+  // Safely get the lesson status
+  let status: LessonStatus = 'to-do';
+  try {
+    status = lesson && lesson.id ? getLessonStatus(lesson.id) : 'to-do';
+  } catch (error) {
+    console.error("Error getting lesson status:", error);
+  }
 
   const handleStatusClick = () => {
-    if (!currentUser.id || readOnly) return;
+    if (!currentUser || !currentUser.id || readOnly) return;
 
     const nextStatus: Record<LessonStatus, LessonStatus> = {
       'to-do': 'in-progress',
@@ -27,7 +34,11 @@ export const LessonItem = ({ lesson, index, readOnly }: LessonItemProps) => {
       'completed': 'to-do',
     };
 
-    updateLessonStatus(currentUser.id, lesson.id, nextStatus[status]);
+    try {
+      updateLessonStatus(currentUser.id, lesson.id, nextStatus[status]);
+    } catch (error) {
+      console.error("Error updating lesson status:", error);
+    }
   };
 
   return (

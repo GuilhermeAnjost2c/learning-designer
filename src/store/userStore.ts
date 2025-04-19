@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useCourseStore } from './courseStore';
@@ -207,14 +208,22 @@ export const useUserStore = create<UserStore>()(
       })),
       
       getLessonStatus: (lessonId) => {
-        const { users, currentUser } = get();
-        if (!currentUser.id) return 'to-do';
-        
-        const user = users.find(u => u.id === currentUser.id);
-        if (!user) return 'to-do';
-        
-        const progress = user.lessonsProgress.find(p => p.lessonId === lessonId);
-        return progress?.status || 'to-do';
+        try {
+          const { users, currentUser } = get();
+          if (!currentUser.id) return 'to-do';
+          if (!users || !Array.isArray(users)) return 'to-do';
+          
+          const user = users.find(u => u.id === currentUser.id);
+          if (!user) return 'to-do';
+          
+          if (!user.lessonsProgress || !Array.isArray(user.lessonsProgress)) return 'to-do';
+          
+          const progress = user.lessonsProgress.find(p => p.lessonId === lessonId);
+          return progress?.status || 'to-do';
+        } catch (error) {
+          console.error("Error in getLessonStatus:", error);
+          return 'to-do';
+        }
       },
       
       getStatistics: () => {
@@ -225,18 +234,22 @@ export const useUserStore = create<UserStore>()(
         let completedLessons = 0;
         let inProgressLessons = 0;
         
-        users.forEach(user => {
-          user.lessonsProgress.forEach(progress => {
-            if (progress.status === 'completed') completedLessons++;
-            if (progress.status === 'in-progress') inProgressLessons++;
+        if (users && Array.isArray(users)) {
+          users.forEach(user => {
+            if (user.lessonsProgress && Array.isArray(user.lessonsProgress)) {
+              user.lessonsProgress.forEach(progress => {
+                if (progress.status === 'completed') completedLessons++;
+                if (progress.status === 'in-progress') inProgressLessons++;
+              });
+            }
           });
-        });
+        }
         
         // Import the course store to get the courses count
         const totalCourses = useCourseStore.getState().courses.length;
         
         return {
-          totalUsers: users.length,
+          totalUsers: users?.length || 0,
           totalCourses,
           completedLessons,
           inProgressLessons,
