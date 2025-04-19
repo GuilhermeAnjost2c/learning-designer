@@ -37,11 +37,9 @@ interface ModuleItemProps {
   courseId: string;
   module: Module;
   index: number;
-  readOnly?: boolean;
-  onDelete?: () => void;
 }
 
-export const ModuleItem = ({ courseId, module, index, readOnly, onDelete }: ModuleItemProps) => {
+export const ModuleItem = ({ courseId, module, index }: ModuleItemProps) => {
   const { deleteModule } = useCourseStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
@@ -59,9 +57,6 @@ export const ModuleItem = ({ courseId, module, index, readOnly, onDelete }: Modu
     deleteModule(courseId, module.id);
     toast.success("Módulo excluído com sucesso");
     setDeleteDialogOpen(false);
-    if (onDelete) {
-      onDelete();
-    }
   };
 
   return (

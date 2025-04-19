@@ -1,29 +1,20 @@
 
-import { Home, BookOpen, Database, UserPlus, Users, Bot } from "lucide-react";
+import { Home, BookOpen, Database, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
-import { useUserStore } from "@/store/userStore";
 
 interface SidebarProps {
   isOpen: boolean;
 }
 
 export const Sidebar = ({ isOpen }: SidebarProps) => {
-  const currentUser = useUserStore(state => state.currentUser);
-  const isAdmin = currentUser.role === 'admin';
-
   const navItems = [
     { name: "Dashboard", icon: Home, path: "/" },
     { name: "Cursos", icon: BookOpen, path: "/courses" },
     { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
     { name: "Edu", icon: Bot, path: "/edu" },
   ];
-
-  // Add Users link for admins
-  if (isAdmin) {
-    navItems.push({ name: "Usuários", icon: Users, path: "/users" });
-  }
 
   return (
     <aside
@@ -62,28 +53,9 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
         </div>
         
         <div className="p-4 border-t">
-          {currentUser.isAuthenticated ? (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-center">
-                {currentUser.name}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {currentUser.department}
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full" 
-                onClick={() => useUserStore.getState().logout()}
-              >
-                Logout
-              </Button>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground text-center">
-              © 2025 Learning Designer
-            </div>
-          )}
+          <div className="text-xs text-muted-foreground text-center">
+            © 2025 Learning Designer
+          </div>
         </div>
       </div>
     </aside>
