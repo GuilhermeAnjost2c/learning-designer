@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCourseStore, Module, Lesson } from "@/store/courseStore";
@@ -45,7 +44,6 @@ const CourseDetail = () => {
 
   const course = courses.find((c) => c.id === courseId);
 
-  // If course not found or no access
   useEffect(() => {
     if (courseId && course) {
       const hasAccess = hasAccessToCourse(course.id, course.targetAudience);
@@ -114,7 +112,6 @@ const CourseDetail = () => {
     0
   );
 
-  // Calculate total duration in minutes
   const totalDuration = course.modules.reduce((total, module) => {
     return (
       total +
@@ -124,7 +121,6 @@ const CourseDetail = () => {
     );
   }, 0);
 
-  // Format duration as hours and minutes
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -292,7 +288,7 @@ const CourseDetail = () => {
                   <ModuleItem
                     key={module.id}
                     module={module}
-                    moduleIndex={index}
+                    index={index}
                     courseId={course.id}
                     onDelete={() => handleDeleteModule(module.id)}
                     readOnly={!isAdmin}
@@ -315,7 +311,6 @@ const CourseDetail = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Add Module Dialog */}
       <Dialog open={addModuleOpen} onOpenChange={setAddModuleOpen}>
         <DialogContent>
           <DialogHeader>
