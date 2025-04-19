@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useCourseStore, Course } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
-import AddCourseButton from "@/components/courses/AddCourseButton";
+import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import CourseCard from "@/components/courses/CourseCard";
 import { Input } from "@/components/ui/input";
 import { SearchIcon } from "lucide-react";
