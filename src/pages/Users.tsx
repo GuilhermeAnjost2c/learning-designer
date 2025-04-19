@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -135,7 +134,6 @@ const Users = () => {
       email: data.email,
       department: data.department,
       role: data.role,
-      lessonsProgress: [], // Add the missing lessonsProgress property
     });
     
     toast({
