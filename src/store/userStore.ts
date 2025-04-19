@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -11,7 +10,8 @@ export interface User {
   department: string;
   role: UserRole;
   createdAt: Date;
-  invitedCourses: string[]; // Course IDs the user has explicit access to
+  invitedCourses: string[];
+  lessonsProgress: LessonProgress[];
 }
 
 export interface CurrentUser {
@@ -22,6 +22,14 @@ export interface CurrentUser {
   isAuthenticated: boolean;
 }
 
+interface LessonProgress {
+  lessonId: string;
+  status: LessonStatus;
+  updatedAt: Date;
+}
+
+export type LessonStatus = 'to-do' | 'in-progress' | 'completed';
+
 interface UserStore {
   users: User[];
   departments: string[];
@@ -31,18 +39,24 @@ interface UserStore {
   deleteUser: (id: string) => void;
   addDepartment: (department: string) => void;
   removeDepartment: (department: string) => void;
-  login: (email: string, password: string) => boolean; // Simplified login without real auth
+  login: (email: string, password: string) => boolean;
   logout: () => void;
   inviteUserToCourse: (userId: string, courseId: string) => void;
   removeUserFromCourse: (userId: string, courseId: string) => void;
   getUsersWithAccessToCourse: (courseId: string, courseDepartment: string) => User[];
   hasAccessToCourse: (courseId: string, courseDepartment: string) => boolean;
+  updateLessonStatus: (userId: string, lessonId: string, status: LessonStatus) => void;
+  getLessonStatus: (lessonId: string) => LessonStatus;
+  getStatistics: () => {
+    totalUsers: number;
+    totalCourses: number;
+    completedLessons: number;
+    inProgressLessons: number;
+  };
 }
 
-// Generate a unique ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-// Initial admin user
 const initialAdminUser: User = {
   id: "admin-01",
   name: "Admin",
@@ -51,6 +65,7 @@ const initialAdminUser: User = {
   role: "admin",
   createdAt: new Date(),
   invitedCourses: [],
+  lessonsProgress: [],
 };
 
 export const useUserStore = create<UserStore>()(
@@ -72,6 +87,7 @@ export const useUserStore = create<UserStore>()(
           id: generateId(),
           createdAt: new Date(),
           invitedCourses: [],
+          lessonsProgress: [],
         };
         return { users: [...state.users, newUser] };
       }),
@@ -98,7 +114,6 @@ export const useUserStore = create<UserStore>()(
       })),
       
       login: (email, _password) => {
-        // Simple mock login without real authentication
         const user = get().users.find((u) => u.email === email);
         if (user) {
           set({
@@ -167,7 +182,6 @@ export const useUserStore = create<UserStore>()(
         const user = users.find(u => u.id === currentUser.id);
         if (!user) return false;
         
-        // If the filter is empty, show all courses the user has access to
         if (!courseDepartment) {
           return user.department === courseDepartment || 
                  user.invitedCourses.includes(courseId);
@@ -175,6 +189,54 @@ export const useUserStore = create<UserStore>()(
         
         return user.department === courseDepartment || 
                user.invitedCourses.includes(courseId);
+      },
+      
+      updateLessonStatus: (userId, lessonId, status) => set((state) => ({
+        users: state.users.map((user) => 
+          user.id === userId
+            ? {
+                ...user,
+                lessonsProgress: [
+                  ...user.lessonsProgress.filter(p => p.lessonId !== lessonId),
+                  { lessonId, status, updatedAt: new Date() }
+                ]
+              }
+            : user
+        )
+      })),
+      
+      getLessonStatus: (lessonId) => {
+        const { users, currentUser } = get();
+        if (!currentUser.id) return 'to-do';
+        
+        const user = users.find(u => u.id === currentUser.id);
+        if (!user) return 'to-do';
+        
+        const progress = user.lessonsProgress.find(p => p.lessonId === lessonId);
+        return progress?.status || 'to-do';
+      },
+      
+      getStatistics: () => {
+        const { users, courses } = get();
+        const currentDate = new Date();
+        const thirtyDaysAgo = new Date(currentDate.setDate(currentDate.getDate() - 30));
+        
+        let completedLessons = 0;
+        let inProgressLessons = 0;
+        
+        users.forEach(user => {
+          user.lessonsProgress.forEach(progress => {
+            if (progress.status === 'completed') completedLessons++;
+            if (progress.status === 'in-progress') inProgressLessons++;
+          });
+        });
+        
+        return {
+          totalUsers: users.length,
+          totalCourses: courses?.length || 0,
+          completedLessons,
+          inProgressLessons,
+        };
       },
     }),
     {
