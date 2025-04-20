@@ -10,10 +10,12 @@ import { useNavigate } from "react-router-dom";
 
 interface NavbarProps {
   toggleSidebar: () => void;
+  sidebarOpen?: boolean;
 }
 
 export const Navbar = ({
-  toggleSidebar
+  toggleSidebar,
+  sidebarOpen
 }: NavbarProps) => {
   const { currentUser, logout } = useUserStore();
   const navigate = useNavigate();
