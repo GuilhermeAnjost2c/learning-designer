@@ -48,8 +48,20 @@ export const Navbar = ({
       className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6"
     >
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="relative"
+          aria-label={sidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
+        >
           <Menu className="h-5 w-5" />
+          {!sidebarOpen && (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+            </span>
+          )}
         </Button>
         
         <h1 className="text-xl font-semibold text-primary md:hidden">

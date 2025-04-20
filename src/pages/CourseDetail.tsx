@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus } from "@/store/courseStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit } from "lucide-react";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
@@ -167,60 +167,143 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 mb-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Estrutura</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Módulos</p>
-                <p className="text-2xl font-bold">{totalModules}</p>
+      {/* Course Overview Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Course Description */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Bookmark className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-lg">Descrição do Curso</h3>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Aulas</p>
-                <p className="text-2xl font-bold">{totalLessons}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{course.description}</p>
+              
+              <div className="mt-6 flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-lg">Objetivos de Aprendizagem</h3>
+              </div>
+              <p className="text-muted-foreground whitespace-pre-wrap">{course.objectives}</p>
+              
+              {course.tags && course.tags.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Tags</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {course.tags.map((tag) => (
+                      <Badge key={tag} variant="outline">{tag}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Metrics Section */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Estrutura</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Módulos</p>
+                    <p className="text-2xl font-bold">{totalModules}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Aulas</p>
+                    <p className="text-2xl font-bold">{totalLessons}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Duração</h3>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tempo Estimado</p>
+                  <p className="text-2xl font-bold">
+                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Público</h3>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Público-alvo</p>
+                  <p className="text-lg font-medium truncate">{course.targetAudience}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Course Image */}
+        <div className="lg:order-1">
+          <Card className="overflow-hidden h-full">
+            <div className="relative h-48 lg:h-64">
+              <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ 
+                  backgroundImage: `url(${course.thumbnail || '/placeholder.svg'})`,
+                }} 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <h2 className="text-white text-xl font-bold mb-1">{course.name}</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant={getStatusVariant(course.status)} className="bg-opacity-90">
+                    {course.status}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Duração</h3>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Tempo Estimado</p>
-              <p className="text-2xl font-bold">
-                {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-5 w-5 text-primary" />
-              <h3 className="font-semibold">Público</h3>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Público-alvo</p>
-              <p className="text-lg font-medium truncate">{course.targetAudience}</p>
-            </div>
-          </CardContent>
-        </Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium">Duração Total</p>
+                  <p className="text-muted-foreground">
+                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Público-alvo</p>
+                  <p className="text-muted-foreground">{course.targetAudience}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Conteúdo</p>
+                  <p className="text-muted-foreground">{totalModules} módulos, {totalLessons} aulas</p>
+                </div>
+                
+                <Button onClick={openEditor} className="w-full gap-2 mt-4">
+                  <FileEdit className="h-4 w-4" />
+                  <span>Editor Avançado</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Progress overview */}
       {totalLessons > 0 && (
         <Card className="mb-8">
           <CardContent className="pt-6">
-            <h3 className="font-semibold mb-4">Progresso do Curso</h3>
+            <h3 className="font-semibold text-lg mb-4">Progresso do Curso</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -243,7 +326,7 @@ const CourseDetail = () => {
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-secondary rounded-full" 
+                    className="h-full bg-blue-400 rounded-full" 
                     style={{ width: `${getStatusPercentage('Fazendo')}%` }}
                   />
                 </div>
@@ -257,7 +340,7 @@ const CourseDetail = () => {
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-primary rounded-full" 
+                    className="h-full bg-green-500 rounded-full" 
                     style={{ width: `${getStatusPercentage('Finalizando')}%` }}
                   />
                 </div>

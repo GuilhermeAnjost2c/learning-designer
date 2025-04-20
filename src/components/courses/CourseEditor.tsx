@@ -1,9 +1,14 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { useCourseStore, Module, Lesson, LessonStatus } from "@/store/courseStore";
+import { useCourseStore, Module, Lesson, LessonStatus, CourseStatus } from "@/store/courseStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight, Plus, X, Save, Book, FileText, Menu, ArrowLeft, MoreHorizontal, CheckCircle2, Circle, Clock } from "lucide-react";
+import { 
+  ChevronDown, ChevronRight, Plus, X, Save, Book, FileText, Menu, 
+  ArrowLeft, MoreHorizontal, CheckCircle2, Circle, Clock, Trash, 
+  Edit, GripVertical, Heading1, Heading2, Heading3, Bold, Italic, 
+  List, ListOrdered, Link as LinkIcon, Image
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -16,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ReactMarkdown from 'react-markdown';
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
 interface CourseEditorProps {
   courseId: string;
@@ -23,7 +29,10 @@ interface CourseEditorProps {
 }
 
 export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
-  const { courses, updateModule, updateLesson, addModule, addLesson, updateLessonStatus } = useCourseStore();
+  const { 
+    courses, updateModule, updateLesson, addModule, addLesson, 
+    updateLessonStatus, deleteModule, deleteLesson, reorderModule, reorderLesson 
+  } = useCourseStore();
   const [course, setCourse] = useState(() => courses.find(c => c.id === courseId));
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
@@ -31,6 +40,8 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
   const [lessonContent, setLessonContent] = useState("");
   const [isPreview, setIsPreview] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [editingTitle, setEditingTitle] = useState<{id: string, type: 'module' | 'lesson'} | null>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize expanded modules
   useEffect(() => {
@@ -51,6 +62,14 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
       }
     }
   }, [course]);
+
+  // Focus title input when editing
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
 
   // Update course when store changes
   useEffect(() => {
@@ -130,6 +149,23 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
     toast.success(`Status atualizado para "${status}"`);
   };
 
+  const handleDeleteModule = (moduleId: string) => {
+    deleteModule(courseId, moduleId);
+    if (selectedModuleId === moduleId) {
+      setSelectedModuleId(null);
+      setSelectedLessonId(null);
+    }
+    toast.success("Módulo excluído com sucesso");
+  };
+
+  const handleDeleteLesson = (moduleId: string, lessonId: string) => {
+    deleteLesson(courseId, moduleId, lessonId);
+    if (selectedLessonId === lessonId) {
+      setSelectedLessonId(null);
+    }
+    toast.success("Aula excluída com sucesso");
+  };
+
   const getStatusIcon = (status: LessonStatus) => {
     switch (status) {
       case "Fazer":
@@ -174,6 +210,98 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
     return module.lessons.find(l => l.id === selectedLessonId);
   };
 
+  const handleDoubleClick = (id: string, type: 'module' | 'lesson') => {
+    setEditingTitle({ id, type });
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleTitleBlur();
+    }
+    if (e.key === 'Escape') {
+      setEditingTitle(null);
+    }
+  };
+
+  const handleTitleBlur = () => {
+    if (editingTitle && titleInputRef.current) {
+      const newTitle = titleInputRef.current.value.trim();
+      
+      if (newTitle) {
+        if (editingTitle.type === 'module') {
+          updateModule(courseId, editingTitle.id, { title: newTitle });
+        } else {
+          // Find which module contains this lesson
+          const moduleWithLesson = course?.modules.find(
+            m => m.lessons.some(l => l.id === editingTitle.id)
+          );
+          
+          if (moduleWithLesson) {
+            updateLesson(courseId, moduleWithLesson.id, editingTitle.id, { title: newTitle });
+          }
+        }
+      }
+    }
+    setEditingTitle(null);
+  };
+
+  const handleDragEnd = (result: any) => {
+    const { source, destination, type } = result;
+    
+    // Dropped outside the list
+    if (!destination) return;
+    
+    // Dropped in the same position
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) return;
+    
+    if (type === 'MODULE') {
+      reorderModule(courseId, source.index, destination.index);
+      toast.success("Módulo reordenado com sucesso");
+    } else if (type === 'LESSON') {
+      // Only handle reordering lessons within the same module for now
+      if (source.droppableId === destination.droppableId) {
+        reorderLesson(courseId, source.droppableId, source.index, destination.index);
+        toast.success("Aula reordenada com sucesso");
+      }
+    }
+  };
+
+  const insertMarkdownSyntax = (syntax: string, wrap: boolean = false) => {
+    const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = lessonContent.substring(start, end);
+    
+    let newText;
+    if (wrap && selectedText) {
+      newText = lessonContent.substring(0, start) + 
+        syntax + selectedText + syntax + 
+        lessonContent.substring(end);
+    } else {
+      newText = lessonContent.substring(0, start) + 
+        syntax + 
+        lessonContent.substring(end);
+    }
+    
+    setLessonContent(newText);
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      textarea.focus();
+      if (wrap && selectedText) {
+        textarea.setSelectionRange(start + syntax.length, end + syntax.length);
+      } else {
+        const newPosition = start + syntax.length;
+        textarea.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
+  };
+  
   const selectedLesson = getSelectedLesson();
 
   return (
@@ -245,95 +373,214 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
                     </Button>
                   </div>
                   <ScrollArea className="flex-1 p-2">
-                    {course?.modules.map((module: Module) => (
-                      <div key={module.id} className="mb-3">
-                        <div 
-                          className={cn(
-                            "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary",
-                            selectedModuleId === module.id && "bg-secondary"
-                          )}
-                          onClick={() => toggleExpanded(module.id)}
-                        >
-                          <button className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-                            {expandedModules[module.id] ? 
-                              <ChevronDown className="h-4 w-4" /> : 
-                              <ChevronRight className="h-4 w-4" />
-                            }
-                          </button>
-                          <div className="flex-1 flex items-center gap-2">
-                            <Book className="h-4 w-4 text-primary" />
-                            <span className="text-sm font-medium truncate">{module.title}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 rounded-full hover:bg-secondary"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAddLesson(module.id);
-                              }}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {expandedModules[module.id] && (
-                          <AnimatePresence initial={false}>
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="pl-7 mt-1 ml-2 border-l"
-                            >
-                              {module.lessons.map((lesson: Lesson) => (
-                                <div
-                                  key={lesson.id}
-                                  className={cn(
-                                    "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary text-sm",
-                                    selectedLessonId === lesson.id && "bg-secondary"
-                                  )}
-                                  onClick={() => selectLesson(module.id, lesson.id)}
-                                >
-                                  <FileText className="h-4 w-4 flex-shrink-0" />
-                                  <span className="flex-1 truncate">{lesson.title}</span>
-                                  <div className={cn("flex items-center", getStatusColor(lesson.status))}>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
+                    <DragDropContext onDragEnd={handleDragEnd}>
+                      <Droppable droppableId="modules" type="MODULE">
+                        {(provided) => (
+                          <div 
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                          >
+                            {course?.modules.map((module: Module, moduleIndex) => (
+                              <Draggable 
+                                key={module.id} 
+                                draggableId={module.id} 
+                                index={moduleIndex}
+                              >
+                                {(provided) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    className="mb-3"
+                                  >
+                                    <div 
+                                      className={cn(
+                                        "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary group",
+                                        selectedModuleId === module.id && "bg-secondary"
+                                      )}
+                                    >
+                                      <div
+                                        {...provided.dragHandleProps}
+                                        className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                      <button 
+                                        className="w-5 h-5 flex-shrink-0 flex items-center justify-center"
+                                        onClick={() => toggleExpanded(module.id)}
+                                      >
+                                        {expandedModules[module.id] ? 
+                                          <ChevronDown className="h-4 w-4" /> : 
+                                          <ChevronRight className="h-4 w-4" />
+                                        }
+                                      </button>
+                                      <div 
+                                        className="flex-1 flex items-center gap-2" 
+                                        onClick={() => toggleExpanded(module.id)}
+                                      >
+                                        <Book className="h-4 w-4 text-primary" />
+                                        {editingTitle?.id === module.id && editingTitle.type === 'module' ? (
+                                          <Input 
+                                            ref={titleInputRef}
+                                            defaultValue={module.title}
+                                            className="h-7 py-1 text-sm border-none focus-visible:ring-1 bg-white"
+                                            onBlur={handleTitleBlur}
+                                            onKeyDown={handleTitleKeyDown}
+                                            onClick={(e) => e.stopPropagation()}
+                                          />
+                                        ) : (
+                                          <span 
+                                            className="text-sm font-medium truncate"
+                                            onDoubleClick={() => handleDoubleClick(module.id, 'module')}
+                                          >
+                                            {module.title}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           className="h-6 w-6 p-0 rounded-full hover:bg-secondary"
-                                          onClick={(e) => e.stopPropagation()}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddLesson(module.id);
+                                          }}
                                         >
-                                          {getStatusIcon(lesson.status)}
+                                          <Plus className="h-3 w-3" />
                                         </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Fazer")}>
-                                          <Circle className="mr-2 h-4 w-4" />
-                                          <span>Fazer</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Fazendo")}>
-                                          <Clock className="mr-2 h-4 w-4" />
-                                          <span>Fazendo</span>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Finalizando")}>
-                                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                                          <span>Finalizando</span>
-                                        </DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 rounded-full hover:bg-destructive/20 hover:text-destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteModule(module.id);
+                                          }}
+                                        >
+                                          <Trash className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    </div>
+
+                                    {expandedModules[module.id] && (
+                                      <AnimatePresence initial={false}>
+                                        <motion.div
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: "auto", opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          transition={{ duration: 0.2 }}
+                                          className="pl-7 mt-1 ml-2 border-l"
+                                        >
+                                          <Droppable droppableId={module.id} type="LESSON">
+                                            {(provided) => (
+                                              <div 
+                                                ref={provided.innerRef}
+                                                {...provided.droppableProps}
+                                              >
+                                                {module.lessons.map((lesson: Lesson, lessonIndex) => (
+                                                  <Draggable 
+                                                    key={lesson.id} 
+                                                    draggableId={lesson.id} 
+                                                    index={lessonIndex}
+                                                  >
+                                                    {(provided) => (
+                                                      <div
+                                                        ref={provided.innerRef}
+                                                        {...provided.draggableProps}
+                                                        className={cn(
+                                                          "flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-secondary text-sm group",
+                                                          selectedLessonId === lesson.id && "bg-secondary"
+                                                        )}
+                                                        onClick={() => selectLesson(module.id, lesson.id)}
+                                                      >
+                                                        <div
+                                                          {...provided.dragHandleProps}
+                                                          className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                          <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                                        </div>
+                                                        <FileText className="h-4 w-4 flex-shrink-0" />
+                                                        
+                                                        {editingTitle?.id === lesson.id && editingTitle.type === 'lesson' ? (
+                                                          <Input 
+                                                            ref={titleInputRef}
+                                                            defaultValue={lesson.title}
+                                                            className="h-6 py-1 text-xs border-none focus-visible:ring-1 bg-white"
+                                                            onBlur={handleTitleBlur}
+                                                            onKeyDown={handleTitleKeyDown}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                          />
+                                                        ) : (
+                                                          <span 
+                                                            className="flex-1 truncate"
+                                                            onDoubleClick={() => handleDoubleClick(lesson.id, 'lesson')}
+                                                          >
+                                                            {lesson.title}
+                                                          </span>
+                                                        )}
+                                                        
+                                                        <div className={cn(
+                                                          "flex items-center", 
+                                                          getStatusColor(lesson.status)
+                                                        )}>
+                                                          <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 w-6 p-0 rounded-full hover:bg-secondary"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                              >
+                                                                {getStatusIcon(lesson.status)}
+                                                              </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                              <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Fazer")}>
+                                                                <Circle className="mr-2 h-4 w-4" />
+                                                                <span>Fazer</span>
+                                                              </DropdownMenuItem>
+                                                              <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Fazendo")}>
+                                                                <Clock className="mr-2 h-4 w-4" />
+                                                                <span>Fazendo</span>
+                                                              </DropdownMenuItem>
+                                                              <DropdownMenuItem onClick={() => handleLessonStatusChange(module.id, lesson.id, "Finalizando")}>
+                                                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                                                <span>Finalizando</span>
+                                                              </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                          </DropdownMenu>
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-6 w-6 p-0 rounded-full hover:bg-destructive/20 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={(e) => {
+                                                              e.stopPropagation();
+                                                              handleDeleteLesson(module.id, lesson.id);
+                                                            }}
+                                                          >
+                                                            <Trash className="h-3 w-3" />
+                                                          </Button>
+                                                        </div>
+                                                      </div>
+                                                    )}
+                                                  </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                              </div>
+                                            )}
+                                          </Droppable>
+                                        </motion.div>
+                                      </AnimatePresence>
+                                    )}
                                   </div>
-                                </div>
-                              ))}
-                            </motion.div>
-                          </AnimatePresence>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
                         )}
-                      </div>
-                    ))}
+                      </Droppable>
+                    </DragDropContext>
                   </ScrollArea>
                 </motion.div>
               )}
@@ -394,14 +641,152 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
                     />
                   </div>
 
-                  <div className="flex-1 overflow-auto p-4">
+                  {!isPreview && (
+                    <div className="border-b p-2 flex flex-wrap gap-1 bg-muted/20">
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('# ')}
+                            >
+                              <Heading1 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Título H1</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('## ')}
+                            >
+                              <Heading2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Título H2</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('### ')}
+                            >
+                              <Heading3 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Título H3</TooltipContent>
+                        </Tooltip>
+                        
+                        <Separator orientation="vertical" className="h-6 mx-1" />
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('**', true)}
+                            >
+                              <Bold className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Negrito</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('*', true)}
+                            >
+                              <Italic className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Itálico</TooltipContent>
+                        </Tooltip>
+                        
+                        <Separator orientation="vertical" className="h-6 mx-1" />
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('- ')}
+                            >
+                              <List className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Lista não ordenada</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('1. ')}
+                            >
+                              <ListOrdered className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Lista ordenada</TooltipContent>
+                        </Tooltip>
+                        
+                        <Separator orientation="vertical" className="h-6 mx-1" />
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('[texto do link](url)')}
+                            >
+                              <LinkIcon className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Link</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0"
+                              onClick={() => insertMarkdownSyntax('![texto alternativo](url da imagem)')}
+                            >
+                              <Image className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Imagem</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
+
+                  <div className="flex-1 overflow-auto">
                     {isPreview ? (
-                      <div className="prose prose-sm sm:prose max-w-none p-4">
+                      <div className="prose prose-sm sm:prose max-w-none p-6 font-sans">
                         <ReactMarkdown>{lessonContent}</ReactMarkdown>
                       </div>
                     ) : (
                       <Textarea
-                        className="w-full h-full p-4 resize-none focus-visible:ring-0 border-none font-mono"
+                        className="w-full h-full p-4 resize-none focus-visible:ring-0 border-none font-sans"
                         value={lessonContent}
                         onChange={handleContentChange}
                         placeholder="Escreva o conteúdo da aula em markdown..."
