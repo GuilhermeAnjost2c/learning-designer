@@ -1,5 +1,5 @@
 
-import { Home, BookOpen, Database, Bot, UserCog } from "lucide-react";
+import { Home, BookOpen, Database, Bot, UserCog, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -7,9 +7,10 @@ import { useUserStore } from "@/store/userStore";
 
 interface SidebarProps {
   isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
-export const Sidebar = ({ isOpen }: SidebarProps) => {
+export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
   const isAdmin = currentUser?.role === 'admin';
   
@@ -25,16 +26,20 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
     navItems.push({ name: "Administração", icon: UserCog, path: "/admin" });
   }
 
+  const closeSidebar = () => {
+    setIsOpen(false);
+  };
+
   return (
     <aside
       className={cn(
         "h-screen bg-white shadow-lg z-40 w-64 flex-shrink-0",
-        "fixed lg:sticky top-0 left-0 transition-all duration-300",
+        "fixed lg:sticky top-0 left-0 transition-transform duration-300 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-20"
       )}
     >
       <div className="flex flex-col h-full">
-        <div className="flex justify-center items-center h-16 border-b">
+        <div className="flex justify-between items-center h-16 border-b px-4">
           <h1 className={cn(
             "text-xl font-bold text-primary transition-opacity duration-200",
             !isOpen && "lg:opacity-0"
@@ -44,6 +49,14 @@ export const Sidebar = ({ isOpen }: SidebarProps) => {
           {!isOpen && (
             <span className="hidden lg:block text-xl font-bold text-primary">LD</span>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden"
+            onClick={closeSidebar}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
         
         <div className="flex-1 py-4 overflow-y-auto">

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus } from "@/store/courseStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine } from "lucide-react";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { CourseEditor } from "@/components/courses/CourseEditor";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -37,6 +38,7 @@ const CourseDetail = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   
   useEffect(() => {
     if (courseId) {
@@ -92,6 +94,10 @@ const CourseDetail = () => {
       case 'Concluído': return 'default';
       default: return 'outline';
     }
+  };
+
+  const openEditor = () => {
+    setEditorOpen(true);
   };
 
   return (
@@ -270,10 +276,16 @@ const CourseDetail = () => {
         <TabsContent value="content" className="mt-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Módulos</h2>
-            <Button onClick={() => setIsAddingModule()} className="gap-2">
-              <Plus className="h-4 w-4" />
-              <span>Adicionar Módulo</span>
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={openEditor} className="gap-2" variant="outline">
+                <FileEdit className="h-4 w-4" />
+                <span>Editor Avançado</span>
+              </Button>
+              <Button onClick={() => setIsAddingModule(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span>Adicionar Módulo</span>
+              </Button>
+            </div>
           </div>
 
           {course.modules.length === 0 ? (
@@ -282,7 +294,7 @@ const CourseDetail = () => {
               <p className="text-muted-foreground mb-4">
                 Comece adicionando um módulo ao seu curso.
               </p>
-              <Button onClick={() => setIsAddingModule()}>Adicionar Módulo</Button>
+              <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -334,6 +346,13 @@ const CourseDetail = () => {
         <ModuleForm
           courseId={course.id}
           onClose={() => setIsAddingModule(false)}
+        />
+      )}
+
+      {editorOpen && (
+        <CourseEditor 
+          courseId={course.id} 
+          onClose={() => setEditorOpen(false)} 
         />
       )}
 

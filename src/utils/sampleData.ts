@@ -1,220 +1,227 @@
-import { Course, ActivityType } from "@/store/courseStore";
 
-// Gera um ID aleatório
-const generateId = () => Math.random().toString(36).substring(2, 9);
+import { Course, Module, Lesson, ActivityType } from "@/store/courseStore";
 
-// Gera uma data aleatória nos últimos 30 dias
-const generateRandomDate = (days = 30) => {
-  const date = new Date();
-  date.setDate(date.getDate() - Math.floor(Math.random() * days));
-  return date;
-};
+// Sample modules with lessons
+export const sampleModules: Module[] = [
+  {
+    id: "m1",
+    title: "Introdução ao Design Thinking",
+    description: "Fundamentos do Design Thinking e sua aplicação no contexto educacional",
+    lessons: [
+      {
+        id: "l1",
+        title: "O que é Design Thinking?",
+        description: "Conceitos básicos e princípios do Design Thinking.",
+        duration: 60,
+        activityType: "Exposição",
+        notes: "Preparar exemplos práticos de aplicação do Design Thinking em contextos educacionais.",
+        status: "Fazer"
+      },
+      {
+        id: "l2",
+        title: "Empatia: A Base do Design Thinking",
+        description: "Técnicas e ferramentas para desenvolver empatia com os usuários.",
+        duration: 90,
+        activityType: "Dinâmica",
+        notes: "Trazer materiais para a atividade 'Um dia na vida de...'",
+        status: "Fazer"
+      },
+      {
+        id: "l3",
+        title: "Definição de Problemas",
+        description: "Como identificar e definir problemas de forma clara e objetiva.",
+        duration: 60,
+        activityType: "Prática",
+        notes: "Usar o template 'Problem Statement'.",
+        status: "Fazer"
+      }
+    ],
+  },
+  {
+    id: "m2",
+    title: "Ferramentas de Ideação",
+    description: "Técnicas para gerar ideias inovadoras",
+    lessons: [
+      {
+        id: "l4",
+        title: "Brainstorming Efetivo",
+        description: "Técnicas para conduzir sessões de brainstorming produtivas.",
+        duration: 60,
+        activityType: "Dinâmica",
+        notes: "Preparar post-its e canetas para todos os participantes.",
+        status: "Fazer"
+      },
+      {
+        id: "l5",
+        title: "Pensamento Lateral",
+        description: "Como desenvolver o pensamento lateral para resolver problemas complexos.",
+        duration: 90,
+        activityType: "Exposição",
+        notes: "Referenciar o livro 'Pensamento Lateral' de Edward de Bono.",
+        status: "Fazer"
+      },
+      {
+        id: "l6",
+        title: "Prototipagem Rápida",
+        description: "Técnicas para criar protótipos rápidos e eficientes.",
+        duration: 120,
+        activityType: "Prática",
+        notes: "Trazer materiais diversos para construção de protótipos (papel, cartolina, cola, etc).",
+        status: "Fazer"
+      }
+    ],
+  },
+  {
+    id: "m3",
+    title: "Implementação e Testes",
+    description: "Estratégias para implementar e testar soluções",
+    lessons: [
+      {
+        id: "l7",
+        title: "Testes com Usuários",
+        description: "Como planejar e conduzir testes de usabilidade eficazes.",
+        duration: 90,
+        activityType: "Exposição",
+        notes: "Criar roteiro de testes com usuários.",
+        status: "Fazer"
+      },
+      {
+        id: "l8",
+        title: "Métricas de Sucesso",
+        description: "Como definir e mensurar o sucesso de uma solução.",
+        duration: 60,
+        activityType: "Exposição",
+        notes: "Desenvolver exemplos de métricas para diferentes tipos de projetos.",
+        status: "Fazer"
+      },
+      {
+        id: "l9",
+        title: "Iteração e Melhoria Contínua",
+        description: "Estratégias para iterar e melhorar soluções com base no feedback dos usuários.",
+        duration: 90,
+        activityType: "Prática",
+        notes: "Trazer exemplos de projetos que passaram por várias iterações.",
+        status: "Fazer"
+      },
+      {
+        id: "l10",
+        title: "Apresentação Final",
+        description: "Técnicas para apresentar soluções de design thinking de forma eficaz.",
+        duration: 120,
+        activityType: "Avaliação",
+        notes: "Os participantes apresentarão suas soluções para um problema real.",
+        status: "Fazer"
+      }
+    ],
+  },
+];
 
-// Curso de exemplo: Design Thinking
-export const designThinkingCourse: Course = {
-  id: generateId(),
-  name: "Design Thinking para Inovação",
-  description: "Este curso aborda os princípios fundamentais do Design Thinking como metodologia para resolução de problemas complexos e geração de soluções inovadoras centradas no usuário.",
-  objectives: "• Compreender os princípios do Design Thinking\n• Aplicar as etapas do processo de Design Thinking em projetos reais\n• Desenvolver empatia com os usuários\n• Criar protótipos de baixa fidelidade para validação de ideias\n• Conduzir testes de usabilidade",
-  targetAudience: "Profissionais de UX/UI, Gestores de Produto, Empreendedores e qualquer pessoa interessada em metodologias de inovação",
-  estimatedDuration: 480,
-  thumbnail: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2670&auto=format&fit=crop",
-  tags: ["design", "inovação", "metodologias"],
-  modules: [
-    {
-      id: generateId(),
-      title: "Fundamentos do Design Thinking",
-      description: "Introdução aos conceitos fundamentais e mindset do Design Thinking",
-      lessons: [
-        {
-          id: generateId(),
-          title: "O que é Design Thinking?",
-          description: "Definição, origem e princípios fundamentais",
-          duration: 45,
-          activityType: "Exposição" as ActivityType,
-          notes: "Apresentar estudos de caso de empresas como IDEO, Apple e Google"
-        },
-        {
-          id: generateId(),
-          title: "Mindset do Design Thinker",
-          description: "Características e habilidades essenciais",
-          duration: 30,
-          activityType: "Dinâmica" as ActivityType,
-          notes: "Dinâmica: 'Meu perfil de Design Thinker'"
-        },
-        {
-          id: generateId(),
-          title: "Exploração de Cases",
-          description: "Análise de casos de sucesso de aplicação do Design Thinking",
-          duration: 60,
-          activityType: "Prática" as ActivityType,
-          notes: "Trazer exemplos de aplicação em diferentes contextos: produtos, serviços e processos"
-        }
-      ]
-    },
-    {
-      id: generateId(),
-      title: "Etapa de Empatia",
-      description: "Técnicas para entendimento profundo das necessidades dos usuários",
-      lessons: [
-        {
-          id: generateId(),
-          title: "Introdução à pesquisa com usuários",
-          description: "Métodos e abordagens para coleta de insights",
-          duration: 45,
-          activityType: "Exposição" as ActivityType,
-          notes: "Apresentar diferentes tipos de entrevistas e observação"
-        },
-        {
-          id: generateId(),
-          title: "Criação de personas",
-          description: "Como desenvolver perfis representativos dos usuários",
-          duration: 90,
-          activityType: "Prática" as ActivityType,
-          notes: "Materiais: Modelos de persona, post-its, canetas coloridas"
-        },
-        {
-          id: generateId(),
-          title: "Mapa de Empatia",
-          description: "Ferramenta para visualizar necessidades e desejos dos usuários",
-          duration: 60,
-          activityType: "Prática" as ActivityType,
-          notes: "Exercício em grupos de 4 pessoas"
-        }
-      ]
-    },
-    {
-      id: generateId(),
-      title: "Ideação e Prototipação",
-      description: "Técnicas para geração de ideias e criação de protótipos",
-      lessons: [
-        {
-          id: generateId(),
-          title: "Brainstorming e técnicas de ideação",
-          description: "Métodos para gerar grande quantidade de ideias",
-          duration: 60,
-          activityType: "Dinâmica" as ActivityType,
-          notes: "Dinâmicas: Crazy 8s, Brainwriting, SCAMPER"
-        },
-        {
-          id: generateId(),
-          title: "Seleção e refinamento de ideias",
-          description: "Critérios e métodos para priorização",
-          duration: 45,
-          activityType: "Prática" as ActivityType,
-          notes: "Utilizar matriz de priorização"
-        },
-        {
-          id: generateId(),
-          title: "Prototipação rápida",
-          description: "Técnicas para criar protótipos de baixa fidelidade",
-          duration: 120,
-          activityType: "Prática" as ActivityType,
-          notes: "Materiais: papel, canetas, material de escritório diverso"
-        },
-        {
-          id: generateId(),
-          title: "Teste de protótipos",
-          description: "Como validar ideias com usuários reais",
-          duration: 90,
-          activityType: "Prática" as ActivityType,
-          notes: "Simulação de testes com outros participantes"
-        }
-      ]
-    }
-  ],
-  createdAt: generateRandomDate(60),
-  updatedAt: generateRandomDate(10)
-};
-
-// Curso de exemplo: Gestão de Projetos Ágil
-export const agileCourse: Course = {
-  id: generateId(),
-  name: "Gestão de Projetos Ágil com Scrum",
-  description: "Este curso apresenta os fundamentos da metodologia ágil Scrum para gestão de projetos, oferecendo ferramentas práticas para implementação em equipes de diferentes tamanhos e contextos.",
-  objectives: "• Compreender os valores e princípios ágeis\n• Dominar os elementos fundamentais do framework Scrum\n• Aplicar as cerimônias e artefatos do Scrum\n• Implementar métricas de acompanhamento\n• Adaptar o framework para diferentes contextos",
-  targetAudience: "Gerentes de Projeto, Product Owners, Scrum Masters, membros de equipe de desenvolvimento e interessados em metodologias ágeis",
-  estimatedDuration: 420,
-  thumbnail: "https://images.unsplash.com/photo-1531403009284-440f080d1e12?q=80&w=2670&auto=format&fit=crop",
-  tags: ["agile", "scrum", "gestão de projetos"],
-  modules: [
-    {
-      id: generateId(),
-      title: "Fundamentos do Pensamento Ágil",
-      description: "Introdução à mentalidade e valores ágeis",
-      lessons: [
-        {
-          id: generateId(),
-          title: "Do cascata ao ágil",
-          description: "Evolução das metodologias de gestão de projetos",
-          duration: 40,
-          activityType: "Exposição" as ActivityType,
-          notes: "Abordar as limitações do modelo waterfall"
-        },
-        {
-          id: generateId(),
-          title: "Manifesto Ágil",
-          description: "Valores e princípios que fundamentam as metodologias ágeis",
-          duration: 30,
-          activityType: "Exposição" as ActivityType,
-          notes: "Discutir exemplos práticos de cada valor"
-        },
-        {
-          id: generateId(),
-          title: "Dinâmica: Desafio da Torre",
-          description: "Comparação prática entre abordagem tradicional e ágil",
-          duration: 60,
-          activityType: "Dinâmica" as ActivityType,
-          notes: "Materiais: espaguete, marshmallow, fita adesiva"
-        }
-      ]
-    },
-    {
-      id: generateId(),
-      title: "Framework Scrum",
-      description: "Estrutura, papéis e responsabilidades no Scrum",
-      lessons: [
-        {
-          id: generateId(),
-          title: "Papéis no Scrum",
-          description: "Product Owner, Scrum Master e Time de Desenvolvimento",
-          duration: 60,
-          activityType: "Exposição" as ActivityType,
-          notes: "Utilizar dinâmica de role-play para fixação"
-        },
-        {
-          id: generateId(),
-          title: "Eventos do Scrum",
-          description: "Sprint, Planning, Daily, Review e Retrospectiva",
-          duration: 90,
-          activityType: "Exposição" as ActivityType,
-          notes: "Demonstrar como cada evento contribui para o framework"
-        },
-        {
-          id: generateId(),
-          title: "Artefatos do Scrum",
-          description: "Product Backlog, Sprint Backlog e Incremento",
-          duration: 60,
-          activityType: "Prática" as ActivityType,
-          notes: "Exercício: Criar um Product Backlog para um projeto exemplo"
-        },
-        {
-          id: generateId(),
-          title: "Simulação de uma Sprint",
-          description: "Aplicação prática do Scrum em um projeto simulado",
-          duration: 120,
-          activityType: "Prática" as ActivityType,
-          notes: "Dividir a turma em equipes de 5-7 pessoas"
-        }
-      ]
-    }
-  ],
-  createdAt: generateRandomDate(45),
-  updatedAt: generateRandomDate(5)
-};
-
-// Lista de cursos de exemplo
+// Sample courses with modules
 export const sampleCourses: Course[] = [
-  designThinkingCourse,
-  agileCourse
+  {
+    id: "c1",
+    name: "Design Thinking para Educadores",
+    description: "Este curso introduz educadores ao processo de Design Thinking, fornecendo ferramentas e técnicas para aplicar essa abordagem centrada no ser humano para resolver problemas complexos no ambiente educacional.",
+    objectives: "Ao final deste curso, os participantes serão capazes de:\n- Compreender os princípios do Design Thinking\n- Aplicar o processo de Design Thinking para resolver problemas educacionais\n- Utilizar ferramentas de empatia, ideação e prototipagem\n- Implementar e testar soluções inovadoras",
+    targetAudience: "Professores, coordenadores e gestores educacionais",
+    estimatedDuration: 840, // em minutos (14 horas)
+    thumbnail: "/placeholder.svg",
+    modules: sampleModules,
+    createdAt: new Date("2025-02-15"),
+    updatedAt: new Date("2025-03-10"),
+    tags: ["Design Thinking", "Inovação", "Educação"],
+    status: "Em andamento"
+  },
+  {
+    id: "c2",
+    name: "Aprendizagem Baseada em Projetos",
+    description: "Este curso explora a metodologia de Aprendizagem Baseada em Projetos (PBL), fornecendo estratégias para implementar projetos significativos que promovam o desenvolvimento de habilidades do século XXI.",
+    objectives: "Ao final deste curso, os participantes serão capazes de:\n- Compreender os princípios da Aprendizagem Baseada em Projetos\n- Planejar projetos significativos alinhados com objetivos curriculares\n- Facilitar o processo de aprendizagem durante os projetos\n- Avaliar o desenvolvimento de habilidades e competências através de projetos",
+    targetAudience: "Professores do ensino fundamental e médio",
+    estimatedDuration: 960, // em minutos (16 horas)
+    thumbnail: "/placeholder.svg",
+    modules: [
+      {
+        id: "m4",
+        title: "Fundamentos da PBL",
+        description: "Princípios e benefícios da Aprendizagem Baseada em Projetos",
+        lessons: [
+          {
+            id: "l11",
+            title: "O que é PBL?",
+            description: "Introdução aos conceitos e princípios da Aprendizagem Baseada em Projetos.",
+            duration: 60,
+            activityType: "Exposição",
+            notes: "Preparar estudos de caso de implementação bem-sucedida de PBL.",
+            status: "Fazer"
+          },
+          {
+            id: "l12",
+            title: "Benefícios e Desafios da PBL",
+            description: "Análise dos benefícios e desafios da implementação da PBL.",
+            duration: 90,
+            activityType: "Dinâmica",
+            notes: "Organizar debate sobre prós e contras da PBL.",
+            status: "Fazer"
+          },
+          {
+            id: "l13",
+            title: "PBL vs. Métodos Tradicionais",
+            description: "Comparação entre PBL e abordagens pedagógicas tradicionais.",
+            duration: 60,
+            activityType: "Exposição",
+            notes: "Criar tabela comparativa entre métodos tradicionais e PBL.",
+            status: "Fazer"
+          }
+        ],
+      },
+      {
+        id: "m5",
+        title: "Planejamento de Projetos",
+        description: "Estratégias para planejar projetos significativos",
+        lessons: [
+          {
+            id: "l14",
+            title: "Definição de Questões Norteadoras",
+            description: "Como criar questões norteadoras eficazes para projetos.",
+            duration: 90,
+            activityType: "Prática",
+            notes: "Desenvolver exemplos de questões norteadoras para diferentes disciplinas.",
+            status: "Fazer"
+          },
+          {
+            id: "l15",
+            title: "Alinhamento Curricular",
+            description: "Estratégias para alinhar projetos com objetivos curriculares.",
+            duration: 60,
+            activityType: "Exposição",
+            notes: "Trazer exemplos de matrizes de alinhamento curricular.",
+            status: "Fazer"
+          },
+          {
+            id: "l16",
+            title: "Recursos e Materiais",
+            description: "Identificação e organização de recursos para projetos.",
+            duration: 60,
+            activityType: "Prática",
+            notes: "Criar lista de verificação para planejamento de recursos.",
+            status: "Fazer"
+          },
+          {
+            id: "l17",
+            title: "Cronograma e Marcos",
+            description: "Como planejar o cronograma e definir marcos para projetos.",
+            duration: 90,
+            activityType: "Prática",
+            notes: "Desenvolver template de cronograma para projetos.",
+            status: "Fazer"
+          }
+        ],
+      },
+    ],
+    createdAt: new Date("2025-01-20"),
+    updatedAt: new Date("2025-02-05"),
+    tags: ["Metodologias Ativas", "Projetos", "Aprendizagem"],
+    status: "Rascunho"
+  },
 ];
