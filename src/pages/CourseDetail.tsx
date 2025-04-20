@@ -1,333 +1,492 @@
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useCourseStore, Module, Lesson } from "@/store/courseStore";
-import { useUserStore } from "@/store/userStore";
+import { useCourseStore, Course } from "@/store/courseStore";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModuleItem } from "@/components/courses/ModuleItem";
 import { ModuleForm } from "@/components/courses/ModuleForm";
-import CourseUsers from "@/components/courses/CourseUsers";
-import { Edit, Trash2, Clock, Users, Building } from "lucide-react";
+import { CourseForm } from "@/components/courses/CourseForm";
+import { 
+  ArrowLeft, 
+  Edit, 
+  Plus, 
+  Trash, 
+  Clock, 
+  Calendar, 
+  Users, 
+  Target,
+  GraduationCap,
+  Download,
+  Tag,
+  X
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
+  const { courses, deleteCourse, addTagToCourse, removeTagFromCourse } = useCourseStore();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [addModuleOpen, setAddModuleOpen] = useState(false);
-  const [departmentDialogOpen, setDepartmentDialogOpen] = useState(false);
-  const { courses, deleteModule, updateCourse } = useCourseStore();
-  const { currentUser, departments, hasAccessToCourse } = useUserStore();
-  const isAdmin = currentUser.role === "admin";
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isAddingModule, setIsAddingModule] = useState(false);
+  const [isEditingCourse, setIsEditingCourse] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"designer" | "export">("designer");
+  const [newTag, setNewTag] = useState("");
 
-  const course = courses.find((c) => c.id === courseId);
-
-  // If course not found or no access
   useEffect(() => {
-    if (courseId && course) {
-      const hasAccess = hasAccessToCourse(course.id, course.targetAudience);
-      
-      if (!currentUser.isAuthenticated || !hasAccess) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have permission to view this course",
-          variant: "destructive",
-        });
+    if (courseId) {
+      const foundCourse = courses.find((c) => c.id === courseId);
+      if (foundCourse) {
+        setCourse(foundCourse);
+      } else {
         navigate("/courses");
+        toast.error("Curso não encontrado");
       }
-    } else if (courseId) {
-      toast({
-        title: "Course not found",
-        description: "The course you're looking for doesn't exist",
-        variant: "destructive",
-      });
+    }
+  }, [courseId, courses, navigate]);
+
+  const handleDeleteCourse = () => {
+    if (courseId) {
+      deleteCourse(courseId);
+      toast.success("Curso excluído com sucesso");
       navigate("/courses");
     }
-  }, [courseId, course, currentUser, navigate, toast, hasAccessToCourse]);
+  };
+
+  const handleBack = () => {
+    navigate("/courses");
+  };
+
+  const handleExport = () => {
+    toast.success("Funcionalidade de exportação será implementada em breve");
+  };
+
+  const handleAddTag = () => {
+    if (newTag.trim() && course) {
+      addTagToCourse(course.id, newTag.trim());
+      setNewTag("");
+      toast.success(`Tag "${newTag.trim()}" adicionada com sucesso`);
+    }
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    if (course) {
+      removeTagFromCourse(course.id, tag);
+      toast.success(`Tag "${tag}" removida com sucesso`);
+    }
+  };
 
   if (!course) {
     return (
-      <div className="container py-10">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Course not found</h2>
-          <Button onClick={() => navigate("/courses")}>Back to Courses</Button>
+          <h2 className="text-xl font-medium mb-2">Curso não encontrado</h2>
+          <p className="text-muted-foreground mb-4">
+            O curso que você está procurando não existe ou foi removido.
+          </p>
+          <Button onClick={handleBack}>Voltar para Cursos</Button>
         </div>
       </div>
     );
   }
 
-  const handleDeleteCourse = () => {
-    if (window.confirm("Are you sure you want to delete this course?")) {
-      useCourseStore.getState().deleteCourse(course.id);
-      navigate("/courses");
-      toast({
-        title: "Course deleted",
-        description: "The course has been permanently deleted",
-      });
-    }
-  };
-
-  const handleDeleteModule = (moduleId: string) => {
-    if (window.confirm("Are you sure you want to delete this module?")) {
-      deleteModule(course.id, moduleId);
-      toast({
-        title: "Module deleted",
-        description: "The module has been deleted",
-      });
-    }
-  };
-
-  const handleDepartmentChange = (department: string) => {
-    updateCourse(course.id, { targetAudience: department });
-    setDepartmentDialogOpen(false);
-    toast({
-      title: "Department updated",
-      description: `Course department changed to ${department}`,
-    });
-  };
-
-  const totalLessons = course.modules.reduce(
-    (count, module) => count + module.lessons.length,
-    0
+  const formattedDate = format(
+    new Date(course.createdAt), 
+    "dd 'de' MMMM 'de' yyyy", 
+    { locale: ptBR }
   );
 
-  // Calculate total duration in minutes
-  const totalDuration = course.modules.reduce((total, module) => {
-    return (
-      total +
-      module.lessons.reduce((moduleTotal, lesson) => {
-        return moduleTotal + lesson.duration;
-      }, 0)
-    );
+  const totalMinutes = course.modules.reduce((total, module) => {
+    return total + module.lessons.reduce((moduleTotal, lesson) => {
+      return moduleTotal + lesson.duration;
+    }, 0);
+  }, 0);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const durationText = hours > 0 
+    ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
+    : `${minutes}min`;
+
+  const totalLessons = course.modules.reduce((count, module) => {
+    return count + module.lessons.length;
   }, 0);
 
-  // Format duration as hours and minutes
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return `${hours > 0 ? `${hours}h ` : ""}${mins > 0 ? `${mins}m` : ""}`;
-  };
-
   return (
-    <div className="container py-8 animate-fade-in">
-      <div className="flex justify-between items-start mb-6 flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">{course.name}</h1>
-          <div className="flex items-center text-sm text-muted-foreground mt-2 space-x-4">
-            <div className="flex items-center">
-              <Clock className="mr-1 w-4 h-4" />
-              {formatDuration(totalDuration)}
+    <>
+      <div className="container mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4"
+        >
+          <Button
+            variant="ghost"
+            className="gap-2 mb-4"
+            onClick={handleBack}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Voltar para Cursos</span>
+          </Button>
+
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
+              <p className="text-muted-foreground">
+                Criado em {formattedDate}
+              </p>
             </div>
-            <div className="flex items-center">
-              <Building className="mr-1 w-4 h-4" />
-              {course.targetAudience}
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => setIsEditingCourse(true)}
+              >
+                <Edit className="h-4 w-4" />
+                <span>Editar</span>
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="gap-2"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash className="h-4 w-4" />
+                <span>Excluir</span>
+              </Button>
             </div>
           </div>
-        </div>
 
-        {isAdmin && (
-          <div className="flex space-x-2">
-            <Dialog open={departmentDialogOpen} onOpenChange={setDepartmentDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Building className="mr-2 h-4 w-4" />
-                  Change Department
+          {/* Tags Section */}
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-4 w-4 text-primary" />
+              <h3 className="text-md font-medium">Tags</h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {course.tags && course.tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="gap-1 py-1">
+                  {tag}
+                  <button 
+                    onClick={() => handleRemoveTag(tag)}
+                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Nova tag"
+                  className="h-8 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                />
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={handleAddTag}
+                  disabled={!newTag.trim()}
+                >
+                  Adicionar
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Change Department</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="space-y-2">
-                    <Label>Department</Label>
-                    <Select
-                      value={course.targetAudience}
-                      onValueChange={handleDepartmentChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-            
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/courses/edit/${course.id}`)}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Course
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteCourse}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-line">{course.description}</p>
-            </CardContent>
-          </Card>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
+            >
+              <div className="p-2 rounded-full bg-primary/10 text-primary">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Duração Total</p>
+                <p className="font-medium">{durationText}</p>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
+            >
+              <div className="p-2 rounded-full bg-primary/10 text-primary">
+                <GraduationCap className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Estrutura</p>
+                <p className="font-medium">{course.modules.length} módulos, {totalLessons} aulas</p>
+              </div>
+            </motion.div>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
+            >
+              <div className="p-2 rounded-full bg-primary/10 text-primary">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Público-Alvo</p>
+                <p className="font-medium line-clamp-1">{course.targetAudience}</p>
+              </div>
+            </motion.div>
+          </div>
 
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle>Course Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="font-medium">Learning Objectives</h3>
-                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-line">
-                  {course.objectives}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="md:col-span-2 space-y-6">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                <h2 className="text-xl font-semibold mb-2">Descrição</h2>
+                <p className="text-muted-foreground whitespace-pre-line">
+                  {course.description}
                 </p>
-              </div>
-              <div>
-                <h3 className="font-medium">Target Audience</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {course.targetAudience}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium">Duration</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {formatDuration(totalDuration)}
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium">Content</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {course.modules.length} modules, {totalLessons} lessons
-                </p>
-              </div>
-              {course.tags && course.tags.length > 0 && (
-                <div>
-                  <h3 className="font-medium">Tags</h3>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {course.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
-                      >
-                        {tag}
-                      </span>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <h2 className="text-xl font-semibold mb-2">Objetivos de Aprendizagem</h2>
+                <div className="flex gap-3">
+                  <Target className="h-5 w-5 text-primary mt-1" />
+                  <p className="text-muted-foreground whitespace-pre-line">
+                    {course.objectives}
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+
+            <div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white rounded-lg overflow-hidden border shadow-sm"
+              >
+                {course.thumbnail ? (
+                  <img 
+                    src={course.thumbnail} 
+                    alt={course.name} 
+                    className="w-full h-48 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gradient-to-r from-primary/60 to-primary flex items-center justify-center">
+                    <span className="text-white font-semibold text-lg">
+                      {course.name.substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="p-4">
+                  <h3 className="font-medium mb-1">Informações Adicionais</h3>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span>Duração Estimada: {durationText}</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      <span>Atualizado em: {
+                        format(
+                          new Date(course.updatedAt), 
+                          "dd/MM/yyyy", 
+                          { locale: ptBR }
+                        )
+                      }</span>
+                    </li>
+                  </ul>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+
+          <div className="mb-6 flex justify-between items-center">
+            <h2 className="text-2xl font-semibold">Estrutura do Curso</h2>
+            <Tabs 
+              value={activeTab} 
+              onValueChange={(value) => setActiveTab(value as "designer" | "export")}
+              className="w-auto"
+            >
+              <TabsList>
+                <TabsTrigger value="designer">Designer</TabsTrigger>
+                <TabsTrigger value="export" className="flex items-center gap-1">
+                  <Download className="h-4 w-4" />
+                  <span>Exportar</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <Tabs value={activeTab} className="w-full">
+            <TabsContent value="designer" className="mt-0 space-y-4">
+              {course.modules.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center p-10 bg-muted/40 rounded-lg border border-dashed"
+                >
+                  <h3 className="text-xl font-medium mb-2">Nenhum módulo encontrado</h3>
+                  <p className="text-muted-foreground text-center mb-6">
+                    Comece adicionando módulos ao seu curso.
+                  </p>
+                  <Button onClick={() => setIsAddingModule(true)} className="gap-2">
+                    <Plus className="h-5 w-5" />
+                    <span>Adicionar Primeiro Módulo</span>
+                  </Button>
+                </motion.div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    {course.modules.map((module, index) => (
+                      <ModuleItem 
+                        key={module.id}
+                        courseId={course.id}
+                        module={module}
+                        index={index}
+                      />
                     ))}
                   </div>
-                </div>
+                  <Button 
+                    variant="outline" 
+                    className="w-full mt-4 gap-2" 
+                    onClick={() => setIsAddingModule(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Adicionar Módulo</span>
+                  </Button>
+                </>
               )}
-            </CardContent>
-          </Card>
-
-          {isAdmin && (
-            <CourseUsers 
-              courseId={course.id} 
-              courseDepartment={course.targetAudience} 
-            />
-          )}
-        </div>
+            </TabsContent>
+            <TabsContent value="export" className="mt-0">
+              <div className="bg-white shadow rounded-lg p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-center">{course.name}</h2>
+                  <Button onClick={handleExport} className="gap-2">
+                    <Download className="h-4 w-4" />
+                    <span>Exportar PDF</span>
+                  </Button>
+                </div>
+                
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-2">Descrição</h3>
+                  <p className="text-gray-600 whitespace-pre-line">{course.description}</p>
+                </div>
+                
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-2">Objetivos de Aprendizagem</h3>
+                  <p className="text-gray-600 whitespace-pre-line">{course.objectives}</p>
+                </div>
+                
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold mb-2">Público-Alvo</h3>
+                  <p className="text-gray-600">{course.targetAudience}</p>
+                </div>
+                
+                <div className="mb-10">
+                  <h3 className="text-lg font-semibold mb-4">Estrutura do Curso</h3>
+                  <ol className="space-y-6">
+                    {course.modules.map((module, index) => (
+                      <li key={module.id} className="border-l-2 border-primary pl-4 pb-2">
+                        <h4 className="text-md font-semibold text-primary">
+                          Módulo {index + 1}: {module.title}
+                        </h4>
+                        {module.description && (
+                          <p className="text-sm text-gray-500 mt-1 mb-3">{module.description}</p>
+                        )}
+                        <ol className="space-y-3 mt-3">
+                          {module.lessons.map((lesson, idx) => (
+                            <li key={lesson.id} className="flex items-start">
+                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded mr-2 mt-1">
+                                {lesson.duration} min
+                              </span>
+                              <div>
+                                <h5 className="text-sm font-medium">
+                                  {idx + 1}. {lesson.title}
+                                </h5>
+                                {lesson.description && (
+                                  <p className="text-xs text-gray-500 mt-1">{lesson.description}</p>
+                                )}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                
+                <div className="text-center text-sm text-gray-500">
+                  <p>Duração total: {durationText}</p>
+                  <p>Atualizado em {format(new Date(course.updatedAt), "dd/MM/yyyy", { locale: ptBR })}</p>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </motion.div>
       </div>
 
-      <Tabs defaultValue="content" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="content">Course Content</TabsTrigger>
-        </TabsList>
-        <TabsContent value="content" className="mt-6">
-          <div className="space-y-6">
-            {course.modules.length === 0 ? (
-              <div className="text-center py-12 border rounded-lg">
-                <h3 className="text-lg font-medium mb-2">No modules yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Start by adding your first module to this course.
-                </p>
-                {isAdmin && (
-                  <Button onClick={() => setAddModuleOpen(true)}>
-                    Add Module
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <>
-                {course.modules.map((module, index) => (
-                  <ModuleItem
-                    key={module.id}
-                    module={module}
-                    moduleIndex={index}
-                    courseId={course.id}
-                    onDelete={() => handleDeleteModule(module.id)}
-                    readOnly={!isAdmin}
-                  />
-                ))}
-                {isAdmin && (
-                  <div className="mt-6">
-                    <Button
-                      onClick={() => setAddModuleOpen(true)}
-                      className="w-full py-6"
-                      variant="outline"
-                    >
-                      + Add Module
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+      {isAddingModule && (
+        <ModuleForm 
+          courseId={course.id}
+          onClose={() => setIsAddingModule(false)}
+        />
+      )}
 
-      {/* Add Module Dialog */}
-      <Dialog open={addModuleOpen} onOpenChange={setAddModuleOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Module</DialogTitle>
-          </DialogHeader>
-          <ModuleForm
-            courseId={course.id}
-            onClose={() => setAddModuleOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+      {isEditingCourse && (
+        <CourseForm 
+          course={course}
+          onClose={() => setIsEditingCourse(false)}
+        />
+      )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Curso</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita e
+              todos os módulos e aulas associados serão excluídos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteCourse}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

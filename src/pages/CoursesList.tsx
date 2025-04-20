@@ -1,142 +1,208 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useCourseStore, Course } from "@/store/courseStore";
-import { useUserStore } from "@/store/userStore";
-import { AddCourseButton } from "@/components/courses/AddCourseButton";
-import CourseCard from "@/components/courses/CourseCard";
+import { useCourseStore } from "@/store/courseStore";
+import { CourseCard } from "@/components/courses/CourseCard";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Search, Filter, Tag, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { SearchIcon } from "lucide-react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const CoursesList = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [tagFilter, setTagFilter] = useState<string>("");
-  const [departmentFilter, setDepartmentFilter] = useState<string>("");
   const { courses } = useCourseStore();
-  const { currentUser, departments, hasAccessToCourse } = useUserStore();
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"date" | "name" | "modules">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  // Get all unique tags from all courses
-  const allTags = Array.from(
-    new Set(courses.flatMap((course) => course.tags))
-  ).filter(Boolean);
+  const handleAddCourse = () => {
+    navigate("/courses/new");
+  };
 
-  // Filter courses based on search term, tag, and user access
-  const filteredCourses = courses.filter((course) => {
-    // Check if user has access to the course (department match or invited)
-    const hasAccess = hasAccessToCourse(course.id, departmentFilter);
-    
-    if (!currentUser.isAuthenticated || !hasAccess) {
-      return false;
+  // Get all unique tags across all courses
+  const allTags = courses.reduce((acc, course) => {
+    if (course.tags && course.tags.length > 0) {
+      course.tags.forEach(tag => {
+        if (!acc.includes(tag)) {
+          acc.push(tag);
+        }
+      });
     }
-    
-    // Check search term
-    const matchesSearch =
-      searchTerm === "" ||
-      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Check tag filter
-    const matchesTag =
-      tagFilter === "" || course.tags.includes(tagFilter);
-    
-    return matchesSearch && matchesTag;
-  });
+    return acc;
+  }, [] as string[]);
 
-  // Sort courses by update date (newest first)
-  const sortedCourses = [...filteredCourses].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  // Filter by search term
+  const searchFiltered = courses.filter((course) =>
+    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Filter by tag if one is selected
+  const tagFiltered = selectedTag 
+    ? searchFiltered.filter(course => course.tags && course.tags.includes(selectedTag))
+    : searchFiltered;
+
+  // Apply sorting
+  const filteredCourses = tagFiltered.sort((a, b) => {
+    if (sortBy === "date") {
+      return sortOrder === "asc"
+        ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+    if (sortBy === "name") {
+      return sortOrder === "asc"
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    }
+    // sort by modules count
+    return sortOrder === "asc"
+      ? a.modules.length - b.modules.length
+      : b.modules.length - a.modules.length;
+  });
+
   return (
-    <div className="container py-8 animate-fade-in">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold">Cursos</h1>
-        {currentUser.isAuthenticated && currentUser.role === "admin" && (
-          <AddCourseButton />
+    <>
+      <div className="container mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4"
+        >
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Cursos</h1>
+            <p className="text-muted-foreground">
+              Gerencie todos os seus cursos e treinamentos.
+            </p>
+          </div>
+          <Button onClick={handleAddCourse} size="lg" className="gap-2">
+            <PlusCircle className="h-5 w-5" />
+            <span>Novo Curso</span>
+          </Button>
+        </motion.div>
+
+        {/* Tags Section */}
+        {allTags.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Tag className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-medium">Tags</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map(tag => (
+                <Badge 
+                  key={tag}
+                  variant={selectedTag === tag ? "default" : "outline"}
+                  className={cn(
+                    "cursor-pointer py-1 px-3 text-sm", 
+                    selectedTag === tag ? "bg-primary" : "hover:bg-secondary"
+                  )}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>{tag}</span>
+                    {selectedTag === tag && (
+                      <X className="h-3.5 w-3.5 ml-1" />
+                    )}
+                  </div>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar cursos..."
+              className="pl-9 w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="h-4 w-4" />
+                <span>Filtrar</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuCheckboxItem
+                checked={sortBy === "date"}
+                onCheckedChange={() => setSortBy("date")}
+              >
+                Ordenar por data
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortBy === "name"}
+                onCheckedChange={() => setSortBy("name")}
+              >
+                Ordenar por nome
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortBy === "modules"}
+                onCheckedChange={() => setSortBy("modules")}
+              >
+                Ordenar por módulos
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={sortOrder === "asc"}
+                onCheckedChange={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+              >
+                Ordem crescente
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {filteredCourses.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center p-10 bg-muted/40 rounded-lg border border-dashed"
+          >
+            {courses.length === 0 ? (
+              <>
+                <h3 className="text-xl font-medium mb-2">Nenhum curso encontrado</h3>
+                <p className="text-muted-foreground text-center mb-6">
+                  Comece criando seu primeiro curso para organizar seus treinamentos.
+                </p>
+                <Button onClick={handleAddCourse} className="gap-2">
+                  <PlusCircle className="h-5 w-5" />
+                  <span>Criar Primeiro Curso</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-medium mb-2">Nenhum resultado encontrado</h3>
+                <p className="text-muted-foreground text-center">
+                  Tente ajustar os filtros ou buscar por outros termos.
+                </p>
+              </>
+            )}
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredCourses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
         )}
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar cursos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        <Select value={tagFilter} onValueChange={setTagFilter}>
-          <SelectTrigger>
-            <SelectValue placeholder="Filtrar por tag" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todas as tags</SelectItem>
-            {allTags.map((tag) => (
-              <SelectItem key={tag} value={tag}>
-                {tag}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select 
-          value={departmentFilter} 
-          onValueChange={setDepartmentFilter}
-          disabled={currentUser.role === "admin"}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Filtrar por departamento" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos os departamentos</SelectItem>
-            {departments.map((dept) => (
-              <SelectItem key={dept} value={dept}>
-                {dept}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {!currentUser.isAuthenticated ? (
-        <div className="text-center py-10">
-          <h2 className="text-xl font-medium mb-2">Login Required</h2>
-          <p className="text-muted-foreground mb-4">
-            Please login to view available courses.
-          </p>
-          <Link 
-            to="/login" 
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-          >
-            Go to Login
-          </Link>
-        </div>
-      ) : sortedCourses.length === 0 ? (
-        <div className="text-center py-10">
-          <h2 className="text-xl font-medium mb-2">No courses found</h2>
-          <p className="text-muted-foreground">
-            {searchTerm || tagFilter
-              ? "Try adjusting your search or filters."
-              : "There are no courses available yet."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedCourses.map((course) => (
-            <CourseCard key={course.id} course={course} />
-          ))}
-        </div>
-      )}
-    </div>
+      <AddCourseButton />
+    </>
   );
 };
 
