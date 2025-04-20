@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus } from "@/store/courseStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag } from "lucide-react";
+import { useUserStore } from "@/store/userStore";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, Check, UserPlus, CircleAlert } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +22,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,12 +51,15 @@ import { CourseEditor } from "@/components/courses/CourseEditor";
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { courses, deleteCourse, updateCourseStatus } = useCourseStore();
+  const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, getCourseProgress } = useCourseStore();
+  const { users, currentUser } = useUserStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [addCollaboratorOpen, setAddCollaboratorOpen] = useState(false);
+  const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string>("");
   
   useEffect(() => {
     if (courseId) {
@@ -63,18 +84,13 @@ const CourseDetail = () => {
     0
   );
   
-  // Calculate lesson status statistics
-  const lessonStatusStats = course.modules.reduce((acc, module) => {
-    module.lessons.forEach(lesson => {
-      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
+  // Get progress stats
+  const progress = getCourseProgress(course.id);
   
-  const getStatusPercentage = (status: string) => {
-    if (totalLessons === 0) return 0;
-    return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
-  };
+  // Get collaborators
+  const collaborators = course.collaborators 
+    ? course.collaborators.map(id => users.find(u => u.id === id)).filter(Boolean)
+    : [];
 
   const handleDelete = () => {
     deleteCourse(course.id);
@@ -87,10 +103,24 @@ const CourseDetail = () => {
     toast.success(`Status do curso atualizado para "${status}"`);
   };
 
+  const handleAddCollaborator = () => {
+    if (selectedCollaboratorId) {
+      addCollaborator(course.id, selectedCollaboratorId);
+      toast.success("Colaborador adicionado com sucesso");
+      setAddCollaboratorOpen(false);
+      setSelectedCollaboratorId("");
+    }
+  };
+
+  const handleRemoveCollaborator = (userId: string) => {
+    removeCollaborator(course.id, userId);
+    toast.success("Colaborador removido com sucesso");
+  };
+
   const getStatusVariant = (status: CourseStatus) => {
     switch(status) {
-      case 'Rascunho': return 'outline';
-      case 'Em andamento': return 'secondary';
+      case 'Rascunho': return 'secondary';
+      case 'Em andamento': return 'default';
       case 'Concluído': return 'default';
       default: return 'outline';
     }
@@ -148,6 +178,15 @@ const CourseDetail = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setAddCollaboratorOpen(true)}
+              className="gap-1"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Colaboradores</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsEditing(true)}
               className="gap-1"
             >
@@ -196,6 +235,51 @@ const CourseDetail = () => {
                       <Badge key={tag} variant="outline">{tag}</Badge>
                     ))}
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Collaborators Section */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Colaboradores</h3>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setAddCollaboratorOpen(true)}
+                  className="gap-1"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Adicionar</span>
+                </Button>
+              </div>
+              
+              {collaborators.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {collaborators.map(user => user && (
+                    <div key={user.id} className="flex items-center justify-between border rounded-md p-2">
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveCollaborator(user.id)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-muted-foreground p-4 border border-dashed rounded-md">
+                  <p>Nenhum colaborador adicionado</p>
                 </div>
               )}
             </CardContent>
@@ -272,60 +356,69 @@ const CourseDetail = () => {
                 </div>
               </div>
             </div>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="pt-6 space-y-6">
+              {/* Course Progress */}
               <div>
-                <h3 className="text-sm font-medium mb-1">Estatísticas do Curso</h3>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="border rounded-md p-2">
-                    <p className="text-xs text-muted-foreground">Total de Aulas</p>
-                    <p className="text-lg font-bold">{totalLessons}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold">Progresso do Curso</h3>
+                  <span className="text-sm font-medium">{progress.percentage}%</span>
+                </div>
+                
+                <Progress value={progress.percentage} className="h-2.5 mb-4" />
+                
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="border rounded-lg p-2">
+                    <div className="flex justify-center text-green-500 mb-1">
+                      <Check className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-medium">Finalizados</p>
+                    <p className="text-lg font-bold">{progress.finalizando}</p>
                   </div>
-                  <div className="border rounded-md p-2">
-                    <p className="text-xs text-muted-foreground">Total Módulos</p>
-                    <p className="text-lg font-bold">{totalModules}</p>
+                  
+                  <div className="border rounded-lg p-2">
+                    <div className="flex justify-center text-amber-500 mb-1">
+                      <CircleAlert className="h-5 w-5" />
+                    </div>
+                    <p className="text-sm font-medium">Pendentes</p>
+                    <p className="text-lg font-bold">{progress.fazer + progress.fazendo}</p>
                   </div>
                 </div>
               </div>
               
-              <div>
-                <h3 className="text-sm font-medium mb-1">Progresso das Aulas</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span>Fazer</span>
-                    <span>{lessonStatusStats['Fazer'] || 0} aulas</span>
+              {/* Quick Stats */}
+              <div className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-3">Detalhes do Curso</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total de Aulas:</span>
+                    <span className="font-medium">{totalLessons}</span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-muted-foreground rounded-full" 
-                      style={{ width: `${getStatusPercentage('Fazer')}%` }}
-                    />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total de Módulos:</span>
+                    <span className="font-medium">{totalModules}</span>
                   </div>
-                  
-                  <div className="flex justify-between text-xs">
-                    <span>Fazendo</span>
-                    <span>{lessonStatusStats['Fazendo'] || 0} aulas</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Duração Total:</span>
+                    <span className="font-medium">
+                      {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
+                    </span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-400 rounded-full" 
-                      style={{ width: `${getStatusPercentage('Fazendo')}%` }}
-                    />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aulas Finalizadas:</span>
+                    <span className="font-medium">{progress.finalizando} ({progress.percentage}%)</span>
                   </div>
-                  
-                  <div className="flex justify-between text-xs">
-                    <span>Finalizando</span>
-                    <span>{lessonStatusStats['Finalizando'] || 0} aulas</span>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aulas Em Progresso:</span>
+                    <span className="font-medium">{progress.fazendo}</span>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full" 
-                      style={{ width: `${getStatusPercentage('Finalizando')}%` }}
-                    />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aulas A Fazer:</span>
+                    <span className="font-medium">{progress.fazer}</span>
                   </div>
                 </div>
               </div>
               
-              <Button onClick={openEditor} className="w-full gap-2 mt-4">
+              <Button onClick={openEditor} className="w-full gap-2">
                 <FileEdit className="h-4 w-4" />
                 <span>Editor Avançado</span>
               </Button>
@@ -333,58 +426,6 @@ const CourseDetail = () => {
           </Card>
         </div>
       </div>
-
-      {/* Progress overview */}
-      {totalLessons > 0 && (
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <h3 className="font-semibold text-lg mb-4">Progresso do Curso</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Fazer</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazer')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-muted-foreground rounded-full" 
-                    style={{ width: `${getStatusPercentage('Fazer')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazer'] || 0} aulas</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Fazendo</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazendo')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-400 rounded-full" 
-                    style={{ width: `${getStatusPercentage('Fazendo')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazendo'] || 0} aulas</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Finalizando</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Finalizando')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500 rounded-full" 
-                    style={{ width: `${getStatusPercentage('Finalizando')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Finalizando'] || 0} aulas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Tabs defaultValue="content" className="mt-6">
         <TabsList>
@@ -494,6 +535,46 @@ const CourseDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Add Collaborator Dialog */}
+      <Dialog open={addCollaboratorOpen} onOpenChange={setAddCollaboratorOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogDescription>
+              Escolha um usuário para colaborar neste curso.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedCollaboratorId} onValueChange={setSelectedCollaboratorId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                {users
+                  .filter(user => 
+                    !course.collaborators?.includes(user.id) && 
+                    user.id !== currentUser?.id
+                  )
+                  .map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))
+                }
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddCollaboratorOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddCollaborator} disabled={!selectedCollaboratorId}>
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

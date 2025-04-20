@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserStore, User, UserRole, DepartmentName } from "@/store/userStore";
-import { useCourseStore } from "@/store/courseStore";
+import { useCourseStore, Course } from "@/store/courseStore";
 import { Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -34,17 +34,21 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserPlus, Edit, Trash, Users, BookOpen } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { UserPlus, Edit, Trash, Users, BookOpen, Plus, Building } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const Admin = () => {
   const { users, currentUser, addUser, updateUser, deleteUser, assignUserToCourse, removeUserFromCourse } = useUserStore();
-  const { courses } = useCourseStore();
+  const { courses, addCollaborator, removeCollaborator } = useCourseStore();
   const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
   const [isAssignCourseDialogOpen, setIsAssignCourseDialogOpen] = useState(false);
+  const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedCollaboratorId, setSelectedCollaboratorId] = useState<string>("");
 
   // Form state for adding/editing users
   const [formData, setFormData] = useState({
@@ -66,30 +70,46 @@ const Admin = () => {
   };
 
   const handleAddUser = () => {
-    addUser({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-      department: formData.department || undefined,
-    });
-    setIsAddUserDialogOpen(false);
-    toast.success("Usuário adicionado com sucesso");
-    resetForm();
+    try {
+      addUser({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        department: formData.department || undefined,
+      });
+      setIsAddUserDialogOpen(false);
+      toast.success("Usuário adicionado com sucesso");
+      resetForm();
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Erro ao adicionar usuário");
+      }
+    }
   };
 
   const handleEditUser = () => {
     if (selectedUser) {
-      updateUser(selectedUser.id, {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        department: formData.department || undefined,
-        ...(formData.password ? { password: formData.password } : {}),
-      });
-      setIsEditUserDialogOpen(false);
-      toast.success("Usuário atualizado com sucesso");
-      resetForm();
+      try {
+        updateUser(selectedUser.id, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          department: formData.department || undefined,
+          ...(formData.password ? { password: formData.password } : {}),
+        });
+        setIsEditUserDialogOpen(false);
+        toast.success("Usuário atualizado com sucesso");
+        resetForm();
+      } catch (error) {
+        if (error instanceof Error) {
+          toast.error(error.message);
+        } else {
+          toast.error("Erro ao atualizar usuário");
+        }
+      }
     }
   };
 
@@ -133,6 +153,24 @@ const Admin = () => {
     setIsAssignCourseDialogOpen(true);
   };
 
+  const openCollaboratorDialog = (course: Course) => {
+    setSelectedCourse(course);
+    setIsCollaboratorDialogOpen(true);
+  };
+
+  const handleAddCollaborator = () => {
+    if (selectedCourse && selectedCollaboratorId) {
+      addCollaborator(selectedCourse.id, selectedCollaboratorId);
+      toast.success("Colaborador adicionado com sucesso");
+      setSelectedCollaboratorId("");
+    }
+  };
+
+  const handleRemoveCollaborator = (courseId: string, userId: string) => {
+    removeCollaborator(courseId, userId);
+    toast.success("Colaborador removido com sucesso");
+  };
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -158,6 +196,16 @@ const Admin = () => {
     return user.assignedCourses.map(courseId => {
       const course = courses.find(c => c.id === courseId);
       return course ? { id: courseId, name: course.name } : null;
+    }).filter(Boolean);
+  };
+
+  const getCourseCollaborators = (courseId: string) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course || !course.collaborators) return [];
+    
+    return course.collaborators.map(userId => {
+      const user = users.find(u => u.id === userId);
+      return user ? { id: userId, name: user.name, email: user.email } : null;
     }).filter(Boolean);
   };
 
@@ -278,6 +326,10 @@ const Admin = () => {
           <TabsTrigger value="courses" className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             <span>Atribuições de Cursos</span>
+          </TabsTrigger>
+          <TabsTrigger value="collaborators" className="flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            <span>Colaboradores</span>
           </TabsTrigger>
         </TabsList>
         
@@ -401,6 +453,82 @@ const Admin = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        <TabsContent value="collaborators">
+          <Card>
+            <CardHeader>
+              <CardTitle>Colaboradores de Cursos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Curso</TableHead>
+                    <TableHead>Departamento</TableHead>
+                    <TableHead>Colaboradores</TableHead>
+                    <TableHead>Progresso</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.map((course) => {
+                    const progress = useCourseStore.getState().getCourseProgress(course.id);
+                    
+                    return (
+                      <TableRow key={course.id}>
+                        <TableCell className="font-medium">{course.name}</TableCell>
+                        <TableCell>
+                          {course.departmentId || "Não atribuído"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {getCourseCollaborators(course.id).map((user) => (
+                              user && (
+                                <Badge key={user.id} variant="secondary" className="flex items-center gap-1">
+                                  {user.name}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 ml-1"
+                                    onClick={() => handleRemoveCollaborator(course.id, user.id)}
+                                  >
+                                    <Trash className="h-3 w-3" />
+                                  </Button>
+                                </Badge>
+                              )
+                            ))}
+                            {(!course.collaborators || course.collaborators.length === 0) && (
+                              <span className="text-muted-foreground text-sm italic">Nenhum colaborador</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span>Progresso:</span>
+                              <span>{progress.percentage}%</span>
+                            </div>
+                            <Progress value={progress.percentage} className="h-2" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openCollaboratorDialog(course)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Adicionar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Edit User Dialog */}
@@ -519,6 +647,40 @@ const Admin = () => {
             </Button>
             <Button onClick={handleAssignCourse} disabled={!selectedCourseId}>
               Atribuir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Collaborator Dialog */}
+      <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogDescription>
+              Selecione um usuário para adicionar como colaborador ao curso {selectedCourse?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedCollaboratorId} onValueChange={setSelectedCollaboratorId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um usuário" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCollaboratorDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddCollaborator} disabled={!selectedCollaboratorId}>
+              Adicionar
             </Button>
           </DialogFooter>
         </DialogContent>
