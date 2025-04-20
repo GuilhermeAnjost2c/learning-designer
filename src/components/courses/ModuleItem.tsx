@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Module, Lesson, useCourseStore } from "@/store/courseStore";
+import { Module, Lesson, useCourseStore, LessonStatus } from "@/store/courseStore";
 import { 
   Accordion,
   AccordionContent,
@@ -31,6 +31,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 interface ModuleItemProps {
@@ -52,6 +60,28 @@ export const ModuleItem = ({ courseId, module, index }: ModuleItemProps) => {
   const durationText = hours > 0 
     ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
     : `${minutes}min`;
+
+  // Count lessons by status
+  const lessonStatusCount = module.lessons.reduce(
+    (acc, lesson) => {
+      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
+      return acc;
+    },
+    {} as Record<LessonStatus, number>
+  );
+
+  const getStatusVariant = (status: LessonStatus) => {
+    switch (status) {
+      case 'Fazer':
+        return 'outline';
+      case 'Fazendo':
+        return 'secondary';
+      case 'Finalizando':
+        return 'default';
+      default:
+        return 'outline';
+    }
+  };
 
   const handleDelete = () => {
     deleteModule(courseId, module.id);
@@ -112,6 +142,17 @@ export const ModuleItem = ({ courseId, module, index }: ModuleItemProps) => {
               <AccordionContent className="px-6 pb-4 pt-2">
                 {module.description && (
                   <p className="text-sm text-muted-foreground mb-4">{module.description}</p>
+                )}
+                
+                {/* Status summary display */}
+                {module.lessons.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {Object.entries(lessonStatusCount).map(([status, count]) => (
+                      <Badge key={status} variant={getStatusVariant(status as LessonStatus)}>
+                        {count} {status}
+                      </Badge>
+                    ))}
+                  </div>
                 )}
                 
                 <div className="space-y-4">

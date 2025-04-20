@@ -1,29 +1,15 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useCourseStore, Course } from "@/store/courseStore";
 import { Button } from "@/components/ui/button";
-import { ModuleItem } from "@/components/courses/ModuleItem";
-import { ModuleForm } from "@/components/courses/ModuleForm";
-import { CourseForm } from "@/components/courses/CourseForm";
-import { 
-  ArrowLeft, 
-  Edit, 
-  Plus, 
-  Trash, 
-  Clock, 
-  Calendar, 
-  Users, 
-  Target,
-  GraduationCap,
-  Download,
-  Tag,
-  X
-} from "lucide-react";
-import { motion } from "framer-motion";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useCourseStore, Course, CourseStatus } from "@/store/courseStore";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine } from "lucide-react";
+import { CourseForm } from "@/components/courses/CourseForm";
+import { ModuleForm } from "@/components/courses/ModuleForm";
+import { ModuleItem } from "@/components/courses/ModuleItem";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,435 +20,320 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { courses, deleteCourse, addTagToCourse, removeTagFromCourse } = useCourseStore();
   const navigate = useNavigate();
+  const { courses, deleteCourse, updateCourseStatus } = useCourseStore();
   const [course, setCourse] = useState<Course | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
-  const [isEditingCourse, setIsEditingCourse] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"designer" | "export">("designer");
-  const [newTag, setNewTag] = useState("");
-
+  
   useEffect(() => {
     if (courseId) {
-      const foundCourse = courses.find((c) => c.id === courseId);
-      if (foundCourse) {
-        setCourse(foundCourse);
-      } else {
-        navigate("/courses");
-        toast.error("Curso não encontrado");
-      }
+      const foundCourse = courses.find(c => c.id === courseId);
+      setCourse(foundCourse || null);
     }
-  }, [courseId, courses, navigate]);
-
-  const handleDeleteCourse = () => {
-    if (courseId) {
-      deleteCourse(courseId);
-      toast.success("Curso excluído com sucesso");
-      navigate("/courses");
-    }
-  };
-
-  const handleBack = () => {
-    navigate("/courses");
-  };
-
-  const handleExport = () => {
-    toast.success("Funcionalidade de exportação será implementada em breve");
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim() && course) {
-      addTagToCourse(course.id, newTag.trim());
-      setNewTag("");
-      toast.success(`Tag "${newTag.trim()}" adicionada com sucesso`);
-    }
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    if (course) {
-      removeTagFromCourse(course.id, tag);
-      toast.success(`Tag "${tag}" removida com sucesso`);
-    }
-  };
+  }, [courseId, courses]);
 
   if (!course) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <h2 className="text-xl font-medium mb-2">Curso não encontrado</h2>
-          <p className="text-muted-foreground mb-4">
-            O curso que você está procurando não existe ou foi removido.
-          </p>
-          <Button onClick={handleBack}>Voltar para Cursos</Button>
-        </div>
+      <div className="container mx-auto py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Curso não encontrado</h1>
+        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
       </div>
     );
   }
 
-  const formattedDate = format(
-    new Date(course.createdAt), 
-    "dd 'de' MMMM 'de' yyyy", 
-    { locale: ptBR }
+  // Calculate course metrics
+  const totalModules = course.modules.length;
+  const totalLessons = course.modules.reduce(
+    (acc, module) => acc + module.lessons.length, 
+    0
   );
+  
+  // Calculate lesson status statistics
+  const lessonStatusStats = course.modules.reduce((acc, module) => {
+    module.lessons.forEach(lesson => {
+      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const getStatusPercentage = (status: string) => {
+    if (totalLessons === 0) return 0;
+    return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
+  };
 
-  const totalMinutes = course.modules.reduce((total, module) => {
-    return total + module.lessons.reduce((moduleTotal, lesson) => {
-      return moduleTotal + lesson.duration;
-    }, 0);
-  }, 0);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  const durationText = hours > 0 
-    ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
-    : `${minutes}min`;
+  const handleDelete = () => {
+    deleteCourse(course.id);
+    toast.success("Curso excluído com sucesso");
+    navigate("/courses");
+  };
 
-  const totalLessons = course.modules.reduce((count, module) => {
-    return count + module.lessons.length;
-  }, 0);
+  const handleStatusChange = (status: CourseStatus) => {
+    updateCourseStatus(course.id, status);
+    toast.success(`Status do curso atualizado para "${status}"`);
+  };
+
+  const getStatusVariant = (status: CourseStatus) => {
+    switch(status) {
+      case 'Rascunho': return 'outline';
+      case 'Em andamento': return 'secondary';
+      case 'Concluído': return 'default';
+      default: return 'outline';
+    }
+  };
 
   return (
-    <>
-      <div className="container mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
-        >
+    <div className="container mx-auto py-6">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <div className="flex items-center mb-2">
           <Button
             variant="ghost"
-            className="gap-2 mb-4"
-            onClick={handleBack}
+            size="icon"
+            onClick={() => navigate("/courses")}
+            className="mr-2"
           >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Voltar para Cursos</span>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
+          <h1 className="text-3xl font-bold">{course.name}</h1>
+        </div>
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <Badge variant={getStatusVariant(course.status)} className="h-7 px-3 text-sm">
+            {course.status}
+          </Badge>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 gap-1">
+                <PenLine className="h-4 w-4" />
+                <span>Mudar Status</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleStatusChange('Rascunho')}>
+                Rascunho
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange('Em andamento')}>
+                Em andamento
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange('Concluído')}>
+                Concluído
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="gap-1"
+            >
+              <Edit className="h-4 w-4" />
+              <span>Editar</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="gap-1"
+            >
+              <Trash className="h-4 w-4" />
+              <span>Excluir</span>
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Estrutura</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Módulos</p>
+                <p className="text-2xl font-bold">{totalModules}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Aulas</p>
+                <p className="text-2xl font-bold">{totalLessons}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Duração</h3>
+            </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
-              <p className="text-muted-foreground">
-                Criado em {formattedDate}
+              <p className="text-sm text-muted-foreground">Tempo Estimado</p>
+              <p className="text-2xl font-bold">
+                {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                className="gap-2"
-                onClick={() => setIsEditingCourse(true)}
-              >
-                <Edit className="h-4 w-4" />
-                <span>Editar</span>
-              </Button>
-              <Button 
-                variant="destructive" 
-                className="gap-2"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash className="h-4 w-4" />
-                <span>Excluir</span>
-              </Button>
-            </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Tags Section */}
-          <div className="mb-4">
+        <Card>
+          <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-2">
-              <Tag className="h-4 w-4 text-primary" />
-              <h3 className="text-md font-medium">Tags</h3>
+              <Users className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Público</h3>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {course.tags && course.tags.map(tag => (
-                <Badge key={tag} variant="secondary" className="gap-1 py-1">
-                  {tag}
-                  <button 
-                    onClick={() => handleRemoveTag(tag)}
-                    className="ml-1 rounded-full hover:bg-muted p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  placeholder="Nova tag"
-                  className="h-8 w-32 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
-                />
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={handleAddTag}
-                  disabled={!newTag.trim()}
-                >
-                  Adicionar
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
-            >
-              <div className="p-2 rounded-full bg-primary/10 text-primary">
-                <Clock className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Duração Total</p>
-                <p className="font-medium">{durationText}</p>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
-            >
-              <div className="p-2 rounded-full bg-primary/10 text-primary">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Estrutura</p>
-                <p className="font-medium">{course.modules.length} módulos, {totalLessons} aulas</p>
-              </div>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="flex items-center gap-3 p-4 rounded-lg bg-white shadow-sm border"
-            >
-              <div className="p-2 rounded-full bg-primary/10 text-primary">
-                <Users className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Público-Alvo</p>
-                <p className="font-medium line-clamp-1">{course.targetAudience}</p>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div className="md:col-span-2 space-y-6">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.1 }}
-              >
-                <h2 className="text-xl font-semibold mb-2">Descrição</h2>
-                <p className="text-muted-foreground whitespace-pre-line">
-                  {course.description}
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2 className="text-xl font-semibold mb-2">Objetivos de Aprendizagem</h2>
-                <div className="flex gap-3">
-                  <Target className="h-5 w-5 text-primary mt-1" />
-                  <p className="text-muted-foreground whitespace-pre-line">
-                    {course.objectives}
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-
             <div>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white rounded-lg overflow-hidden border shadow-sm"
-              >
-                {course.thumbnail ? (
-                  <img 
-                    src={course.thumbnail} 
-                    alt={course.name} 
-                    className="w-full h-48 object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gradient-to-r from-primary/60 to-primary flex items-center justify-center">
-                    <span className="text-white font-semibold text-lg">
-                      {course.name.substring(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="font-medium mb-1">Informações Adicionais</h3>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      <span>Duração Estimada: {durationText}</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Atualizado em: {
-                        format(
-                          new Date(course.updatedAt), 
-                          "dd/MM/yyyy", 
-                          { locale: ptBR }
-                        )
-                      }</span>
-                    </li>
-                  </ul>
-                </div>
-              </motion.div>
+              <p className="text-sm text-muted-foreground">Público-alvo</p>
+              <p className="text-lg font-medium truncate">{course.targetAudience}</p>
             </div>
-          </div>
-
-          <div className="mb-6 flex justify-between items-center">
-            <h2 className="text-2xl font-semibold">Estrutura do Curso</h2>
-            <Tabs 
-              value={activeTab} 
-              onValueChange={(value) => setActiveTab(value as "designer" | "export")}
-              className="w-auto"
-            >
-              <TabsList>
-                <TabsTrigger value="designer">Designer</TabsTrigger>
-                <TabsTrigger value="export" className="flex items-center gap-1">
-                  <Download className="h-4 w-4" />
-                  <span>Exportar</span>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          <Tabs value={activeTab} className="w-full">
-            <TabsContent value="designer" className="mt-0 space-y-4">
-              {course.modules.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center p-10 bg-muted/40 rounded-lg border border-dashed"
-                >
-                  <h3 className="text-xl font-medium mb-2">Nenhum módulo encontrado</h3>
-                  <p className="text-muted-foreground text-center mb-6">
-                    Comece adicionando módulos ao seu curso.
-                  </p>
-                  <Button onClick={() => setIsAddingModule(true)} className="gap-2">
-                    <Plus className="h-5 w-5" />
-                    <span>Adicionar Primeiro Módulo</span>
-                  </Button>
-                </motion.div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    {course.modules.map((module, index) => (
-                      <ModuleItem 
-                        key={module.id}
-                        courseId={course.id}
-                        module={module}
-                        index={index}
-                      />
-                    ))}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="w-full mt-4 gap-2" 
-                    onClick={() => setIsAddingModule(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Adicionar Módulo</span>
-                  </Button>
-                </>
-              )}
-            </TabsContent>
-            <TabsContent value="export" className="mt-0">
-              <div className="bg-white shadow rounded-lg p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-center">{course.name}</h2>
-                  <Button onClick={handleExport} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    <span>Exportar PDF</span>
-                  </Button>
-                </div>
-                
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-2">Descrição</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{course.description}</p>
-                </div>
-                
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-2">Objetivos de Aprendizagem</h3>
-                  <p className="text-gray-600 whitespace-pre-line">{course.objectives}</p>
-                </div>
-                
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold mb-2">Público-Alvo</h3>
-                  <p className="text-gray-600">{course.targetAudience}</p>
-                </div>
-                
-                <div className="mb-10">
-                  <h3 className="text-lg font-semibold mb-4">Estrutura do Curso</h3>
-                  <ol className="space-y-6">
-                    {course.modules.map((module, index) => (
-                      <li key={module.id} className="border-l-2 border-primary pl-4 pb-2">
-                        <h4 className="text-md font-semibold text-primary">
-                          Módulo {index + 1}: {module.title}
-                        </h4>
-                        {module.description && (
-                          <p className="text-sm text-gray-500 mt-1 mb-3">{module.description}</p>
-                        )}
-                        <ol className="space-y-3 mt-3">
-                          {module.lessons.map((lesson, idx) => (
-                            <li key={lesson.id} className="flex items-start">
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded mr-2 mt-1">
-                                {lesson.duration} min
-                              </span>
-                              <div>
-                                <h5 className="text-sm font-medium">
-                                  {idx + 1}. {lesson.title}
-                                </h5>
-                                {lesson.description && (
-                                  <p className="text-xs text-gray-500 mt-1">{lesson.description}</p>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-                
-                <div className="text-center text-sm text-gray-500">
-                  <p>Duração total: {durationText}</p>
-                  <p>Atualizado em {format(new Date(course.updatedAt), "dd/MM/yyyy", { locale: ptBR })}</p>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
+          </CardContent>
+        </Card>
       </div>
 
-      {isAddingModule && (
-        <ModuleForm 
-          courseId={course.id}
-          onClose={() => setIsAddingModule(false)}
+      {/* Progress overview */}
+      {totalLessons > 0 && (
+        <Card className="mb-8">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-4">Progresso do Curso</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Fazer</span>
+                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazer')}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-muted-foreground rounded-full" 
+                    style={{ width: `${getStatusPercentage('Fazer')}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazer'] || 0} aulas</p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Fazendo</span>
+                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazendo')}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-secondary rounded-full" 
+                    style={{ width: `${getStatusPercentage('Fazendo')}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazendo'] || 0} aulas</p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium">Finalizando</span>
+                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Finalizando')}%</span>
+                </div>
+                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary rounded-full" 
+                    style={{ width: `${getStatusPercentage('Finalizando')}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">{lessonStatusStats['Finalizando'] || 0} aulas</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="content" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="content">Conteúdo</TabsTrigger>
+          <TabsTrigger value="info">Informações</TabsTrigger>
+        </TabsList>
+        <TabsContent value="content" className="mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Módulos</h2>
+            <Button onClick={() => setIsAddingModule()} className="gap-2">
+              <Plus className="h-4 w-4" />
+              <span>Adicionar Módulo</span>
+            </Button>
+          </div>
+
+          {course.modules.length === 0 ? (
+            <div className="text-center p-8 border border-dashed rounded-lg">
+              <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
+              <p className="text-muted-foreground mb-4">
+                Comece adicionando um módulo ao seu curso.
+              </p>
+              <Button onClick={() => setIsAddingModule()}>Adicionar Módulo</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {course.modules.map((module, index) => (
+                <ModuleItem
+                  key={module.id}
+                  courseId={course.id}
+                  module={module}
+                  index={index}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        <TabsContent value="info">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Descrição</h3>
+              <p className="whitespace-pre-wrap">{course.description}</p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Objetivos</h3>
+              <p className="whitespace-pre-wrap">{course.objectives}</p>
+            </div>
+          </div>
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-2">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {course.tags && course.tags.length > 0 ? (
+                course.tags.map((tag) => (
+                  <Badge key={tag} variant="outline">{tag}</Badge>
+                ))
+              ) : (
+                <p className="text-muted-foreground">Nenhuma tag adicionada</p>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {isEditing && (
+        <CourseForm
+          course={course}
+          onClose={() => setIsEditing(false)}
         />
       )}
 
-      {isEditingCourse && (
-        <CourseForm 
-          course={course}
-          onClose={() => setIsEditingCourse(false)}
+      {isAddingModule && (
+        <ModuleForm
+          courseId={course.id}
+          onClose={() => setIsAddingModule(false)}
         />
       )}
 
@@ -472,13 +343,13 @@ const CourseDetail = () => {
             <AlertDialogTitle>Excluir Curso</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita e
-              todos os módulos e aulas associados serão excluídos.
+              todos os módulos e aulas serão excluídos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteCourse}
+            <AlertDialogAction
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir
@@ -486,7 +357,7 @@ const CourseDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 };
 

@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
+export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
+export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído';
 
 export interface Lesson {
   id: string;
@@ -11,6 +13,7 @@ export interface Lesson {
   duration: number; // in minutes
   activityType: ActivityType;
   notes?: string;
+  status: LessonStatus;
 }
 
 export interface Module {
@@ -32,23 +35,26 @@ export interface Course {
   createdAt: Date;
   updatedAt: Date;
   tags: string[];
+  status: CourseStatus;
 }
 
 interface CourseStore {
   courses: Course[];
-  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
   updateCourse: (id: string, course: Partial<Course>) => void;
   deleteCourse: (id: string) => void;
   addModule: (courseId: string, module: Omit<Module, 'id' | 'lessons'>) => void;
   updateModule: (courseId: string, moduleId: string, module: Partial<Module>) => void;
   deleteModule: (courseId: string, moduleId: string) => void;
-  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, 'id'>) => void;
+  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, 'id' | 'status'>) => void;
   updateLesson: (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => void;
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
   reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
   addTagToCourse: (courseId: string, tag: string) => void;
   removeTagFromCourse: (courseId: string, tag: string) => void;
+  updateCourseStatus: (courseId: string, status: CourseStatus) => void;
+  updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => void;
 }
 
 // Generate a unique ID
@@ -68,6 +74,7 @@ export const useCourseStore = create<CourseStore>()(
           createdAt: now,
           updatedAt: now,
           tags: courseData.tags || [],
+          status: 'Rascunho', // Default status
         };
         return { courses: [...state.courses, newCourse] };
       }),
@@ -133,7 +140,7 @@ export const useCourseStore = create<CourseStore>()(
                   module.id === moduleId 
                     ? { 
                         ...module, 
-                        lessons: [...module.lessons, { id: generateId(), ...lessonData }] 
+                        lessons: [...module.lessons, { id: generateId(), ...lessonData, status: 'Fazer' }] 
                       } 
                     : module
                 ),
@@ -252,6 +259,41 @@ export const useCourseStore = create<CourseStore>()(
                 tags: course.tags ? course.tags.filter(t => t !== tag) : [],
                 updatedAt: new Date(),
               }
+            : course
+        ),
+      })),
+
+      updateCourseStatus: (courseId, status) => set((state) => ({
+        courses: state.courses.map((course) =>
+          course.id === courseId
+            ? {
+                ...course,
+                status,
+                updatedAt: new Date(),
+              }
+            : course
+        ),
+      })),
+
+      updateLessonStatus: (courseId, moduleId, lessonId, status) => set((state) => ({
+        courses: state.courses.map((course) => 
+          course.id === courseId 
+            ? { 
+                ...course, 
+                modules: course.modules.map((module) => 
+                  module.id === moduleId 
+                    ? { 
+                        ...module, 
+                        lessons: module.lessons.map((lesson) => 
+                          lesson.id === lessonId 
+                            ? { ...lesson, status } 
+                            : lesson
+                        ) 
+                      } 
+                    : module
+                ),
+                updatedAt: new Date(),
+              } 
             : course
         ),
       })),

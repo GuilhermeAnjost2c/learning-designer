@@ -1,25 +1,52 @@
 
-import { Bell, Menu, Settings, User } from "lucide-react";
+import { Bell, Menu, Settings, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { motion } from "framer-motion";
-import { AppIcon } from "@/components/ui/icon";
+import { useUserStore } from "@/store/userStore";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+
 interface NavbarProps {
   toggleSidebar: () => void;
 }
+
 export const Navbar = ({
   toggleSidebar
 }: NavbarProps) => {
-  return <motion.header initial={{
-    y: -20,
-    opacity: 0
-  }} animate={{
-    y: 0,
-    opacity: 1
-  }} className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6">
+  const { currentUser, logout } = useUserStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logout realizado com sucesso");
+    navigate("/login");
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
+  return (
+    <motion.header 
+      initial={{
+        y: -20,
+        opacity: 0
+      }} 
+      animate={{
+        y: 0,
+        opacity: 1
+      }} 
+      className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6"
+    >
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="lg:hidden">
+        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
           <Menu className="h-5 w-5" />
         </Button>
         
@@ -35,13 +62,18 @@ export const Navbar = ({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-10 w-10 rounded-full">
               <Avatar className="h-10 w-10">
-                <AvatarImage src="" alt="Usuário" />
-                <AvatarFallback>US</AvatarFallback>
+                <AvatarImage src="" alt={currentUser?.name || "Usuário"} />
+                <AvatarFallback>{currentUser ? getInitials(currentUser.name) : "US"}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <div>
+                <p className="font-medium">{currentUser?.name || "Usuário"}</p>
+                <p className="text-xs text-muted-foreground">{currentUser?.email || ""}</p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
@@ -52,11 +84,13 @@ export const Navbar = ({
               <span>Configurações</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              Sair
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sair</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </motion.header>;
+    </motion.header>
+  );
 };

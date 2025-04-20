@@ -1,9 +1,10 @@
 
 import { useEffect, useState } from "react";
-import { PlusCircle, Grid3X3, List, Tag, X, Folder } from "lucide-react";
+import { PlusCircle, Grid3X3, List, Tag, X, Folder, Users, BookOpen, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CourseCard } from "@/components/courses/CourseCard";
-import { useCourseStore } from "@/store/courseStore";
+import { useCourseStore, CourseStatus, LessonStatus } from "@/store/courseStore";
+import { useUserStore, UserRole } from "@/store/userStore";
 import { motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
@@ -11,9 +12,23 @@ import { sampleCourses } from "@/utils/sampleData";
 import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Legend
+} from "recharts";
 
 const Dashboard = () => {
   const { courses, addCourse } = useCourseStore();
+  const { users, currentUser } = useUserStore();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
@@ -63,6 +78,84 @@ const Dashboard = () => {
     ? courses.filter(course => course.tags && course.tags.includes(selectedTag))
     : courses;
 
+  // Calculate course status statistics
+  const courseStatusStats = courses.reduce((acc, course) => {
+    acc[course.status] = (acc[course.status] || 0) + 1;
+    return acc;
+  }, {} as Record<CourseStatus, number>);
+
+  const courseStatusData = Object.entries(courseStatusStats).map(([status, count]) => ({
+    name: status,
+    value: count,
+  }));
+
+  // Calculate lesson status statistics across all courses
+  const lessonStatusStats = courses.reduce((acc, course) => {
+    course.modules.forEach(module => {
+      module.lessons.forEach(lesson => {
+        acc[lesson.status] = (acc[lesson.status] || 0) + 1;
+      });
+    });
+    return acc;
+  }, {} as Record<LessonStatus, number>);
+
+  const lessonStatusData = Object.entries(lessonStatusStats).map(([status, count]) => ({
+    name: status,
+    value: count,
+  }));
+
+  // User statistics
+  const userRoleStats = users.reduce((acc, user) => {
+    acc[user.role] = (acc[user.role] || 0) + 1;
+    return acc;
+  }, {} as Record<UserRole, number>);
+
+  const userRoleData = Object.entries(userRoleStats).map(([role, count]) => ({
+    name: role === 'admin' 
+      ? 'Administrador' 
+      : role === 'instructor' 
+        ? 'Instrutor' 
+        : 'Estudante',
+    value: count,
+  }));
+
+  // Department statistics
+  const departmentStats = users.reduce((acc, user) => {
+    if (user.department) {
+      acc[user.department] = (acc[user.department] || 0) + 1;
+    } else {
+      acc['Sem departamento'] = (acc['Sem departamento'] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const departmentData = Object.entries(departmentStats).map(([dept, count]) => ({
+    name: dept,
+    count: count,
+  }));
+
+  // Define chart colors
+  const CHART_COLORS = ['#9b87f5', '#7E69AB', '#D6BCFA', '#33C3F0', '#ea384c'];
+  
+  const COURSE_STATUS_COLORS: Record<CourseStatus, string> = {
+    'Rascunho': '#8E9196',
+    'Em andamento': '#9b87f5',
+    'Concluído': '#33C3F0',
+  };
+  
+  const LESSON_STATUS_COLORS: Record<LessonStatus, string> = {
+    'Fazer': '#8E9196',
+    'Fazendo': '#9b87f5',
+    'Finalizando': '#33C3F0',
+  };
+
+  // Calculate total counts
+  const totalCourses = courses.length;
+  const totalLessons = courses.reduce((acc, course) => 
+    acc + course.modules.reduce((macc, module) => 
+      macc + module.lessons.length, 0), 0);
+  const totalUsers = users.length;
+
   return (
     <>
       <div className="container mx-auto">
@@ -86,6 +179,175 @@ const Dashboard = () => {
             <span>Novo Curso</span>
           </Button>
         </motion.div>
+
+        {/* Overview cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total de Cursos
+              </CardTitle>
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalCourses}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {courseStatusStats['Concluído'] || 0} cursos concluídos
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total de Aulas
+              </CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalLessons}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {lessonStatusStats['Finalizando'] || 0} aulas finalizadas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Total de Usuários
+              </CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalUsers}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {userRoleStats['instructor'] || 0} instrutores
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Statistics */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Status dos Cursos</CardTitle>
+              <CardDescription>
+                Distribuição de cursos por status
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={courseStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {courseStatusData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={COURSE_STATUS_COLORS[entry.name as CourseStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Status das Aulas</CardTitle>
+              <CardDescription>
+                Distribuição de aulas por status
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={lessonStatusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {lessonStatusData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={LESSON_STATUS_COLORS[entry.name as LessonStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuários por Função</CardTitle>
+              <CardDescription>
+                Distribuição de usuários por função
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={userRoleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {userRoleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuários por Departamento</CardTitle>
+              <CardDescription>
+                Distribuição de usuários por departamento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={departmentData}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#9b87f5" name="Usuários" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Tags/Folders Section */}
         {allTags.length > 0 && (

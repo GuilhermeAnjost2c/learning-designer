@@ -1,27 +1,16 @@
 
 import { useState } from "react";
-import { Lesson, useCourseStore } from "@/store/courseStore";
-import { Button } from "@/components/ui/button";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Edit, 
-  Trash, 
-  GripVertical, 
-  Clock,
-  LayoutList,
-  BookOpen,
-  Users,
-  Presentation,
-  Gauge
-} from "lucide-react";
-import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
+import { Lesson, useCourseStore, LessonStatus } from "@/store/courseStore";
 import { LessonForm } from "./LessonForm";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Edit, Trash, GripVertical, Clock } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +21,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 interface LessonItemProps {
@@ -42,18 +33,27 @@ interface LessonItemProps {
 }
 
 export const LessonItem = ({ courseId, moduleId, lesson, index }: LessonItemProps) => {
-  const { deleteLesson } = useCourseStore();
+  const { deleteLesson, updateLessonStatus } = useCourseStore();
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-  const activityTypeIcons = {
-    "Exposição": Presentation,
-    "Dinâmica": Users,
-    "Prática": LayoutList,
-    "Avaliação": Gauge
+  const activityTypeColors: Record<string, string> = {
+    'Exposição': 'bg-blue-100 text-blue-800',
+    'Dinâmica': 'bg-green-100 text-green-800',
+    'Prática': 'bg-orange-100 text-orange-800',
+    'Avaliação': 'bg-purple-100 text-purple-800',
   };
 
-  const ActivityIcon = activityTypeIcons[lesson.activityType];
+  const statusVariant: Record<LessonStatus, "outline" | "secondary" | "default"> = {
+    'Fazer': 'outline',
+    'Fazendo': 'secondary',
+    'Finalizando': 'default'
+  };
+
+  const handleStatusChange = (status: LessonStatus) => {
+    updateLessonStatus(courseId, moduleId, lesson.id, status);
+    toast.success(`Status da aula atualizado para "${status}"`);
+  };
 
   const handleDelete = () => {
     deleteLesson(courseId, moduleId, lesson.id);
@@ -63,62 +63,73 @@ export const LessonItem = ({ courseId, moduleId, lesson, index }: LessonItemProp
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: index * 0.05 }}
-      >
-        <Card className="border border-muted">
-          <CardHeader className="p-3 pb-0 flex flex-row items-start">
-            <div className="mr-2 mt-1 cursor-move">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
+      <Card className="border-dashed">
+        <CardContent className="flex items-center p-4 justify-between">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="cursor-move">
+              <GripVertical className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <div className="flex justify-between">
-                <CardTitle className="text-sm font-medium">{lesson.title}</CardTitle>
-                <div className="flex items-center gap-1 ml-4">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    <Edit className="h-3 w-3" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7"
-                    onClick={() => setDeleteDialogOpen(true)}
-                  >
-                    <Trash className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-3 pt-2">
-            {lesson.description && (
-              <p className="text-xs text-muted-foreground mb-2">{lesson.description}</p>
-            )}
-            <div className="flex items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2">
-                <Badge 
-                  variant="outline" 
-                  className="flex items-center gap-1 px-2 py-0 h-5 text-xs"
-                >
-                  {ActivityIcon && <ActivityIcon className="h-3 w-3" />}
-                  <span>{lesson.activityType}</span>
-                </Badge>
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>{lesson.duration} min</span>
+                <h4 className="font-medium">{lesson.title}</h4>
+                <div className={`px-2 py-0.5 rounded text-xs font-medium ${activityTypeColors[lesson.activityType] || 'bg-gray-100 text-gray-800'}`}>
+                  {lesson.activityType}
                 </div>
+                
+                <Badge variant={statusVariant[lesson.status]}>
+                  {lesson.status}
+                </Badge>
               </div>
+              <div className="flex items-center gap-1 text-muted-foreground text-sm mt-1">
+                <Clock className="h-3 w-3" />
+                <span>{lesson.duration} min</span>
+              </div>
+              {lesson.description && (
+                <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                  {lesson.description}
+                </p>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1">
+                  <span>Status</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleStatusChange('Fazer')}>
+                  Fazer
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('Fazendo')}>
+                  Fazendo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('Finalizando')}>
+                  Finalizando
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setIsEditing(true)}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {isEditing && (
         <LessonForm 
@@ -139,10 +150,7 @@ export const LessonItem = ({ courseId, moduleId, lesson, index }: LessonItemProp
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>

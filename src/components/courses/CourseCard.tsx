@@ -1,12 +1,12 @@
 
-import { Clock, GraduationCap, Tag } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { Course } from "@/store/courseStore";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Course, CourseStatus } from "@/store/courseStore";
+import { useNavigate } from "react-router-dom";
+import { Clock, BookOpen, Tag } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface CourseCardProps {
   course: Course;
@@ -15,96 +15,108 @@ interface CourseCardProps {
 
 export const CourseCard = ({ course, className }: CourseCardProps) => {
   const navigate = useNavigate();
-
-  const totalMinutes = course.modules.reduce((total, module) => {
-    return total + module.lessons.reduce((moduleTotal, lesson) => {
-      return moduleTotal + lesson.duration;
-    }, 0);
-  }, 0);
   
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+  // Calculate course metrics
+  const totalModules = course.modules.length;
+  const totalLessons = course.modules.reduce(
+    (acc, module) => acc + module.lessons.length, 
+    0
+  );
+  
+  // Format the estimated duration
+  const hours = Math.floor(course.estimatedDuration / 60);
+  const minutes = course.estimatedDuration % 60;
   const durationText = hours > 0 
     ? `${hours}h${minutes > 0 ? ` ${minutes}min` : ''}` 
     : `${minutes}min`;
-
-  const totalLessons = course.modules.reduce((count, module) => {
-    return count + module.lessons.length;
-  }, 0);
-
-  const handleCardClick = () => {
+  
+  const handleClick = () => {
     navigate(`/courses/${course.id}`);
+  };
+  
+  const getStatusVariant = (status: CourseStatus) => {
+    switch(status) {
+      case 'Rascunho': return 'outline';
+      case 'Em andamento': return 'secondary';
+      case 'Concluído': return 'default';
+      default: return 'outline';
+    }
   };
 
   return (
-    <Card
-      className={cn(
-        "overflow-hidden border hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-pointer h-80 flex flex-col",
-        className
-      )}
-      onClick={handleCardClick}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.3 }}
     >
-      <div className="relative">
-        {course.thumbnail ? (
-          <img 
-            src={course.thumbnail} 
-            alt={course.name} 
-            className={cn(
-              "w-full object-cover",
-              className?.includes("!flex-row") ? "h-32" : "h-40"
-            )}
-          />
-        ) : (
-          <div 
-            className={cn(
-              "w-full bg-gradient-to-r from-primary/60 to-primary flex items-center justify-center",
-              className?.includes("!flex-row") ? "h-32" : "h-40"
-            )}
-          >
-            <span className="text-white font-semibold text-lg">
-              {course.name.substring(0, 2).toUpperCase()}
-            </span>
-          </div>
+      <Card 
+        className={cn(
+          "h-full overflow-hidden hover:shadow-md transition-shadow duration-300 cursor-pointer",
+          className
         )}
-      </div>
-
-      <div className="flex-1 p-4 flex flex-col">
-        <h3 className="font-medium line-clamp-1 mb-1">{course.name}</h3>
-        
-        {/* Display tags if available */}
-        {course.tags && course.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {course.tags.map(tag => (
-              <Badge key={tag} variant="outline" className="text-xs py-0 px-1.5">
-                <Tag className="h-3 w-3 mr-1" />
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        <p className={cn(
-          "text-sm text-muted-foreground line-clamp-2 mb-auto",
-          className?.includes("!flex-row") ? "line-clamp-1" : ""
+        onClick={handleClick}
+      >
+        <div className={cn(
+          "relative bg-cover bg-center h-40",
+          className?.includes("!flex-row") ? "!h-full w-32" : ""
         )}>
-          {course.description}
-        </p>
-        
-        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{durationText}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <GraduationCap className="h-3.5 w-3.5" />
-            <span>{course.modules.length} módulos</span>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ 
+              backgroundImage: `url(${course.thumbnail || '/placeholder.svg'})`,
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          
+          <div className="absolute bottom-2 left-2">
+            <Badge variant={getStatusVariant(course.status)}>
+              {course.status}
+            </Badge>
           </div>
         </div>
         
-        <div className="text-xs text-muted-foreground mt-2">
-          Atualizado em {format(new Date(course.updatedAt), "dd/MM/yyyy", { locale: ptBR })}
-        </div>
-      </div>
-    </Card>
+        <CardContent className={cn(
+          "p-4",
+          className?.includes("!flex-row") ? "flex-1" : ""
+        )}>
+          <h3 className="font-bold mb-2 line-clamp-1">{course.name}</h3>
+          <p className="text-muted-foreground text-sm line-clamp-2 mb-2">
+            {course.description}
+          </p>
+          
+          <div className="flex flex-wrap gap-2 mt-auto">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{durationText}</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <BookOpen className="h-3 w-3" />
+              <span>{totalModules} {totalModules === 1 ? "módulo" : "módulos"}</span>
+              <span>•</span>
+              <span>{totalLessons} {totalLessons === 1 ? "aula" : "aulas"}</span>
+            </div>
+          </div>
+        </CardContent>
+        
+        {!className?.includes("!flex-row") && (
+          <CardFooter className="px-4 py-2 bg-muted/30 flex-wrap gap-1">
+            {course.tags && course.tags.length > 0 ? (
+              course.tags.slice(0, 2).map((tag) => (
+                <Badge key={tag} variant="outline" className="flex items-center gap-1">
+                  <Tag className="h-3 w-3" />
+                  <span>{tag}</span>
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground">Sem tags</span>
+            )}
+            {course.tags && course.tags.length > 2 && (
+              <span className="text-xs text-muted-foreground">+{course.tags.length - 2}</span>
+            )}
+          </CardFooter>
+        )}
+      </Card>
+    </motion.div>
   );
 };

@@ -1,12 +1,22 @@
 
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui/sonner";
+import { useUserStore } from "@/store/userStore";
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
+  const { isAuthenticated } = useUserStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is not authenticated, redirect to login page
+    if (!isAuthenticated) {
+      navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
