@@ -252,7 +252,7 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        {/* Course Image */}
+        {/* Course Image and Info Card */}
         <div className="lg:order-1">
           <Card className="overflow-hidden h-full">
             <div className="relative h-48 lg:h-64">
@@ -272,28 +272,63 @@ const CourseDetail = () => {
                 </div>
               </div>
             </div>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium">Duração Total</p>
-                  <p className="text-muted-foreground">
-                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
-                  </p>
+            <CardContent className="pt-6 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium mb-1">Estatísticas do Curso</h3>
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="border rounded-md p-2">
+                    <p className="text-xs text-muted-foreground">Total de Aulas</p>
+                    <p className="text-lg font-bold">{totalLessons}</p>
+                  </div>
+                  <div className="border rounded-md p-2">
+                    <p className="text-xs text-muted-foreground">Total Módulos</p>
+                    <p className="text-lg font-bold">{totalModules}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">Público-alvo</p>
-                  <p className="text-muted-foreground">{course.targetAudience}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Conteúdo</p>
-                  <p className="text-muted-foreground">{totalModules} módulos, {totalLessons} aulas</p>
-                </div>
-                
-                <Button onClick={openEditor} className="w-full gap-2 mt-4">
-                  <FileEdit className="h-4 w-4" />
-                  <span>Editor Avançado</span>
-                </Button>
               </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-1">Progresso das Aulas</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs">
+                    <span>Fazer</span>
+                    <span>{lessonStatusStats['Fazer'] || 0} aulas</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-muted-foreground rounded-full" 
+                      style={{ width: `${getStatusPercentage('Fazer')}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between text-xs">
+                    <span>Fazendo</span>
+                    <span>{lessonStatusStats['Fazendo'] || 0} aulas</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-400 rounded-full" 
+                      style={{ width: `${getStatusPercentage('Fazendo')}%` }}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between text-xs">
+                    <span>Finalizando</span>
+                    <span>{lessonStatusStats['Finalizando'] || 0} aulas</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-green-500 rounded-full" 
+                      style={{ width: `${getStatusPercentage('Finalizando')}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <Button onClick={openEditor} className="w-full gap-2 mt-4">
+                <FileEdit className="h-4 w-4" />
+                <span>Editor Avançado</span>
+              </Button>
             </CardContent>
           </Card>
         </div>

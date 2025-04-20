@@ -37,7 +37,7 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
   const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
-  const [lessonContent, setLessonContent] = useState("");
+  const [lessonContents, setLessonContents] = useState<Record<string, string>>({});
   const [isPreview, setIsPreview] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [editingTitle, setEditingTitle] = useState<{id: string, type: 'module' | 'lesson'} | null>(null);
@@ -60,6 +60,15 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
           setSelectedLessonId(course.modules[0].lessons[0].id);
         }
       }
+      
+      // Initialize lesson contents from course data
+      const contents: Record<string, string> = {};
+      course.modules.forEach(module => {
+        module.lessons.forEach(lesson => {
+          contents[lesson.id] = lesson.description || "";
+        });
+      });
+      setLessonContents(contents);
     }
   }, [course]);
 
@@ -79,19 +88,6 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
     }
   }, [courses, courseId]);
 
-  // Update lesson content when selecting a different lesson
-  useEffect(() => {
-    if (course && selectedModuleId && selectedLessonId) {
-      const module = course.modules.find(m => m.id === selectedModuleId);
-      if (module) {
-        const lesson = module.lessons.find(l => l.id === selectedLessonId);
-        if (lesson) {
-          setLessonContent(lesson.description || "");
-        }
-      }
-    }
-  }, [course, selectedModuleId, selectedLessonId]);
-
   const toggleExpanded = (moduleId: string) => {
     setExpandedModules(prev => ({
       ...prev,
@@ -109,22 +105,22 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
   };
 
   const saveCurrentContent = useCallback(() => {
-    if (course && selectedModuleId && selectedLessonId && lessonContent !== undefined) {
+    if (course && selectedModuleId && selectedLessonId && lessonContents[selectedLessonId] !== undefined) {
       const moduleIndex = course.modules.findIndex(m => m.id === selectedModuleId);
       if (moduleIndex >= 0) {
         const lessonIndex = course.modules[moduleIndex].lessons.findIndex(l => l.id === selectedLessonId);
         if (lessonIndex >= 0) {
           const lesson = course.modules[moduleIndex].lessons[lessonIndex];
-          if (lesson.description !== lessonContent) {
+          if (lesson.description !== lessonContents[selectedLessonId]) {
             updateLesson(courseId, selectedModuleId, selectedLessonId, {
-              description: lessonContent
+              description: lessonContents[selectedLessonId]
             });
             toast.success("Conteúdo salvo com sucesso!");
           }
         }
       }
     }
-  }, [course, courseId, lessonContent, selectedLessonId, selectedModuleId, updateLesson]);
+  }, [course, courseId, lessonContents, selectedLessonId, selectedModuleId, updateLesson]);
 
   const handleAddModule = () => {
     addModule(courseId, {
@@ -163,6 +159,14 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
     if (selectedLessonId === lessonId) {
       setSelectedLessonId(null);
     }
+    
+    // Remove content from lessonContents
+    setLessonContents(prev => {
+      const newContents = {...prev};
+      delete newContents[lessonId];
+      return newContents;
+    });
+    
     toast.success("Aula excluída com sucesso");
   };
 
@@ -193,7 +197,13 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
   };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setLessonContent(e.target.value);
+    if (!selectedLessonId) return;
+    
+    // Update only the selected lesson's content
+    setLessonContents(prev => ({
+      ...prev,
+      [selectedLessonId]: e.target.value
+    }));
   };
 
   const handleCloseAndSave = () => {
@@ -271,24 +281,28 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
 
   const insertMarkdownSyntax = (syntax: string, wrap: boolean = false) => {
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
-    if (!textarea) return;
+    if (!textarea || !selectedLessonId) return;
     
+    const content = lessonContents[selectedLessonId] || "";
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const selectedText = lessonContent.substring(start, end);
+    const selectedText = content.substring(start, end);
     
     let newText;
     if (wrap && selectedText) {
-      newText = lessonContent.substring(0, start) + 
+      newText = content.substring(0, start) + 
         syntax + selectedText + syntax + 
-        lessonContent.substring(end);
+        content.substring(end);
     } else {
-      newText = lessonContent.substring(0, start) + 
+      newText = content.substring(0, start) + 
         syntax + 
-        lessonContent.substring(end);
+        content.substring(end);
     }
     
-    setLessonContent(newText);
+    setLessonContents(prev => ({
+      ...prev,
+      [selectedLessonId]: newText
+    }));
     
     // Focus back on textarea
     setTimeout(() => {
@@ -303,10 +317,11 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
   };
   
   const selectedLesson = getSelectedLesson();
+  const currentLessonContent = selectedLessonId ? lessonContents[selectedLessonId] || "" : "";
 
   return (
     <Dialog open={true} onOpenChange={handleCloseAndSave} modal={false}>
-      <DialogContent className="max-w-full w-screen h-screen p-0 overflow-hidden bg-background">
+      <DialogContent className="max-w-full w-screen h-screen p-0 overflow-hidden bg-background font-sans">
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between border-b p-4">
@@ -782,12 +797,12 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
                   <div className="flex-1 overflow-auto">
                     {isPreview ? (
                       <div className="prose prose-sm sm:prose max-w-none p-6 font-sans">
-                        <ReactMarkdown>{lessonContent}</ReactMarkdown>
+                        <ReactMarkdown>{currentLessonContent}</ReactMarkdown>
                       </div>
                     ) : (
                       <Textarea
                         className="w-full h-full p-4 resize-none focus-visible:ring-0 border-none font-sans"
-                        value={lessonContent}
+                        value={currentLessonContent}
                         onChange={handleContentChange}
                         placeholder="Escreva o conteúdo da aula em markdown..."
                       />
