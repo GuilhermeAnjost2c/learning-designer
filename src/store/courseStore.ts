@@ -110,7 +110,7 @@ export const useCourseStore = create<CourseStore>()(
       })),
       
       addModule: (courseId, moduleData) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -122,14 +122,14 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
       }),
       
       updateModule: (courseId, moduleId, moduleData) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -145,14 +145,14 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
       }),
       
       deleteModule: (courseId, moduleId) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -164,14 +164,14 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
       }),
       
       addLesson: (courseId, moduleId, lessonData) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -179,7 +179,7 @@ export const useCourseStore = create<CourseStore>()(
                   module.id === moduleId 
                     ? { 
                         ...module, 
-                        lessons: [...module.lessons, { id: generateId(), ...lessonData, status: 'Fazer' }] 
+                        lessons: [...module.lessons, { id: generateId(), ...lessonData, status: 'Fazer' as LessonStatus }] 
                       } 
                     : module
                 ),
@@ -190,14 +190,14 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
       }),
       
       updateLesson: (courseId, moduleId, lessonId, lessonData) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -220,14 +220,14 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration if duration was updated
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
       }),
       
       deleteLesson: (courseId, moduleId, lessonId) => set((state) => {
-        const courses = state.courses.map((course) => 
+        const updatedCourses = state.courses.map((course) => 
           course.id === courseId 
             ? { 
                 ...course, 
@@ -246,7 +246,7 @@ export const useCourseStore = create<CourseStore>()(
         
         // Recalculate course duration
         return { 
-          courses: courses.map(course => 
+          courses: updatedCourses.map(course => 
             course.id === courseId ? updateCourseDuration(course) : course
           )
         };
