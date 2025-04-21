@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { X, Save, Clock, Users, Target, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { useUserStore } from "@/store/userStore";
 
 const formSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
@@ -41,6 +43,7 @@ interface CourseFormProps {
 
 export const CourseForm = ({ course, onClose }: CourseFormProps) => {
   const { addCourse, updateCourse } = useCourseStore();
+  const { currentUser } = useUserStore();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,6 +79,12 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         toast.success("Curso atualizado com sucesso!");
         navigate(`/courses/${course.id}`);
       } else {
+        // Make sure we have a current user before proceeding
+        if (!currentUser) {
+          toast.error("Você precisa estar logado para criar um curso.");
+          return;
+        }
+        
         addCourse({
           name: values.name,
           description: values.description,
@@ -85,6 +94,8 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           thumbnail: values.thumbnail,
           modules: [],
           tags: tagsArray,
+          createdBy: currentUser.id, // Add the createdBy property
+          departmentId: currentUser.department // Add the department if available
         });
         toast.success("Curso criado com sucesso!");
         navigate("/courses");

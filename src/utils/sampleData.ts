@@ -130,7 +130,9 @@ export const sampleCourses: Course[] = [
     createdAt: new Date("2025-02-15"),
     updatedAt: new Date("2025-03-10"),
     tags: ["Design Thinking", "Inovação", "Educação"],
-    status: "Em andamento"
+    status: "Em andamento",
+    createdBy: "admin-1", // Add admin as creator
+    collaborators: [] // Add empty collaborators array
   },
   {
     id: "c2",
@@ -222,6 +224,8 @@ export const sampleCourses: Course[] = [
     createdAt: new Date("2025-01-20"),
     updatedAt: new Date("2025-02-05"),
     tags: ["Metodologias Ativas", "Projetos", "Aprendizagem"],
-    status: "Rascunho"
+    status: "Rascunho",
+    createdBy: "admin-1", // Add admin as creator
+    collaborators: [] // Add empty collaborators array
   },
 ];

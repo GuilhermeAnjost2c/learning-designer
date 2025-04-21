@@ -120,12 +120,13 @@ export const useCourseStore = create<CourseStore>()(
         const newCourse: Course = {
           ...courseData,
           id: generateId(),
-          modules: [],
+          modules: courseData.modules || [],
           createdAt: now,
           updatedAt: now,
           tags: courseData.tags || [],
           status: 'Rascunho' as CourseStatus, // Default status
           collaborators: courseData.collaborators || [], // Default empty collaborators
+          createdBy: courseData.createdBy, // Ensure createdBy is passed through
         };
         return { courses: [...state.courses, newCourse] };
       }),

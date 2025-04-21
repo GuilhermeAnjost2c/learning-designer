@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { PlusCircle, Grid3X3, List, Tag, X, Folder, Users, BookOpen, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,7 @@ const Dashboard = () => {
 
   // Add sample courses if there are none (for demo purposes)
   useEffect(() => {
-    if (courses.length === 0) {
+    if (courses.length === 0 && currentUser) {
       // Adicionar cursos de demonstração com tags padrão
       sampleCourses.forEach((course, index) => {
         const defaultTags = [];
@@ -52,10 +51,12 @@ const Dashboard = () => {
           thumbnail: course.thumbnail,
           modules: course.modules,
           tags: defaultTags,
+          createdBy: currentUser.id, // Add the current user as the creator
+          departmentId: currentUser.department // Add the department from the current user
         });
       });
     }
-  }, [courses.length, addCourse]);
+  }, [courses.length, addCourse, currentUser]);
 
   const handleAddCourse = () => {
     navigate("/courses/new");
