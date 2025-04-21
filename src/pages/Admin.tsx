@@ -1,12 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserStore, User, UserRole, DepartmentName } from "@/store/userStore";
-import { useCourseStore, ApprovalRequest } from "@/store/courseStore";
-import { Navigate } from "react-router-dom";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { useUserStore } from "@/store/userStore";
+import { useCourseStore } from "@/store/courseStore";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -17,1049 +32,503 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { UserPlus, Edit, Trash, Users, BookOpen, CheckCheck, Shield, Clock, User } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
+
+// Instead of redefining User interface, just use the one from userStore
+import { UserRole, DepartmentName } from "@/store/userStore";
 
 const Admin = () => {
-  const { users, currentUser, addUser, updateUser, deleteUser, assignUserToCourse, removeUserFromCourse, assignUserToManager, removeUserFromManager, getManagedUsers } = useUserStore();
-  const { courses, approvalRequests, respondToApprovalRequest, getPendingApprovals, getCourseById } = useCourseStore();
-  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
-  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
-  const [isAssignCourseDialogOpen, setIsAssignCourseDialogOpen] = useState(false);
-  const [isAssignManagerDialogOpen, setIsAssignManagerDialogOpen] = useState(false);
-  const [isApprovalDetailsDialogOpen, setIsApprovalDetailsDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
-  const [selectedManagerId, setSelectedManagerId] = useState<string>("");
-  const [selectedApprovalRequest, setSelectedApprovalRequest] = useState<ApprovalRequest | null>(null);
-  const [approvalResponse, setApprovalResponse] = useState({
-    isApproved: true,
-    comments: ""
-  });
-  const navigate = useNavigate();
-
-  // Form state for adding/editing users
-  const [formData, setFormData] = useState({
+  const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
+  const { courses, updateCourseStatus } = useCourseStore();
+  const [selectedTab, setSelectedTab] = useState("users");
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [userFormData, setUserFormData] = useState({
     name: "",
     email: "",
     password: "",
     role: "student" as UserRole,
-    department: "" as DepartmentName | undefined,
+    department: undefined as DepartmentName | undefined,
   });
+  const [courseFormData, setCourseFormData] = useState({
+    status: "Rascunho",
+  });
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [departmentFilter, setDepartmentFilter] = useState<DepartmentName | "all">("all");
+  const [filteredUsers, setFilteredUsers] = useState(users);
 
-  // If not authenticated or not admin, redirect to login
-  if (!currentUser) {
-    return <Navigate to="/login" />;
-  }
+  useEffect(() => {
+    if (departmentFilter === "all") {
+      setFilteredUsers(users);
+    } else {
+      setFilteredUsers(usersByDepartment(departmentFilter));
+    }
+  }, [users, departmentFilter, getUsersByDepartment]);
 
-  // Get pending approvals if current user is a manager
-  const pendingApprovals = currentUser.role === 'manager' || currentUser.role === 'admin'
-    ? getPendingApprovals(currentUser.id)
-    : [];
-
-  // Get managed users
-  const managedUsersList = currentUser.role === 'manager'
-    ? getManagedUsers(currentUser.id)
-    : [];
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleAddUser = () => {
-    addUser({
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-      role: formData.role,
-      department: formData.department || undefined,
+    setUserFormData({
+      ...userFormData,
+      [name]: value,
     });
-    setIsAddUserDialogOpen(false);
-    resetForm();
   };
 
-  const handleEditUser = () => {
+  const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setCourseFormData({
+      ...courseFormData,
+      [name]: value,
+    });
+  };
+
+  const handleCreateUser = () => {
+    addUser({
+      name: userFormData.name,
+      email: userFormData.email,
+      password: userFormData.password,
+      role: userFormData.role,
+      department: userFormData.department,
+    });
+    closeUserDialog();
+  };
+
+  const handleUpdateUser = () => {
     if (selectedUser) {
       updateUser(selectedUser.id, {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        department: formData.department || undefined,
-        ...(formData.password ? { password: formData.password } : {}),
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role,
+        department: userFormData.department,
       });
-      setIsEditUserDialogOpen(false);
-      resetForm();
+      closeUserDialog();
     }
   };
 
   const handleDeleteUser = (userId: string) => {
-    if (userId === currentUser.id) {
-      toast.error("Você não pode excluir sua própria conta");
-      return;
-    }
-    deleteUser(userId);
+    setUserToDelete(userId);
+    setDeleteConfirmationOpen(true);
   };
 
-  const handleAssignCourse = () => {
-    if (selectedUser && selectedCourseId) {
-      assignUserToCourse(selectedUser.id, selectedCourseId);
-      setIsAssignCourseDialogOpen(false);
-      setSelectedCourseId("");
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUser(userToDelete);
+      setDeleteConfirmationOpen(false);
+      setUserToDelete(null);
     }
   };
 
-  const handleRemoveCourse = (userId: string, courseId: string) => {
-    removeUserFromCourse(userId, courseId);
+  const cancelDeleteUser = () => {
+    setDeleteConfirmationOpen(false);
+    setUserToDelete(null);
   };
 
-  const handleAssignManager = () => {
-    if (selectedUser && selectedManagerId) {
-      assignUserToManager(selectedUser.id, selectedManagerId);
-      setIsAssignManagerDialogOpen(false);
-      setSelectedManagerId("");
+  const handleUpdateCourseStatus = () => {
+    if (selectedCourse) {
+      updateCourseStatus(selectedCourse.id, courseFormData.status as any);
+      closeCourseDialog();
     }
   };
 
-  const handleRemoveFromManager = (userId: string, managerId: string) => {
-    removeUserFromManager(userId, managerId);
-  };
-  
-  const handleApprovalRequestResponse = () => {
-    if (!selectedApprovalRequest) return;
-    
-    respondToApprovalRequest(
-      selectedApprovalRequest.id,
-      approvalResponse.isApproved,
-      approvalResponse.comments
-    );
-    
-    setIsApprovalDetailsDialogOpen(false);
-    setApprovalResponse({ isApproved: true, comments: "" });
-    toast.success("Resposta enviada com sucesso");
+  const openUserDialog = (user = null) => {
+    setSelectedUser(user);
+    if (user) {
+      setUserFormData({
+        name: user.name,
+        email: user.email,
+        password: "", // Don't pre-fill password
+        role: user.role,
+        department: user.department,
+      });
+    } else {
+      setUserFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "student",
+        department: undefined,
+      });
+    }
+    setIsUserDialogOpen(true);
   };
 
-  const openEditUserDialog = (user: User) => {
-    setSelectedUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: "",
-      role: user.role,
-      department: user.department,
-    });
-    setIsEditUserDialogOpen(true);
-  };
-
-  const openAssignCourseDialog = (user: User) => {
-    setSelectedUser(user);
-    setIsAssignCourseDialogOpen(true);
-  };
-  
-  const openAssignManagerDialog = (user: User) => {
-    setSelectedUser(user);
-    setIsAssignManagerDialogOpen(true);
-  };
-  
-  const openApprovalDetailsDialog = (approval: ApprovalRequest) => {
-    setSelectedApprovalRequest(approval);
-    setApprovalResponse({ isApproved: true, comments: "" });
-    setIsApprovalDetailsDialogOpen(true);
-  };
-
-  const resetForm = () => {
-    setFormData({
+  const closeUserDialog = () => {
+    setIsUserDialogOpen(false);
+    setSelectedUser(null);
+    setUserFormData({
       name: "",
       email: "",
       password: "",
       role: "student",
       department: undefined,
     });
-    setSelectedUser(null);
   };
-  
-  const getApprovalTypeLabel = (type: string) => {
-    switch(type) {
-      case 'curso_completo': return 'Curso Completo';
-      case 'estrutura': return 'Estrutura do Curso';
-      case 'modulo': return 'Módulo Específico';
-      case 'aula': return 'Aula Específica';
-      default: return type;
+
+  const openCourseDialog = (course) => {
+    setSelectedCourse(course);
+    setCourseFormData({
+      status: course.status,
+    });
+    setIsCourseDialogOpen(true);
+  };
+
+  const closeCourseDialog = () => {
+    setIsCourseDialogOpen(false);
+    setSelectedCourse(null);
+    setCourseFormData({
+      status: "Rascunho",
+    });
+  };
+
+  const getRequestStatusBadge = (status: string) => {
+    if (status === "pendente") {
+      return <Badge variant="outline">Pendente</Badge>;
+    } else if (status === "aprovado") {
+      return <Badge variant="default">Aprovado</Badge>;
+    } else {
+      return <Badge variant="destructive">Rejeitado</Badge>;
     }
   };
 
-  const departmentOptions: DepartmentName[] = ['Marketing', 'Vendas', 'RH', 'TI', 'Operações'];
-  const roleOptions: { label: string; value: UserRole }[] = [
-    { label: "Administrador", value: "admin" },
-    { label: "Gerente", value: "manager" },
-    { label: "Instrutor", value: "instructor" },
-    { label: "Estudante", value: "student" },
-  ];
-
-  const getUserAssignedCourses = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    if (!user || !user.assignedCourses) return [];
-    
-    return user.assignedCourses.map(courseId => {
-      const course = courses.find(c => c.id === courseId);
-      return course ? { id: courseId, name: course.name } : null;
-    }).filter(Boolean);
-  };
-  
-  const getUserManagers = (userId: string) => {
-    return users.filter(user => 
-      user.managedUsers?.includes(userId)
-    );
-  };
-  
-  const getManagersOptions = () => {
-    return users.filter(user => user.role === 'manager');
-  };
-
-  // Show different content based on the user's role
-  const renderContent = () => {
-    // Admin sees full administration
-    if (currentUser.role === 'admin') {
-      return (
-        <>
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4"
-          >
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Administração</h1>
-              <p className="text-muted-foreground">
-                Gerencie usuários, departamentos e atribuições de cursos.
-              </p>
-            </div>
-            <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="lg" className="gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  <span>Adicionar Usuário</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Adicionar Novo Usuário</DialogTitle>
-                  <DialogDescription>
-                    Preencha os dados para criar um novo usuário no sistema.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      placeholder="Nome completo"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="email@exemplo.com"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="password">Senha</Label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder="Senha"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="role">Função</Label>
-                    <Select
-                      value={formData.role}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, role: value as UserRole }))}
-                    >
-                      <SelectTrigger id="role">
-                        <SelectValue placeholder="Selecione a função" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roleOptions.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
-                            {role.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="department">Departamento</Label>
-                    <Select
-                      value={formData.department || ""}
-                      onValueChange={(value) => setFormData((prev) => ({ ...prev, department: value as DepartmentName }))}
-                    >
-                      <SelectTrigger id="department">
-                        <SelectValue placeholder="Selecione o departamento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Nenhum</SelectItem>
-                        {departmentOptions.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsAddUserDialogOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleAddUser}>Adicionar</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </motion.div>
-
-          <Tabs defaultValue="users" className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Usuários</span>
-              </TabsTrigger>
-              <TabsTrigger value="courses" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                <span>Atribuições de Cursos</span>
-              </TabsTrigger>
-              <TabsTrigger value="managers" className="flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                <span>Gerentes</span>
-              </TabsTrigger>
-              <TabsTrigger value="approvals" className="flex items-center gap-2">
-                <CheckCheck className="h-4 w-4" />
-                <span>Aprovações</span>
-                {pendingApprovals.length > 0 && (
-                  <Badge variant="destructive" className="ml-1">{pendingApprovals.length}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="users">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Usuários do Sistema</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Função</TableHead>
-                        <TableHead>Departamento</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <Badge variant={user.role === 'admin' ? 'default' : user.role === 'manager' ? 'warning' : user.role === 'instructor' ? 'secondary' : 'outline'}>
-                              {
-                                user.role === 'admin' 
-                                  ? 'Administrador' 
-                                  : user.role === 'manager'
-                                    ? 'Gerente'
-                                    : user.role === 'instructor' 
-                                      ? 'Instrutor' 
-                                      : 'Estudante'
-                              }
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.department || "Não atribuído"}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditUserDialog(user)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDeleteUser(user.id)}
-                                disabled={user.id === currentUser.id}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="courses">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Atribuições de Cursos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Usuário</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Departamento</TableHead>
-                        <TableHead>Cursos Atribuídos</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.department || "Não atribuído"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {getUserAssignedCourses(user.id).map((course) => (
-                                course && (
-                                  <Badge key={course.id} variant="outline" className="flex items-center gap-1">
-                                    {course.name}
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-4 w-4 ml-1"
-                                      onClick={() => handleRemoveCourse(user.id, course.id)}
-                                    >
-                                      <Trash className="h-3 w-3" />
-                                    </Button>
-                                  </Badge>
-                                )
-                              ))}
-                              {(!user.assignedCourses || user.assignedCourses.length === 0) && (
-                                <span className="text-muted-foreground text-sm italic">Nenhum curso atribuído</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAssignCourseDialog(user)}
-                            >
-                              Atribuir Curso
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="managers">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gerenciamento de Equipes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Usuário</TableHead>
-                        <TableHead>Função</TableHead>
-                        <TableHead>Departamento</TableHead>
-                        <TableHead>Gerentes</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.filter(user => user.role !== 'admin').map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.name}</TableCell>
-                          <TableCell>
-                            <Badge variant={user.role === 'manager' ? 'warning' : user.role === 'instructor' ? 'secondary' : 'outline'}>
-                              {
-                                user.role === 'manager'
-                                  ? 'Gerente'
-                                  : user.role === 'instructor' 
-                                    ? 'Instrutor' 
-                                    : 'Estudante'
-                              }
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.department || "Não atribuído"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {getUserManagers(user.id).map((manager) => (
-                                <Badge key={manager.id} variant="outline" className="flex items-center gap-1">
-                                  {manager.name}
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 ml-1"
-                                    onClick={() => handleRemoveFromManager(user.id, manager.id)}
-                                  >
-                                    <Trash className="h-3 w-3" />
-                                  </Button>
-                                </Badge>
-                              ))}
-                              {getUserManagers(user.id).length === 0 && (
-                                <span className="text-muted-foreground text-sm italic">Nenhum gerente atribuído</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAssignManagerDialog(user)}
-                            >
-                              Atribuir Gerente
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="approvals">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Solicitações de Aprovação</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingApprovals.length === 0 ? (
-                    <div className="text-center p-8">
-                      <h3 className="text-lg font-medium mb-2">Nenhuma solicitação pendente</h3>
-                      <p className="text-muted-foreground">
-                        Não há solicitações de aprovação pendentes para você neste momento.
-                      </p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Curso</TableHead>
-                          <TableHead>Solicitante</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingApprovals.map((approval) => {
-                          const course = getCourseById(approval.courseId);
-                          const requestedBy = users.find(user => user.id === approval.requestedBy);
-                          
-                          return (
-                            <TableRow key={approval.id}>
-                              <TableCell className="font-medium">
-                                {course ? course.name : "Curso não encontrado"}
-                              </TableCell>
-                              <TableCell>
-                                {requestedBy ? requestedBy.name : "Usuário desconhecido"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {getApprovalTypeLabel(approval.approvalType)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {new Date(approval.requestDate).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openApprovalDetailsDialog(approval)}
-                                  >
-                                    Revisar
-                                  </Button>
-                                  {course && (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => navigate(`/courses/${course.id}`)}
-                                    >
-                                      Ver Curso
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </>
-      );
-    }
-    // Manager sees only their managed users and approvals
-    else if (currentUser.role === 'manager') {
-      return (
-        <>
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6"
-          >
-            <h1 className="text-3xl font-bold tracking-tight">Painel do Gerente</h1>
-            <p className="text-muted-foreground">
-              Gerencie sua equipe e aprove solicitações.
-            </p>
-          </motion.div>
-          
-          <Tabs defaultValue={pendingApprovals.length > 0 ? "approvals" : "team"} className="w-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="team" className="flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Minha Equipe</span>
-              </TabsTrigger>
-              <TabsTrigger value="approvals" className="flex items-center gap-2">
-                <CheckCheck className="h-4 w-4" />
-                <span>Aprovações</span>
-                {pendingApprovals.length > 0 && (
-                  <Badge variant="destructive" className="ml-1">{pendingApprovals.length}</Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="team">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Membros da Equipe</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {managedUsersList.length === 0 ? (
-                    <div className="text-center p-8">
-                      <h3 className="text-lg font-medium mb-2">Nenhum membro na equipe</h3>
-                      <p className="text-muted-foreground">
-                        Você ainda não tem membros atribuídos à sua equipe.
-                      </p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Função</TableHead>
-                          <TableHead>Departamento</TableHead>
-                          <TableHead>Cursos Atribuídos</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {managedUsersList.map((user) => (
-                          <TableRow key={user.id}>
-                            <TableCell className="font-medium">{user.name}</TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>
-                              <Badge variant={user.role === 'instructor' ? 'secondary' : 'outline'}>
-                                {user.role === 'instructor' ? 'Instrutor' : 'Estudante'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{user.department || "Não atribuído"}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {getUserAssignedCourses(user.id).map((course) => (
-                                  course && (
-                                    <Badge key={course.id} variant="outline">
-                                      {course.name}
-                                    </Badge>
-                                  )
-                                ))}
-                                {(!user.assignedCourses || user.assignedCourses.length === 0) && (
-                                  <span className="text-muted-foreground text-sm italic">Nenhum curso</span>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="approvals">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Solicitações de Aprovação</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingApprovals.length === 0 ? (
-                    <div className="text-center p-8">
-                      <h3 className="text-lg font-medium mb-2">Nenhuma solicitação pendente</h3>
-                      <p className="text-muted-foreground">
-                        Não há solicitações de aprovação pendentes para você neste momento.
-                      </p>
-                    </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Curso</TableHead>
-                          <TableHead>Solicitante</TableHead>
-                          <TableHead>Tipo</TableHead>
-                          <TableHead>Data</TableHead>
-                          <TableHead className="text-right">Ações</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pendingApprovals.map((approval) => {
-                          const course = getCourseById(approval.courseId);
-                          const requestedBy = users.find(user => user.id === approval.requestedBy);
-                          
-                          return (
-                            <TableRow key={approval.id}>
-                              <TableCell className="font-medium">
-                                {course ? course.name : "Curso não encontrado"}
-                              </TableCell>
-                              <TableCell>
-                                {requestedBy ? requestedBy.name : "Usuário desconhecido"}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {getApprovalTypeLabel(approval.approvalType)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {new Date(approval.requestDate).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => openApprovalDetailsDialog(approval)}
-                                  >
-                                    Revisar
-                                  </Button>
-                                  {course && (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => navigate(`/courses/${course.id}`)}
-                                    >
-                                      Ver Curso
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        </>
-      );
-    }
-    // Other users see limited view
-    else {
-      return (
-        <div className="container mx-auto py-6 text-center">
-          <h1 className="text-2xl font-bold mb-4">Acesso Limitado</h1>
-          <p className="mb-4 text-muted-foreground">
-            Você não tem permissão para acessar o painel de administração.
-          </p>
-          <Button onClick={() => navigate("/")}>Voltar para o Dashboard</Button>
-        </div>
-      );
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pendente':
+        return <Badge variant="outline">Pendente</Badge>;
+      case 'aprovado':
+        return <Badge variant="default">Aprovado</Badge>;
+      case 'rejeitado':
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
-    <div className="container mx-auto py-6">
-      {renderContent()}
+    <div className="container mx-auto py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Painel de Administração</CardTitle>
+          <CardDescription>Gerencie usuários, cursos e outras configurações do sistema.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={selectedTab} className="space-y-4" onValueChange={setSelectedTab}>
+            <TabsList>
+              <TabsTrigger value="users" className="focus:outline-none">Usuários</TabsTrigger>
+              <TabsTrigger value="courses" className="focus:outline-none">Cursos</TabsTrigger>
+              <TabsTrigger value="approvals" className="focus:outline-none">Aprovações</TabsTrigger>
+            </TabsList>
+            <TabsContent value="users" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
+                <Button onClick={() => openUserDialog()} className="focus:outline-none">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Adicionar Usuário
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Label htmlFor="department-filter">Filtrar por Departamento:</Label>
+                <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentName | "all")}>
+                  <SelectTrigger id="department-filter">
+                    <SelectValue placeholder="Todos os Departamentos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os Departamentos</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Vendas">Vendas</SelectItem>
+                    <SelectItem value="RH">RH</SelectItem>
+                    <SelectItem value="TI">TI</SelectItem>
+                    <SelectItem value="Operações">Operações</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Table>
+                <TableCaption>Lista de usuários cadastrados no sistema.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Departamento</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.role}</TableCell>
+                      <TableCell>{user.department || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openUserDialog(user)}
+                          className="focus:outline-none"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="focus:outline-none"
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Excluir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="courses" className="space-y-4">
+              <h2 className="text-xl font-semibold">Gerenciar Cursos</h2>
+              <Table>
+                <TableCaption>Lista de cursos cadastrados no sistema.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Criador</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell>{course.name}</TableCell>
+                      <TableCell>
+                        {getStatusBadge(course.status)}
+                      </TableCell>
+                      <TableCell>{users.find(user => user.id === course.createdBy)?.name || "N/A"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openCourseDialog(course)}
+                          className="focus:outline-none"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar Status
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="approvals" className="space-y-4">
+              <h2 className="text-xl font-semibold">Gerenciar Solicitações de Aprovação</h2>
+              <Table>
+                <TableCaption>Lista de solicitações de aprovação pendentes.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Curso</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Solicitante</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.flatMap(course => 
+                    course.approvalRequests?.map(requestId => {
+                      const request = courses.flatMap(c => c.approvalRequests).find((req: any) => req?.id === requestId);
+                      const requestedBy = users.find(user => user.id === request?.requestedBy);
 
-      {/* Edit User Dialog */}
-      <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+                      return request ? (
+                        <TableRow key={request.id}>
+                          <TableCell>{course.name}</TableCell>
+                          <TableCell>{request.approvalType}</TableCell>
+                          <TableCell>{requestedBy?.name || "N/A"}</TableCell>
+                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="focus:outline-none">
+                              <Eye className="mr-2 h-4 w-4" />
+                              Visualizar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ) : null;
+                    }) || []
+                  )}
+                </TableBody>
+              </Table>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* User Dialog */}
+      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogTitle>{selectedUser ? "Editar Usuário" : "Criar Usuário"}</DialogTitle>
             <DialogDescription>
-              Atualize os dados do usuário.
+              {selectedUser
+                ? "Atualize as informações do usuário."
+                : "Crie um novo usuário para o sistema."}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-name">Nome</Label>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nome
+              </Label>
               <Input
-                id="edit-name"
+                type="text"
+                id="name"
                 name="name"
-                value={formData.name}
-                onChange={handleInputChange}
+                value={userFormData.name}
+                onChange={handleUserInputChange}
+                className="col-span-3"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-email">Email</Label>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
               <Input
-                id="edit-email"
-                name="email"
                 type="email"
-                value={formData.email}
-                onChange={handleInputChange}
+                id="email"
+                name="email"
+                value={userFormData.email}
+                onChange={handleUserInputChange}
+                className="col-span-3"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-password">Nova Senha (deixe em branco para manter a atual)</Label>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="password" className="text-right">
+                Senha
+              </Label>
               <Input
-                id="edit-password"
-                name="password"
                 type="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="Nova senha"
+                id="password"
+                name="password"
+                value={userFormData.password}
+                onChange={handleUserInputChange}
+                className="col-span-3"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-role">Função</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, role: value as UserRole }))}
-              >
-                <SelectTrigger id="edit-role">
-                  <SelectValue placeholder="Selecione a função" />
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="role" className="text-right">
+                Role
+              </Label>
+              <Select value={userFormData.role} onValueChange={(value) => handleUserInputChange({ target: { name: 'role', value } } as any)}>
+                <SelectTrigger id="role" className="col-span-3">
+                  <SelectValue placeholder="Selecione um role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roleOptions.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="instructor">Instrutor</SelectItem>
+                  <SelectItem value="student">Estudante</SelectItem>
+                  <SelectItem value="manager">Gerente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-department">Departamento</Label>
-              <Select
-                value={formData.department || ""}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, department: value as DepartmentName || undefined }))}
-              >
-                <SelectTrigger id="edit-department">
-                  <SelectValue placeholder="Selecione o departamento" />
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="department" className="text-right">
+                Departamento
+              </Label>
+              <Select value={userFormData.department || ""} onValueChange={(value) => handleUserInputChange({ target: { name: 'department', value } } as any)}>
+                <SelectTrigger id="department" className="col-span-3">
+                  <SelectValue placeholder="Selecione um departamento" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Nenhum</SelectItem>
-                  {departmentOptions.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Vendas">Vendas</SelectItem>
+                  <SelectItem value="RH">RH</SelectItem>
+                  <SelectItem value="TI">TI</SelectItem>
+                  <SelectItem value="Operações">Operações</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>
+            <Button type="button" variant="secondary" onClick={closeUserDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleEditUser}>Salvar Alterações</Button>
+            <Button type="submit" onClick={selectedUser ? handleUpdateUser : handleCreateUser}>
+              {selectedUser ? "Atualizar" : "Criar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Assign Course Dialog */}
-      <Dialog open={isAssignCourseDialogOpen} onOpenChange={setIsAssignCourseDialogOpen}>
+      {/* Course Dialog */}
+      <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Atribuir Curso</DialogTitle>
+            <DialogTitle>Editar Status do Curso</DialogTitle>
             <DialogDescription>
-              Selecione um curso para atribuir ao usuário {selectedUser?.name}.
+              Atualize o status do curso selecionado.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um curso" />
-              </SelectTrigger>
-              <SelectContent>
-                {courses.map((course) => (
-                  <SelectItem key={course.id} value={course.id}>
-                    {course.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignCourseDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAssignCourse} disabled={!selectedCourseId}>
-              Atribuir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Assign Manager Dialog */}
-      <Dialog open={isAssignManagerDialogOpen} onOpenChange={setIsAssignManagerDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Atribuir Gerente</DialogTitle>
-            <DialogDescription>
-              Selecione um gerente para o usuário {selectedUser?.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedManagerId} onValueChange={setSelectedManagerId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um gerente" />
-              </SelectTrigger>
-              <SelectContent>
-                {getManagersOptions().map((manager) => (
-                  <SelectItem key={manager.id} value={manager.id}>
-                    {manager.name} ({manager.department || 'Sem departamento'})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignManagerDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAssignManager} disabled={!selectedManagerId}>
-              Atribuir
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Approval Details Dialog */}
-      <Dialog open={isApprovalDetailsDialogOpen} onOpenChange={setIsApprovalDetailsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Revisar Solicitação</DialogTitle>
-            <DialogDescription>
-              Revise e responda à solicitação de aprovação.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedApprovalRequest && (
-            <div className="py-4">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Curso</h4>
-                  <p>{getCourseById(selectedApprovalRequest.courseId)?.name || "Curso não encontrado"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Solicitante</h4>
-                  <p>{users.find(u => u.id === selectedApprovalRequest.requestedBy)?.name || "Usuário desconhecido"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Tipo</h4>
-                  <p>{getApprovalTypeLabel(selectedApprovalRequest.approvalType)}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold mb-1">Data da Solicitação</h4>
-                  <p>{new Date(selectedApprovalRequest.requestDate).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              {selectedApprovalRequest.comments && (
-                <div className="mb-4 p-3 bg-muted rounded-md">
-                  <h4 className="text-sm font-semibold mb-1">Comentários do solicitante</h4>
-                  <p className="text-sm">{selectedApprovalRequest.comments}</p>
-                </div>
-              )}
-              
-              <div className="space-y-4 mt-6">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-semibold">Sua resposta</h4>
-                  
-                  <Select 
-                    value={approvalResponse.isApproved ? "approve" : "reject"}
-                    onValueChange={(value) => setApprovalResponse({...approvalResponse, isApproved: value === "approve"})}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="approve">Aprovar</SelectItem>
-                      <SelectItem value="reject">Rejeitar</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="approval-comments">Comentários (opcional)</Label>
-                  <Textarea
-                    id="approval-comments"
-                    placeholder="Adicione comentários sobre sua decisão"
-                    value={approvalResponse.comments}
-                    onChange={(e) => setApprovalResponse({...approvalResponse, comments: e.target.value})}
-                  />
-                </div>
-              </div>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select value={courseFormData.status} onValueChange={(value) => handleCourseInputChange({ target: { name: 'status', value } } as any)}>
+                <SelectTrigger id="status" className="col-span-3">
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rascunho">Rascunho</SelectItem>
+                  <SelectItem value="Em andamento">Em andamento</SelectItem>
+                  <SelectItem value="Concluído">Concluído</SelectItem>
+                  <SelectItem value="Em aprovação">Em aprovação</SelectItem>
+                  <SelectItem value="Aprovado">Aprovado</SelectItem>
+                  <SelectItem value="Revisão solicitada">Revisão solicitada</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApprovalDetailsDialogOpen(false)}>
+            <Button type="button" variant="secondary" onClick={closeCourseDialog}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleApprovalRequestResponse}
-              variant={approvalResponse.isApproved ? "default" : "destructive"}
-            >
-              {approvalResponse.isApproved ? "Aprovar" : "Rejeitar"}
+            <Button type="submit" onClick={handleUpdateCourseStatus}>
+              Atualizar Status
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá excluir o usuário permanentemente. Tem certeza que deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteUser}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteUser}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

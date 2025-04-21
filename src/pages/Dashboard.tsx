@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { PlusCircle, Grid3X3, List, Tag, X, Folder, Users, BookOpen, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,7 @@ const Dashboard = () => {
 
   // Add sample courses if there are none (for demo purposes)
   useEffect(() => {
-    if (courses.length === 0) {
+    if (courses.length === 0 && currentUser) {
       // Adicionar cursos de demonstração com tags padrão
       sampleCourses.forEach((course, index) => {
         const defaultTags = [];
@@ -52,10 +51,13 @@ const Dashboard = () => {
           thumbnail: course.thumbnail,
           modules: course.modules,
           tags: defaultTags,
+          createdBy: currentUser.id,
+          department: currentUser.department,
+          collaborators: [],
         });
       });
     }
-  }, [courses.length, addCourse]);
+  }, [courses.length, addCourse, currentUser]);
 
   const handleAddCourse = () => {
     navigate("/courses/new");
@@ -137,10 +139,14 @@ const Dashboard = () => {
   // Define chart colors
   const CHART_COLORS = ['#9b87f5', '#7E69AB', '#D6BCFA', '#33C3F0', '#ea384c'];
   
+  // Fix the course status colors mapping
   const COURSE_STATUS_COLORS: Record<CourseStatus, string> = {
     'Rascunho': '#8E9196',
     'Em andamento': '#9b87f5',
     'Concluído': '#33C3F0',
+    'Em aprovação': '#f59b37',
+    'Aprovado': '#33f56f',
+    'Revisão solicitada': '#f53737'
   };
   
   const LESSON_STATUS_COLORS: Record<LessonStatus, string> = {

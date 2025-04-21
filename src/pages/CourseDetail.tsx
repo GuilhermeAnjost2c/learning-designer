@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound } from "lucide-react";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound, UserPlus } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
@@ -71,7 +70,6 @@ const CourseDetail = () => {
     comments: ""
   });
   
-  // Get all managers for approval selection
   const managers = getAllManagers();
   
   useEffect(() => {
@@ -81,7 +79,6 @@ const CourseDetail = () => {
     }
   }, [courseId, courses]);
   
-  // Check if current user can view this course
   const canViewCourse = () => {
     if (!currentUser || !course) return false;
     
@@ -112,14 +109,12 @@ const CourseDetail = () => {
     );
   }
 
-  // Calculate course metrics
   const totalModules = course.modules.length;
   const totalLessons = course.modules.reduce(
     (acc, module) => acc + module.lessons.length, 
     0
   );
   
-  // Calculate lesson status statistics
   const lessonStatusStats = course.modules.reduce((acc, module) => {
     module.lessons.forEach(lesson => {
       acc[lesson.status] = (acc[lesson.status] || 0) + 1;
@@ -154,8 +149,8 @@ const CourseDetail = () => {
       case 'Rascunho': return 'outline';
       case 'Em andamento': return 'secondary';
       case 'Concluído': return 'default';
-      case 'Em aprovação': return 'warning';
-      case 'Aprovado': return 'success';
+      case 'Em aprovação': return 'default';
+      case 'Aprovado': return 'default';
       case 'Revisão solicitada': return 'destructive';
       default: return 'outline';
     }
@@ -305,10 +300,8 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      {/* Course Overview Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2 space-y-6">
-          {/* Course Description */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
@@ -339,7 +332,6 @@ const CourseDetail = () => {
             </CardContent>
           </Card>
 
-          {/* Metrics Section */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -390,7 +382,6 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        {/* Course Image and Info Card */}
         <div className="lg:order-1">
           <Card className="overflow-hidden h-full">
             <div className="relative h-48 lg:h-64">
@@ -411,7 +402,6 @@ const CourseDetail = () => {
               </div>
             </div>
             <CardContent className="pt-6 space-y-6">
-              {/* Overall Progress */}
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-sm font-medium">Progresso Total</h3>
@@ -420,7 +410,6 @@ const CourseDetail = () => {
                 <Progress value={getTotalCompletionPercentage()} className="h-2" />
               </div>
               
-              {/* Status breakdown */}
               <div>
                 <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
                 <div className="space-y-4">
@@ -432,7 +421,7 @@ const CourseDetail = () => {
                       </span>
                       <span>{getStatusPercentage('Fazer')}%</span>
                     </div>
-                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" indicatorClassName="bg-muted-foreground" />
+                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" />
                     <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
                   </div>
                   
@@ -444,7 +433,7 @@ const CourseDetail = () => {
                       </span>
                       <span>{getStatusPercentage('Fazendo')}%</span>
                     </div>
-                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" indicatorClassName="bg-blue-400" />
+                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" />
                     <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
                   </div>
                   
@@ -456,13 +445,12 @@ const CourseDetail = () => {
                       </span>
                       <span>{getStatusPercentage('Finalizando')}%</span>
                     </div>
-                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" indicatorClassName="bg-green-500" />
+                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" />
                     <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
                   </div>
                 </div>
               </div>
               
-              {/* Collaborators section */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium">Colaboradores</h3>
@@ -597,7 +585,6 @@ const CourseDetail = () => {
         />
       )}
 
-      {/* Collaborator Dialog */}
       <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -655,7 +642,6 @@ const CourseDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Approval Request Dialog */}
       <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

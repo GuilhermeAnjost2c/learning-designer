@@ -449,7 +449,7 @@ export const useCourseStore = create<CourseStore>()(
           course.id === courseId 
             ? { 
                 ...course, 
-                status: 'Em aprovação',
+                status: 'Em aprovação' as CourseStatus,
                 approvalRequests: course.approvalRequests 
                   ? [...course.approvalRequests, newApprovalRequest.id]
                   : [newApprovalRequest.id],
@@ -486,7 +486,7 @@ export const useCourseStore = create<CourseStore>()(
           course.id === approvalRequest.courseId
             ? { 
                 ...course, 
-                status: isApproved ? 'Aprovado' : 'Revisão solicitada',
+                status: isApproved ? 'Aprovado' as CourseStatus : 'Revisão solicitada' as CourseStatus,
                 updatedAt: new Date() 
               } 
             : course
