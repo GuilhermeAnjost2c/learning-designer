@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -5,6 +6,7 @@ export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliaç�
 export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
 export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Em aprovação' | 'Aprovado' | 'Revisão solicitada';
 export type ApprovalItemType = 'curso_completo' | 'estrutura' | 'modulo' | 'aula';
+export type ApprovalStatus = 'pendente' | 'aprovado' | 'rejeitado';
 
 export interface ApprovalRequest {
   id: string;
@@ -14,7 +16,7 @@ export interface ApprovalRequest {
   approverId: string; // user ID
   approvalType: ApprovalItemType;
   itemId?: string; // moduleId or lessonId if applicable
-  status: 'pendente' | 'aprovado' | 'rejeitado';
+  status: ApprovalStatus;
   comments?: string;
   reviewDate?: Date;
 }
@@ -460,7 +462,7 @@ export const useCourseStore = create<CourseStore>()(
           request.id === approvalRequestId
             ? { 
                 ...request, 
-                status: isApproved ? 'aprovado' : 'rejeitado',
+                status: isApproved ? 'aprovado' as ApprovalStatus : 'rejeitado' as ApprovalStatus,
                 comments: comments || request.comments,
                 reviewDate: new Date()
               }
