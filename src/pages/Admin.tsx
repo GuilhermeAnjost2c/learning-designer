@@ -1,534 +1,259 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 import { useUserStore } from "@/store/userStore";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { UserPlus, Users, Building, BookOpen } from "lucide-react";
 import { useCourseStore } from "@/store/courseStore";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
-
-// Instead of redefining User interface, just use the one from userStore
-import { UserRole, DepartmentName } from "@/store/userStore";
 
 const Admin = () => {
-  const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
-  const { courses, updateCourseStatus } = useCourseStore();
-  const [selectedTab, setSelectedTab] = useState("users");
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [userFormData, setUserFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "student" as UserRole,
-    department: undefined as DepartmentName | undefined,
-  });
-  const [courseFormData, setCourseFormData] = useState({
-    status: "Rascunho",
-  });
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [departmentFilter, setDepartmentFilter] = useState<DepartmentName | "all">("all");
-  const [filteredUsers, setFilteredUsers] = useState(users);
+  const { users, departments } = useUserStore();
+  const { courses } = useCourseStore();
+  const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => {
-    if (departmentFilter === "all") {
-      setFilteredUsers(users);
-    } else {
-      setFilteredUsers(usersByDepartment(departmentFilter));
-    }
-  }, [users, departmentFilter, getUsersByDepartment]);
-
-  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setUserFormData({
-      ...userFormData,
-      [name]: value,
+  // Function to get users grouped by department
+  const getUsersByDepartment = () => {
+    const departmentCounts = departments.map(dept => {
+      const usersInDept = users.filter(user => user.department === dept.name);
+      return {
+        name: dept.name,
+        count: usersInDept.length,
+        color: dept.color || "#0ea5e9"
+      };
     });
+    
+    return departmentCounts;
   };
 
-  const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setCourseFormData({
-      ...courseFormData,
-      [name]: value,
+  // Function to get courses grouped by status
+  const getCoursesByStatus = () => {
+    const statusCounts: Record<string, number> = {};
+    
+    courses.forEach(course => {
+      if (statusCounts[course.status]) {
+        statusCounts[course.status]++;
+      } else {
+        statusCounts[course.status] = 1;
+      }
     });
+    
+    return Object.entries(statusCounts).map(([status, count]) => ({
+      name: status,
+      count,
+      color: getStatusColor(status)
+    }));
   };
-
-  const handleCreateUser = () => {
-    addUser({
-      name: userFormData.name,
-      email: userFormData.email,
-      password: userFormData.password,
-      role: userFormData.role,
-      department: userFormData.department,
-    });
-    closeUserDialog();
-  };
-
-  const handleUpdateUser = () => {
-    if (selectedUser) {
-      updateUser(selectedUser.id, {
-        name: userFormData.name,
-        email: userFormData.email,
-        role: userFormData.role,
-        department: userFormData.department,
-      });
-      closeUserDialog();
-    }
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    setUserToDelete(userId);
-    setDeleteConfirmationOpen(true);
-  };
-
-  const confirmDeleteUser = () => {
-    if (userToDelete) {
-      deleteUser(userToDelete);
-      setDeleteConfirmationOpen(false);
-      setUserToDelete(null);
-    }
-  };
-
-  const cancelDeleteUser = () => {
-    setDeleteConfirmationOpen(false);
-    setUserToDelete(null);
-  };
-
-  const handleUpdateCourseStatus = () => {
-    if (selectedCourse) {
-      updateCourseStatus(selectedCourse.id, courseFormData.status as any);
-      closeCourseDialog();
-    }
-  };
-
-  const openUserDialog = (user = null) => {
-    setSelectedUser(user);
-    if (user) {
-      setUserFormData({
-        name: user.name,
-        email: user.email,
-        password: "", // Don't pre-fill password
-        role: user.role,
-        department: user.department,
-      });
-    } else {
-      setUserFormData({
-        name: "",
-        email: "",
-        password: "",
-        role: "student",
-        department: undefined,
-      });
-    }
-    setIsUserDialogOpen(true);
-  };
-
-  const closeUserDialog = () => {
-    setIsUserDialogOpen(false);
-    setSelectedUser(null);
-    setUserFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "student",
-      department: undefined,
-    });
-  };
-
-  const openCourseDialog = (course) => {
-    setSelectedCourse(course);
-    setCourseFormData({
-      status: course.status,
-    });
-    setIsCourseDialogOpen(true);
-  };
-
-  const closeCourseDialog = () => {
-    setIsCourseDialogOpen(false);
-    setSelectedCourse(null);
-    setCourseFormData({
-      status: "Rascunho",
-    });
-  };
-
-  const getRequestStatusBadge = (status: string) => {
-    if (status === "pendente") {
-      return <Badge variant="outline">Pendente</Badge>;
-    } else if (status === "aprovado") {
-      return <Badge variant="default">Aprovado</Badge>;
-    } else {
-      return <Badge variant="destructive">Rejeitado</Badge>;
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
+  
+  // Function to get color based on status
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovado':
-        return <Badge variant="default">Aprovado</Badge>;
-      case 'rejeitado':
-        return <Badge variant="destructive">Rejeitado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      case "Rascunho": return "#94a3b8";
+      case "Em andamento": return "#3b82f6";
+      case "Concluído": return "#22c55e";
+      case "Em aprovação": return "#eab308";
+      case "Aprovado": return "#10b981";
+      case "Revisão solicitada": return "#ef4444";
+      default: return "#6366f1";
     }
   };
+
+  // Get data for charts
+  const departmentData = getUsersByDepartment();
+  const statusData = getCoursesByStatus();
+  
+  // Calculate total users and courses
+  const totalUsers = users.length;
+  const totalCourses = courses.length;
+  const totalDepartments = departments.length;
+  
+  // Calculate average modules per course
+  const avgModules = courses.length > 0 
+    ? (courses.reduce((sum, course) => sum + course.modules.length, 0) / courses.length).toFixed(1) 
+    : "0";
 
   return (
-    <div className="container mx-auto py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Painel de Administração</CardTitle>
-          <CardDescription>Gerencie usuários, cursos e outras configurações do sistema.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={selectedTab} className="space-y-4" onValueChange={setSelectedTab}>
-            <TabsList>
-              <TabsTrigger value="users" className="focus:outline-none">Usuários</TabsTrigger>
-              <TabsTrigger value="courses" className="focus:outline-none">Cursos</TabsTrigger>
-              <TabsTrigger value="approvals" className="focus:outline-none">Aprovações</TabsTrigger>
-            </TabsList>
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
-                <Button onClick={() => openUserDialog()} className="focus:outline-none">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Adicionar Usuário
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Label htmlFor="department-filter">Filtrar por Departamento:</Label>
-                <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentName | "all")}>
-                  <SelectTrigger id="department-filter">
-                    <SelectValue placeholder="Todos os Departamentos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os Departamentos</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Vendas">Vendas</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="TI">TI</SelectItem>
-                    <SelectItem value="Operações">Operações</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Table>
-                <TableCaption>Lista de usuários cadastrados no sistema.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Departamento</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.department || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openUserDialog(user)}
-                          className="focus:outline-none"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="focus:outline-none"
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Excluir
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="courses" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Cursos</h2>
-              <Table>
-                <TableCaption>Lista de cursos cadastrados no sistema.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Criador</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.map((course) => (
-                    <TableRow key={course.id}>
-                      <TableCell>{course.name}</TableCell>
-                      <TableCell>
-                        {getStatusBadge(course.status)}
-                      </TableCell>
-                      <TableCell>{users.find(user => user.id === course.createdBy)?.name || "N/A"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openCourseDialog(course)}
-                          className="focus:outline-none"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar Status
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="approvals" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Solicitações de Aprovação</h2>
-              <Table>
-                <TableCaption>Lista de solicitações de aprovação pendentes.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Curso</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Solicitante</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.flatMap(course => 
-                    course.approvalRequests?.map(requestId => {
-                      const request = courses.flatMap(c => c.approvalRequests).find((req: any) => req?.id === requestId);
-                      const requestedBy = users.find(user => user.id === request?.requestedBy);
-
-                      return request ? (
-                        <TableRow key={request.id}>
-                          <TableCell>{course.name}</TableCell>
-                          <TableCell>{request.approvalType}</TableCell>
-                          <TableCell>{requestedBy?.name || "N/A"}</TableCell>
-                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="focus:outline-none">
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ) : null;
-                    }) || []
-                  )}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* User Dialog */}
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedUser ? "Editar Usuário" : "Criar Usuário"}</DialogTitle>
-            <DialogDescription>
-              {selectedUser
-                ? "Atualize as informações do usuário."
-                : "Crie um novo usuário para o sistema."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nome
-              </Label>
-              <Input
-                type="text"
-                id="name"
-                name="name"
-                value={userFormData.name}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                type="email"
-                id="email"
-                name="email"
-                value={userFormData.email}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">
-                Senha
-              </Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                value={userFormData.password}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <Select value={userFormData.role} onValueChange={(value) => handleUserInputChange({ target: { name: 'role', value } } as any)}>
-                <SelectTrigger id="role" className="col-span-3">
-                  <SelectValue placeholder="Selecione um role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="instructor">Instrutor</SelectItem>
-                  <SelectItem value="student">Estudante</SelectItem>
-                  <SelectItem value="manager">Gerente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Departamento
-              </Label>
-              <Select value={userFormData.department || ""} onValueChange={(value) => handleUserInputChange({ target: { name: 'department', value } } as any)}>
-                <SelectTrigger id="department" className="col-span-3">
-                  <SelectValue placeholder="Selecione um departamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Vendas">Vendas</SelectItem>
-                  <SelectItem value="RH">RH</SelectItem>
-                  <SelectItem value="TI">TI</SelectItem>
-                  <SelectItem value="Operações">Operações</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="container mx-auto p-4 space-y-6">
+      <h1 className="text-3xl font-bold tracking-tight">Administração</h1>
+      
+      <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="courses">Cursos</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Usuários
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 text-primary mr-2" />
+                  <div className="text-2xl font-bold">{totalUsers}</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Cursos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <BookOpen className="h-5 w-5 text-primary mr-2" />
+                  <div className="text-2xl font-bold">{totalCourses}</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Departamentos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <Building className="h-5 w-5 text-primary mr-2" />
+                  <div className="text-2xl font-bold">{totalDepartments}</div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Média de Módulos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center">
+                  <BookOpen className="h-5 w-5 text-primary mr-2" />
+                  <div className="text-2xl font-bold">{avgModules}</div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeUserDialog}>
-              Cancelar
-            </Button>
-            <Button type="submit" onClick={selectedUser ? handleUpdateUser : handleCreateUser}>
-              {selectedUser ? "Atualizar" : "Criar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Course Dialog */}
-      <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Editar Status do Curso</DialogTitle>
-            <DialogDescription>
-              Atualize o status do curso selecionado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <Select value={courseFormData.status} onValueChange={(value) => handleCourseInputChange({ target: { name: 'status', value } } as any)}>
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Selecione um status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Rascunho">Rascunho</SelectItem>
-                  <SelectItem value="Em andamento">Em andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Em aprovação">Em aprovação</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Revisão solicitada">Revisão solicitada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="col-span-1">
+              <CardHeader>
+                <CardTitle>Usuários por Departamento</CardTitle>
+                <CardDescription>
+                  Distribuição de usuários entre departamentos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={departmentData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {departmentData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            
+            <Card className="col-span-1">
+              <CardHeader>
+                <CardTitle>Cursos por Status</CardTitle>
+                <CardDescription>
+                  Distribuição de cursos por status
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={statusData}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="count" name="Quantidade">
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeCourseDialog}>
-              Cancelar
+        </TabsContent>
+        
+        <TabsContent value="users" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Gerenciamento de Usuários</h2>
+            <Button className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              <span>Adicionar Usuário</span>
             </Button>
-            <Button type="submit" onClick={handleUpdateCourseStatus}>
-              Atualizar Status
+          </div>
+          
+          {/* User management content will go here */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Lista de Usuários</CardTitle>
+              <CardDescription>
+                Gerencie todos os usuários da plataforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Funcionalidade em desenvolvimento. Em breve você poderá gerenciar usuários aqui.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="courses" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Gerenciamento de Cursos</h2>
+            <Button className="gap-2">
+              <BookOpen className="h-4 w-4" />
+              <span>Ver Todos os Cursos</span>
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação irá excluir o usuário permanentemente. Tem certeza que deseja continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDeleteUser}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteUser}>Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          </div>
+          
+          {/* Course management content will go here */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Aprovações Pendentes</CardTitle>
+              <CardDescription>
+                Cursos aguardando aprovação
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Funcionalidade em desenvolvimento. Em breve você poderá gerenciar aprovações de cursos aqui.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

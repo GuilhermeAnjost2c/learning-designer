@@ -1,6 +1,6 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from './userStore';
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
 export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
@@ -408,9 +408,9 @@ export const useCourseStore = create<CourseStore>()(
           course.id === courseId
             ? {
                 ...course,
-                collaborators: course.collaborators.includes(userId) 
+                collaborators: course.collaborators && course.collaborators.includes(userId) 
                   ? course.collaborators 
-                  : [...course.collaborators, userId],
+                  : [...(course.collaborators || []), userId],
                 updatedAt: new Date(),
               }
             : course
@@ -423,7 +423,7 @@ export const useCourseStore = create<CourseStore>()(
           course.id === courseId
             ? {
                 ...course,
-                collaborators: course.collaborators.filter(id => id !== userId),
+                collaborators: course.collaborators ? course.collaborators.filter(id => id !== userId) : [],
                 updatedAt: new Date(),
               }
             : course
@@ -504,7 +504,7 @@ export const useCourseStore = create<CourseStore>()(
         return courses.filter(course => 
           course.createdBy === userId || 
           (userDepartment && course.department === userDepartment) ||
-          course.collaborators.includes(userId)
+          (course.collaborators && course.collaborators.includes(userId))
         );
       },
       
