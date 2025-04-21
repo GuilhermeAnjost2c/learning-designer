@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -92,10 +91,8 @@ interface CourseStore {
   getPendingApprovals: (approverId: string) => ApprovalRequest[];
 }
 
-// Generate a unique ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-// Calculate total duration of all lessons in a course
 const calculateCourseDuration = (modules: Module[]): number => {
   return modules.reduce((totalDuration, module) => {
     return totalDuration + module.lessons.reduce((moduleDuration, lesson) => {
@@ -152,7 +149,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -177,7 +173,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -198,7 +193,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -226,7 +220,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -258,7 +251,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -286,7 +278,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -366,7 +357,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
-
+      
       updateCourseStatus: (courseId, status) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -378,7 +369,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
-
+      
       updateLessonStatus: (courseId, moduleId, lessonId, status) => set((state) => ({
         courses: state.courses.map((course) => 
           course.id === courseId 
@@ -402,7 +393,6 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Add a collaborator to a course
       addCollaborator: (courseId, userId) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -417,7 +407,6 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Remove a collaborator from a course
       removeCollaborator: (courseId, userId) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -430,7 +419,6 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Submit a course for approval
       submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
         const newApprovalRequest: ApprovalRequest = {
           id: generateId(),
@@ -444,15 +432,14 @@ export const useCourseStore = create<CourseStore>()(
           comments
         };
         
-        // Update course status to 'Em aprovação'
         const updatedCourses = state.courses.map(course => 
           course.id === courseId 
             ? { 
                 ...course, 
                 status: 'Em aprovação' as CourseStatus,
                 approvalRequests: course.approvalRequests 
-                  ? [...course.approvalRequests, newApprovalRequest.id]
-                  : [newApprovalRequest.id],
+                  ? [...course.approvalRequests, newApprovalRequest]
+                  : [newApprovalRequest],
                 updatedAt: new Date() 
               } 
             : course
@@ -464,7 +451,6 @@ export const useCourseStore = create<CourseStore>()(
         };
       }),
       
-      // Respond to an approval request
       respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
         const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
         
@@ -481,7 +467,6 @@ export const useCourseStore = create<CourseStore>()(
             : request
         );
         
-        // Update course status based on approval result
         const updatedCourses = state.courses.map(course => 
           course.id === approvalRequest.courseId
             ? { 
@@ -498,7 +483,6 @@ export const useCourseStore = create<CourseStore>()(
         };
       }),
       
-      // Get courses visible to a specific user (created by them, in their department, or where they're a collaborator)
       getVisibleCoursesForUser: (userId, userDepartment) => {
         const { courses } = get();
         return courses.filter(course => 
@@ -508,13 +492,11 @@ export const useCourseStore = create<CourseStore>()(
         );
       },
       
-      // Get a specific course by ID
       getCourseById: (courseId) => {
         const { courses } = get();
         return courses.find(course => course.id === courseId);
       },
       
-      // Get pending approval requests for a specific approver
       getPendingApprovals: (approverId) => {
         const { approvalRequests } = get();
         return approvalRequests.filter(request => 

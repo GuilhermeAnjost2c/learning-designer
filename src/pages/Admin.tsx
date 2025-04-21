@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useUserStore } from "@/store/userStore";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,8 @@ const Admin = () => {
 
   // Function to get users grouped by department
   const getUsersByDepartment = () => {
+    if (!departments) return [];
+    
     const departmentCounts = departments.map(dept => {
       const usersInDept = users.filter(user => user.department === dept.name);
       return {

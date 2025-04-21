@@ -1,10 +1,14 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 
 export type UserRole = 'admin' | 'instructor' | 'student' | 'manager';
 export type DepartmentName = 'Marketing' | 'Vendas' | 'RH' | 'TI' | 'Operações';
+
+export interface Department {
+  name: DepartmentName;
+  color: string;
+}
 
 export interface User {
   id: string;
@@ -22,6 +26,7 @@ interface UserState {
   users: User[];
   currentUser: User | null;
   isAuthenticated: boolean;
+  departments: Department[];
   
   // Authentication
   login: (email: string, password: string) => boolean;
@@ -89,6 +94,13 @@ export const useUserStore = create<UserState>()(
           department: 'TI',
           createdAt: new Date(),
         }
+      ],
+      departments: [
+        { name: 'Marketing', color: '#ef4444' },
+        { name: 'Vendas', color: '#3b82f6' },
+        { name: 'RH', color: '#8b5cf6' },
+        { name: 'TI', color: '#10b981' },
+        { name: 'Operações', color: '#f59e0b' }
       ],
       currentUser: null,
       isAuthenticated: false,
