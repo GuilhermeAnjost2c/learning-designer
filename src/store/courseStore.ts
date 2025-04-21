@@ -1,10 +1,24 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { User } from './userStore';
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
 export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
-export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído';
+export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Em aprovação' | 'Aprovado' | 'Revisão solicitada';
+export type ApprovalItemType = 'curso_completo' | 'estrutura' | 'modulo' | 'aula';
+
+export interface ApprovalRequest {
+  id: string;
+  courseId: string;
+  requestDate: Date;
+  requestedBy: string; // user ID
+  approverId: string; // user ID
+  approvalType: ApprovalItemType;
+  itemId?: string; // moduleId or lessonId if applicable
+  status: 'pendente' | 'aprovado' | 'rejeitado';
+  comments?: string;
+  reviewDate?: Date;
+}
 
 export interface Lesson {
   id: string;
@@ -36,25 +50,46 @@ export interface Course {
   updatedAt: Date;
   tags: string[];
   status: CourseStatus;
+  createdBy: string; // user ID
+  department?: string; // department name
+  collaborators: string[]; // array of user IDs
+  approvalRequests?: ApprovalRequest[];
 }
 
 interface CourseStore {
   courses: Course[];
-  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
+  approvalRequests: ApprovalRequest[];
+  
+  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'collaborators'> & { collaborators?: string[] }) => void;
   updateCourse: (id: string, course: Partial<Course>) => void;
   deleteCourse: (id: string) => void;
+  
   addModule: (courseId: string, module: Omit<Module, 'id' | 'lessons'>) => void;
   updateModule: (courseId: string, moduleId: string, module: Partial<Module>) => void;
   deleteModule: (courseId: string, moduleId: string) => void;
+  
   addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, 'id' | 'status'>) => void;
   updateLesson: (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => void;
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
+  
   reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
+  
   addTagToCourse: (courseId: string, tag: string) => void;
   removeTagFromCourse: (courseId: string, tag: string) => void;
+  
   updateCourseStatus: (courseId: string, status: CourseStatus) => void;
   updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => void;
+  
+  addCollaborator: (courseId: string, userId: string) => void;
+  removeCollaborator: (courseId: string, userId: string) => void;
+  
+  submitForApproval: (courseId: string, requestedById: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
+  respondToApprovalRequest: (approvalRequestId: string, isApproved: boolean, comments?: string) => void;
+  
+  getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
+  getCourseById: (courseId: string) => Course | undefined;
+  getPendingApprovals: (approverId: string) => ApprovalRequest[];
 }
 
 // Generate a unique ID
@@ -69,19 +104,11 @@ const calculateCourseDuration = (modules: Module[]): number => {
   }, 0);
 };
 
-// Update course duration based on lessons
-const updateCourseDuration = (course: Course): Course => {
-  const calculatedDuration = calculateCourseDuration(course.modules);
-  return {
-    ...course,
-    estimatedDuration: calculatedDuration
-  };
-};
-
 export const useCourseStore = create<CourseStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       courses: [],
+      approvalRequests: [],
       
       addCourse: (courseData) => set((state) => {
         const now = new Date();
@@ -93,20 +120,25 @@ export const useCourseStore = create<CourseStore>()(
           updatedAt: now,
           tags: courseData.tags || [],
           status: 'Rascunho', // Default status
+          collaborators: courseData.collaborators || [],
+          estimatedDuration: courseData.estimatedDuration || 0
         };
         return { courses: [...state.courses, newCourse] };
       }),
       
-      updateCourse: (id, courseData) => set((state) => ({
-        courses: state.courses.map((course) => 
+      updateCourse: (id, courseData) => set((state) => {
+        const updatedCourses = state.courses.map((course) => 
           course.id === id 
             ? { ...course, ...courseData, updatedAt: new Date() } 
             : course
-        ),
-      })),
+        );
+        
+        return { courses: updatedCourses };
+      }),
       
       deleteCourse: (id) => set((state) => ({
         courses: state.courses.filter((course) => course.id !== id),
+        approvalRequests: state.approvalRequests.filter((request) => request.courseId !== id)
       })),
       
       addModule: (courseId, moduleData) => set((state) => {
@@ -123,7 +155,9 @@ export const useCourseStore = create<CourseStore>()(
         // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -146,7 +180,9 @@ export const useCourseStore = create<CourseStore>()(
         // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -165,7 +201,9 @@ export const useCourseStore = create<CourseStore>()(
         // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -191,7 +229,9 @@ export const useCourseStore = create<CourseStore>()(
         // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -218,10 +258,12 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        // Recalculate course duration if duration was updated
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -247,7 +289,9 @@ export const useCourseStore = create<CourseStore>()(
         // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
-            course.id === courseId ? updateCourseDuration(course) : course
+            course.id === courseId 
+              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+              : course
           )
         };
       }),
@@ -357,6 +401,127 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
+      
+      // Add a collaborator to a course
+      addCollaborator: (courseId, userId) => set((state) => ({
+        courses: state.courses.map((course) =>
+          course.id === courseId
+            ? {
+                ...course,
+                collaborators: course.collaborators.includes(userId) 
+                  ? course.collaborators 
+                  : [...course.collaborators, userId],
+                updatedAt: new Date(),
+              }
+            : course
+        ),
+      })),
+      
+      // Remove a collaborator from a course
+      removeCollaborator: (courseId, userId) => set((state) => ({
+        courses: state.courses.map((course) =>
+          course.id === courseId
+            ? {
+                ...course,
+                collaborators: course.collaborators.filter(id => id !== userId),
+                updatedAt: new Date(),
+              }
+            : course
+        ),
+      })),
+      
+      // Submit a course for approval
+      submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
+        const newApprovalRequest: ApprovalRequest = {
+          id: generateId(),
+          courseId,
+          requestDate: new Date(),
+          requestedBy: requestedById,
+          approverId,
+          approvalType,
+          itemId,
+          status: 'pendente',
+          comments
+        };
+        
+        // Update course status to 'Em aprovação'
+        const updatedCourses = state.courses.map(course => 
+          course.id === courseId 
+            ? { 
+                ...course, 
+                status: 'Em aprovação',
+                approvalRequests: course.approvalRequests 
+                  ? [...course.approvalRequests, newApprovalRequest.id]
+                  : [newApprovalRequest.id],
+                updatedAt: new Date() 
+              } 
+            : course
+        );
+        
+        return {
+          courses: updatedCourses,
+          approvalRequests: [...state.approvalRequests, newApprovalRequest]
+        };
+      }),
+      
+      // Respond to an approval request
+      respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
+        const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
+        
+        if (!approvalRequest) return state;
+        
+        const updatedApprovalRequests = state.approvalRequests.map(request => 
+          request.id === approvalRequestId
+            ? { 
+                ...request, 
+                status: isApproved ? 'aprovado' : 'rejeitado',
+                comments: comments || request.comments,
+                reviewDate: new Date()
+              }
+            : request
+        );
+        
+        // Update course status based on approval result
+        const updatedCourses = state.courses.map(course => 
+          course.id === approvalRequest.courseId
+            ? { 
+                ...course, 
+                status: isApproved ? 'Aprovado' : 'Revisão solicitada',
+                updatedAt: new Date() 
+              } 
+            : course
+        );
+        
+        return {
+          approvalRequests: updatedApprovalRequests,
+          courses: updatedCourses
+        };
+      }),
+      
+      // Get courses visible to a specific user (created by them, in their department, or where they're a collaborator)
+      getVisibleCoursesForUser: (userId, userDepartment) => {
+        const { courses } = get();
+        return courses.filter(course => 
+          course.createdBy === userId || 
+          (userDepartment && course.department === userDepartment) ||
+          course.collaborators.includes(userId)
+        );
+      },
+      
+      // Get a specific course by ID
+      getCourseById: (courseId) => {
+        const { courses } = get();
+        return courses.find(course => course.id === courseId);
+      },
+      
+      // Get pending approval requests for a specific approver
+      getPendingApprovals: (approverId) => {
+        const { approvalRequests } = get();
+        return approvalRequests.filter(request => 
+          request.approverId === approverId && 
+          request.status === 'pendente'
+        );
+      }
     }),
     {
       name: 'course-storage',

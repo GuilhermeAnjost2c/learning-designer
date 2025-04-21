@@ -12,17 +12,23 @@ import DynamicsBank from "./pages/DynamicsBank";
 import EduAI from "./pages/EduAI";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
-import { useUserStore } from "./store/userStore";
+import { useUserStore, UserRole } from "./store/userStore";
 
-// Protected route component
-const ProtectedRoute = ({ children, requireAdmin = false }: { children: JSX.Element, requireAdmin?: boolean }) => {
+// Protected route component with role-based access control
+const ProtectedRoute = ({ 
+  children, 
+  allowedRoles = ['admin', 'manager', 'instructor', 'student']  
+}: { 
+  children: JSX.Element, 
+  allowedRoles?: UserRole[] 
+}) => {
   const { isAuthenticated, currentUser } = useUserStore();
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
   
-  if (requireAdmin && currentUser?.role !== 'admin') {
+  if (currentUser && !allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/" />;
   }
   
@@ -43,12 +49,20 @@ function App() {
           }>
             <Route index element={<Dashboard />} />
             <Route path="courses" element={<CoursesList />} />
-            <Route path="courses/new" element={<CreateCourse />} />
+            <Route path="courses/new" element={
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+                <CreateCourse />
+              </ProtectedRoute>
+            } />
             <Route path="courses/:courseId" element={<CourseDetail />} />
-            <Route path="dynamics" element={<DynamicsBank />} />
+            <Route path="dynamics" element={
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+                <DynamicsBank />
+              </ProtectedRoute>
+            } />
             <Route path="edu" element={<EduAI />} />
             <Route path="admin" element={
-              <ProtectedRoute requireAdmin={true}>
+              <ProtectedRoute allowedRoles={['admin', 'manager']}>
                 <Admin />
               </ProtectedRoute>
             } />

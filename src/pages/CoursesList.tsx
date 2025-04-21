@@ -1,8 +1,9 @@
 
 import { useCourseStore } from "@/store/courseStore";
+import { useUserStore } from "@/store/userStore";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, Filter, Tag, X } from "lucide-react";
+import { PlusCircle, Search, Filter, Tag, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -18,19 +19,28 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const CoursesList = () => {
-  const { courses } = useCourseStore();
+  const { courses, getVisibleCoursesForUser } = useCourseStore();
+  const { currentUser } = useUserStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "modules">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [showAllCourses, setShowAllCourses] = useState(false);
 
   const handleAddCourse = () => {
     navigate("/courses/new");
   };
 
-  // Get all unique tags across all courses
-  const allTags = courses.reduce((acc, course) => {
+  // Get all visible courses for the current user
+  const visibleCourses = currentUser 
+    ? (showAllCourses && currentUser.role === 'admin'
+        ? courses 
+        : getVisibleCoursesForUser(currentUser.id, currentUser.department))
+    : [];
+
+  // Get all unique tags across all visible courses
+  const allTags = visibleCourses.reduce((acc, course) => {
     if (course.tags && course.tags.length > 0) {
       course.tags.forEach(tag => {
         if (!acc.includes(tag)) {
@@ -42,7 +52,7 @@ const CoursesList = () => {
   }, [] as string[]);
 
   // Filter by search term
-  const searchFiltered = courses.filter((course) =>
+  const searchFiltered = visibleCourses.filter((course) =>
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -89,6 +99,21 @@ const CoursesList = () => {
             <span>Novo Curso</span>
           </Button>
         </motion.div>
+
+        {/* Visibility toggle for admins */}
+        {currentUser?.role === 'admin' && (
+          <div className="mb-4 flex items-center justify-end">
+            <Button 
+              variant={showAllCourses ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setShowAllCourses(!showAllCourses)}
+            >
+              <Users className="h-4 w-4" />
+              <span>{showAllCourses ? "Mostrando todos os cursos" : "Mostrando apenas meus cursos"}</span>
+            </Button>
+          </div>
+        )}
 
         {/* Tags Section */}
         {allTags.length > 0 && (
@@ -173,7 +198,7 @@ const CoursesList = () => {
             animate={{ opacity: 1 }}
             className="flex flex-col items-center justify-center p-10 bg-muted/40 rounded-lg border border-dashed"
           >
-            {courses.length === 0 ? (
+            {visibleCourses.length === 0 ? (
               <>
                 <h3 className="text-xl font-medium mb-2">Nenhum curso encontrado</h3>
                 <p className="text-muted-foreground text-center mb-6">

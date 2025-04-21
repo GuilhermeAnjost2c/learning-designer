@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCourseStore, Course, CourseStatus } from "@/store/courseStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag } from "lucide-react";
+import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
+import { useUserStore } from "@/store/userStore";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
@@ -21,11 +22,31 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { CourseEditor } from "@/components/courses/CourseEditor";
@@ -33,12 +54,25 @@ import { CourseEditor } from "@/components/courses/CourseEditor";
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { courses, deleteCourse, updateCourseStatus } = useCourseStore();
+  const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
+  const { users, currentUser, getAllManagers } = useUserStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [collaboratorEmail, setCollaboratorEmail] = useState("");
+  const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [approvalData, setApprovalData] = useState({
+    approverId: "",
+    approvalType: "curso_completo" as ApprovalItemType,
+    itemId: "",
+    comments: ""
+  });
+  
+  // Get all managers for approval selection
+  const managers = getAllManagers();
   
   useEffect(() => {
     if (courseId) {
@@ -46,11 +80,33 @@ const CourseDetail = () => {
       setCourse(foundCourse || null);
     }
   }, [courseId, courses]);
+  
+  // Check if current user can view this course
+  const canViewCourse = () => {
+    if (!currentUser || !course) return false;
+    
+    return (
+      currentUser.role === 'admin' ||
+      course.createdBy === currentUser.id ||
+      (currentUser.department && course.department === currentUser.department) ||
+      (course.collaborators && course.collaborators.includes(currentUser.id))
+    );
+  };
 
   if (!course) {
     return (
       <div className="container mx-auto py-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Curso não encontrado</h1>
+        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
+      </div>
+    );
+  }
+  
+  if (!canViewCourse()) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Você não tem permissão para visualizar este curso</h1>
+        <p className="mb-4 text-muted-foreground">Este curso está em outro departamento ou você não é um colaborador.</p>
         <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
       </div>
     );
@@ -75,6 +131,12 @@ const CourseDetail = () => {
     if (totalLessons === 0) return 0;
     return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
   };
+  
+  const getTotalCompletionPercentage = () => {
+    if (totalLessons === 0) return 0;
+    const finalizandoCount = lessonStatusStats['Finalizando'] || 0;
+    return Math.round((finalizandoCount / totalLessons) * 100);
+  };
 
   const handleDelete = () => {
     deleteCourse(course.id);
@@ -92,12 +154,68 @@ const CourseDetail = () => {
       case 'Rascunho': return 'outline';
       case 'Em andamento': return 'secondary';
       case 'Concluído': return 'default';
+      case 'Em aprovação': return 'warning';
+      case 'Aprovado': return 'success';
+      case 'Revisão solicitada': return 'destructive';
       default: return 'outline';
     }
   };
 
   const openEditor = () => {
     setEditorOpen(true);
+  };
+  
+  const handleAddCollaborator = () => {
+    if (!collaboratorEmail) {
+      toast.error("Informe o email do colaborador");
+      return;
+    }
+    
+    const collaborator = users.find(user => user.email === collaboratorEmail);
+    if (!collaborator) {
+      toast.error("Usuário não encontrado");
+      return;
+    }
+    
+    if (course.collaborators.includes(collaborator.id)) {
+      toast.error("Este usuário já é um colaborador");
+      return;
+    }
+    
+    addCollaborator(course.id, collaborator.id);
+    toast.success(`${collaborator.name} adicionado como colaborador`);
+    setCollaboratorEmail("");
+    setIsCollaboratorDialogOpen(false);
+  };
+  
+  const handleRemoveCollaborator = (userId: string) => {
+    removeCollaborator(course.id, userId);
+    toast.success("Colaborador removido com sucesso");
+  };
+  
+  const getCollaborators = () => {
+    return course.collaborators
+      .map(userId => users.find(user => user.id === userId))
+      .filter(Boolean);
+  };
+  
+  const handleSubmitForApproval = () => {
+    if (!approvalData.approverId) {
+      toast.error("Selecione um aprovador");
+      return;
+    }
+    
+    submitForApproval(
+      course.id,
+      currentUser!.id,
+      approvalData.approverId,
+      approvalData.approvalType,
+      approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
+      approvalData.comments
+    );
+    
+    toast.success("Curso enviado para aprovação");
+    setIsApprovalDialogOpen(false);
   };
 
   return (
@@ -143,6 +261,26 @@ const CourseDetail = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-7 gap-1"
+            onClick={() => setIsCollaboratorDialogOpen(true)}
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Colaboradores</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-7 gap-1"
+            onClick={() => setIsApprovalDialogOpen(true)}
+          >
+            <Send className="h-4 w-4" />
+            <span>Enviar para Aprovação</span>
+          </Button>
           
           <div className="ml-auto flex gap-2">
             <Button
@@ -272,56 +410,93 @@ const CourseDetail = () => {
                 </div>
               </div>
             </div>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="pt-6 space-y-6">
+              {/* Overall Progress */}
               <div>
-                <h3 className="text-sm font-medium mb-1">Estatísticas do Curso</h3>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="border rounded-md p-2">
-                    <p className="text-xs text-muted-foreground">Total de Aulas</p>
-                    <p className="text-lg font-bold">{totalLessons}</p>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-medium">Progresso Total</h3>
+                  <span className="text-sm font-bold">{getTotalCompletionPercentage()}%</span>
+                </div>
+                <Progress value={getTotalCompletionPercentage()} className="h-2" />
+              </div>
+              
+              {/* Status breakdown */}
+              <div>
+                <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-muted-foreground rounded-full"></span>
+                        <span>Fazer</span>
+                      </span>
+                      <span>{getStatusPercentage('Fazer')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" indicatorClassName="bg-muted-foreground" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
                   </div>
-                  <div className="border rounded-md p-2">
-                    <p className="text-xs text-muted-foreground">Total Módulos</p>
-                    <p className="text-lg font-bold">{totalModules}</p>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-blue-400 rounded-full"></span>
+                        <span>Fazendo</span>
+                      </span>
+                      <span>{getStatusPercentage('Fazendo')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" indicatorClassName="bg-blue-400" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-green-500 rounded-full"></span>
+                        <span>Finalizando</span>
+                      </span>
+                      <span>{getStatusPercentage('Finalizando')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" indicatorClassName="bg-green-500" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
                   </div>
                 </div>
               </div>
               
+              {/* Collaborators section */}
               <div>
-                <h3 className="text-sm font-medium mb-1">Progresso das Aulas</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium">Colaboradores</h3>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-xs"
+                    onClick={() => setIsCollaboratorDialogOpen(true)}
+                  >
+                    <UserPlus className="h-3 w-3 mr-1" />
+                    <span>Adicionar</span>
+                  </Button>
+                </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs">
-                    <span>Fazer</span>
-                    <span>{lessonStatusStats['Fazer'] || 0} aulas</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-muted-foreground rounded-full" 
-                      style={{ width: `${getStatusPercentage('Fazer')}%` }}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between text-xs">
-                    <span>Fazendo</span>
-                    <span>{lessonStatusStats['Fazendo'] || 0} aulas</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-blue-400 rounded-full" 
-                      style={{ width: `${getStatusPercentage('Fazendo')}%` }}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between text-xs">
-                    <span>Finalizando</span>
-                    <span>{lessonStatusStats['Finalizando'] || 0} aulas</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 rounded-full" 
-                      style={{ width: `${getStatusPercentage('Finalizando')}%` }}
-                    />
-                  </div>
+                  {getCollaborators().length > 0 ? (
+                    getCollaborators().map(collaborator => collaborator && (
+                      <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
+                        <div className="flex items-center gap-2">
+                          <UserRound className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{collaborator.name}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={() => handleRemoveCollaborator(collaborator.id)}
+                        >
+                          <Trash className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
+                  )}
                 </div>
               </div>
               
@@ -333,58 +508,6 @@ const CourseDetail = () => {
           </Card>
         </div>
       </div>
-
-      {/* Progress overview */}
-      {totalLessons > 0 && (
-        <Card className="mb-8">
-          <CardContent className="pt-6">
-            <h3 className="font-semibold text-lg mb-4">Progresso do Curso</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Fazer</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazer')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-muted-foreground rounded-full" 
-                    style={{ width: `${getStatusPercentage('Fazer')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazer'] || 0} aulas</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Fazendo</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Fazendo')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-400 rounded-full" 
-                    style={{ width: `${getStatusPercentage('Fazendo')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Fazendo'] || 0} aulas</p>
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">Finalizando</span>
-                  <span className="text-sm text-muted-foreground">{getStatusPercentage('Finalizando')}%</span>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-green-500 rounded-full" 
-                    style={{ width: `${getStatusPercentage('Finalizando')}%` }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">{lessonStatusStats['Finalizando'] || 0} aulas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Tabs defaultValue="content" className="mt-6">
         <TabsList>
@@ -473,6 +596,167 @@ const CourseDetail = () => {
           onClose={() => setEditorOpen(false)} 
         />
       )}
+
+      {/* Collaborator Dialog */}
+      <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogDescription>
+              Adicione membros da equipe como colaboradores deste curso.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <Label htmlFor="collaborator-email">Email do Colaborador</Label>
+            <Input
+              id="collaborator-email"
+              placeholder="email@exemplo.com"
+              value={collaboratorEmail}
+              onChange={(e) => setCollaboratorEmail(e.target.value)}
+            />
+          </div>
+          
+          {getCollaborators().length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium mb-2">Colaboradores Atuais</h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {getCollaborators().map(collaborator => collaborator && (
+                  <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
+                    <div className="flex items-center gap-2">
+                      <UserRound className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{collaborator.name}</p>
+                        <p className="text-xs text-muted-foreground">{collaborator.email}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6"
+                      onClick={() => handleRemoveCollaborator(collaborator.id)}
+                    >
+                      <Trash className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCollaboratorDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddCollaborator}>
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Approval Request Dialog */}
+      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Enviar para Aprovação</DialogTitle>
+            <DialogDescription>
+              Solicite a aprovação do curso ou de elementos específicos.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="approver">Aprovador</Label>
+              <Select 
+                value={approvalData.approverId} 
+                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
+              >
+                <SelectTrigger id="approver">
+                  <SelectValue placeholder="Selecione o aprovador" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map(manager => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {manager.name} ({manager.department})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="approval-type">O que deseja aprovar?</Label>
+              <Select 
+                value={approvalData.approvalType}
+                onValueChange={(value) => setApprovalData({...approvalData, approvalType: value as ApprovalItemType})}
+              >
+                <SelectTrigger id="approval-type">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="curso_completo">Curso Completo</SelectItem>
+                  <SelectItem value="estrutura">Estrutura do Curso</SelectItem>
+                  <SelectItem value="modulo">Módulo Específico</SelectItem>
+                  <SelectItem value="aula">Aula Específica</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {(approvalData.approvalType === 'modulo' || approvalData.approvalType === 'aula') && (
+              <div>
+                <Label htmlFor="item-id">
+                  {approvalData.approvalType === 'modulo' ? 'Selecione o Módulo' : 'Selecione a Aula'}
+                </Label>
+                <Select 
+                  value={approvalData.itemId}
+                  onValueChange={(value) => setApprovalData({...approvalData, itemId: value})}
+                >
+                  <SelectTrigger id="item-id">
+                    <SelectValue placeholder="Selecione o item" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {approvalData.approvalType === 'modulo' 
+                      ? course.modules.map(module => (
+                          <SelectItem key={module.id} value={module.id}>
+                            {module.title}
+                          </SelectItem>
+                        ))
+                      : course.modules.flatMap(module => 
+                          module.lessons.map(lesson => (
+                            <SelectItem key={lesson.id} value={lesson.id}>
+                              {module.title} - {lesson.title}
+                            </SelectItem>
+                          ))
+                        )
+                    }
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            <div>
+              <Label htmlFor="comments">Comentários (opcional)</Label>
+              <Textarea
+                id="comments"
+                placeholder="Informe detalhes adicionais se necessário"
+                value={approvalData.comments}
+                onChange={(e) => setApprovalData({...approvalData, comments: e.target.value})}
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitForApproval}>
+              Enviar para Aprovação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
