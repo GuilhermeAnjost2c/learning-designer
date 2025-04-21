@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
 export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
@@ -121,6 +122,7 @@ export const useCourseStore = create<CourseStore>()(
           collaborators: courseData.collaborators || [],
           estimatedDuration: courseData.estimatedDuration || 0
         };
+        toast.success('Curso criado com sucesso!');
         return { courses: [...state.courses, newCourse] };
       }),
       
@@ -131,6 +133,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        toast.success('Curso atualizado com sucesso!');
         return { courses: updatedCourses };
       }),
       
@@ -394,33 +397,81 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      addCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
+      addCollaborator: (courseId, userId) => set((state) => {
+        const course = state.courses.find(c => c.id === courseId);
+        
+        if (!course) {
+          toast.error("Curso não encontrado");
+          return state;
+        }
+        
+        if (course.collaborators && course.collaborators.includes(userId)) {
+          toast.error("Este usuário já é um colaborador");
+          return state;
+        }
+        
+        const updatedCourses = state.courses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
                 collaborators: course.collaborators 
-                  ? (course.collaborators.includes(userId) ? course.collaborators : [...course.collaborators, userId])
+                  ? [...course.collaborators, userId]
                   : [userId],
                 updatedAt: new Date(),
               }
             : course
-        ),
-      })),
+        );
+        
+        toast.success("Colaborador adicionado com sucesso");
+        return { courses: updatedCourses };
+      }),
       
-      removeCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
+      removeCollaborator: (courseId, userId) => set((state) => {
+        const course = state.courses.find(c => c.id === courseId);
+        
+        if (!course) {
+          toast.error("Curso não encontrado");
+          return state;
+        }
+        
+        if (!course.collaborators || !course.collaborators.includes(userId)) {
+          toast.error("Este usuário não é um colaborador");
+          return state;
+        }
+        
+        const updatedCourses = state.courses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
-                collaborators: course.collaborators ? course.collaborators.filter(id => id !== userId) : [],
+                collaborators: course.collaborators.filter(id => id !== userId),
                 updatedAt: new Date(),
               }
             : course
-        ),
-      })),
+        );
+        
+        toast.success("Colaborador removido com sucesso");
+        return { courses: updatedCourses };
+      }),
       
       submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
+        const course = state.courses.find(c => c.id === courseId);
+        if (!course) {
+          toast.error("Curso não encontrado");
+          return state;
+        }
+        
+        const existingRequest = state.approvalRequests.find(req => 
+          req.courseId === courseId && 
+          req.approvalType === approvalType && 
+          req.itemId === itemId &&
+          req.status === 'pendente'
+        );
+        
+        if (existingRequest) {
+          toast.error("Já existe uma solicitação de aprovação pendente para este item");
+          return state;
+        }
+        
         const newApprovalRequest: ApprovalRequest = {
           id: generateId(),
           courseId,
@@ -446,6 +497,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        toast.success("Solicitação de aprovação enviada com sucesso");
         return {
           courses: updatedCourses,
           approvalRequests: [...state.approvalRequests, newApprovalRequest]
@@ -455,13 +507,18 @@ export const useCourseStore = create<CourseStore>()(
       respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
         const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
         
-        if (!approvalRequest) return state;
+        if (!approvalRequest) {
+          toast.error("Solicitação de aprovação não encontrada");
+          return state;
+        }
+        
+        const newStatus: ApprovalStatus = isApproved ? 'aprovado' : 'rejeitado';
         
         const updatedApprovalRequests = state.approvalRequests.map(request => 
           request.id === approvalRequestId
             ? { 
                 ...request, 
-                status: isApproved ? 'aprovado' as ApprovalStatus : 'rejeitado' as ApprovalStatus,
+                status: newStatus,
                 comments: comments || request.comments,
                 reviewDate: new Date()
               }
@@ -478,6 +535,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        toast.success(isApproved ? "Solicitação aprovada com sucesso" : "Solicitação rejeitada");
         return {
           approvalRequests: updatedApprovalRequests,
           courses: updatedCourses

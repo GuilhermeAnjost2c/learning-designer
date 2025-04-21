@@ -308,6 +308,7 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
+      {/* Grade principal com conteúdo do curso */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -505,12 +506,13 @@ const CourseDetail = () => {
         </div>
       </div>
 
+      {/* Tabs para conteúdo e informações - colocado logo abaixo da grade principal */}
       <Tabs defaultValue="content" className="mt-6">
         <TabsList>
           <TabsTrigger value="content">Conteúdo</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
-        <TabsContent value="content" className="mt-6">
+        <TabsContent value="content" className="pt-4">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Módulos</h2>
             <div className="flex gap-2">

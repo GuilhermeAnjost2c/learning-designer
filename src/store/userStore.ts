@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
@@ -112,14 +113,17 @@ export const useUserStore = create<UserState>()(
         
         if (user) {
           set({ currentUser: user, isAuthenticated: true });
+          toast.success(`Bem-vindo, ${user.name}!`);
           return true;
         }
         
+        toast.error('Credenciais inválidas');
         return false;
       },
       
       logout: () => {
         set({ currentUser: null, isAuthenticated: false });
+        toast.success('Logout realizado com sucesso');
       },
       
       addUser: (userData) => {
@@ -220,6 +224,13 @@ export const useUserStore = create<UserState>()(
       },
       
       assignUserToCourse: (userId, courseId) => {
+        const user = get().users.find(user => user.id === userId);
+        
+        if (!user) {
+          toast.error('Usuário não encontrado');
+          return;
+        }
+        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === userId) {
@@ -239,6 +250,13 @@ export const useUserStore = create<UserState>()(
       },
       
       removeUserFromCourse: (userId, courseId) => {
+        const user = get().users.find(user => user.id === userId);
+        
+        if (!user) {
+          toast.error('Usuário não encontrado');
+          return;
+        }
+        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === userId && user.assignedCourses) {
@@ -261,6 +279,19 @@ export const useUserStore = create<UserState>()(
           return;
         }
         
+        const user = get().users.find(user => user.id === userId);
+        const manager = get().users.find(user => user.id === managerId);
+        
+        if (!user || !manager) {
+          toast.error('Usuário ou gerente não encontrado');
+          return;
+        }
+        
+        if (manager.role !== 'manager' && manager.role !== 'admin') {
+          toast.error('Apenas gerentes e administradores podem gerenciar usuários');
+          return;
+        }
+        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === managerId) {
@@ -280,6 +311,14 @@ export const useUserStore = create<UserState>()(
       },
       
       removeUserFromManager: (userId, managerId) => {
+        const user = get().users.find(user => user.id === userId);
+        const manager = get().users.find(user => user.id === managerId);
+        
+        if (!user || !manager) {
+          toast.error('Usuário ou gerente não encontrado');
+          return;
+        }
+        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === managerId && user.managedUsers) {
