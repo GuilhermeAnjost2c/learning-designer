@@ -298,11 +298,9 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      {/* Reorganized layout: Side-by-side cards instead of stacked */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main content - Takes 2/3 of the space */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-0">
         <div className="lg:col-span-2">
-          <Card className="mb-6">
+          <Card className="mb-4">
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Bookmark className="h-5 w-5 text-primary" />
@@ -310,14 +308,14 @@ const CourseDetail = () => {
               </div>
               <p className="text-muted-foreground whitespace-pre-wrap">{course.description}</p>
               
-              <div className="mt-6 flex items-center gap-2">
+              <div className="mt-4 flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
                 <h3 className="font-semibold text-lg">Objetivos de Aprendizagem</h3>
               </div>
               <p className="text-muted-foreground whitespace-pre-wrap">{course.objectives}</p>
               
               {course.tags && course.tags.length > 0 && (
-                <div className="mt-6">
+                <div className="mt-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Tag className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold">Tags</h3>
@@ -332,9 +330,8 @@ const CourseDetail = () => {
             </CardContent>
           </Card>
           
-          {/* Course content/modules section - Directly below description */}
           <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-3">
               <h2 className="text-xl font-semibold">Módulos</h2>
               <div className="flex gap-2">
                 <Button onClick={() => setIsAddingModule(true)} className="gap-2">
@@ -345,7 +342,7 @@ const CourseDetail = () => {
             </div>
 
             {course.modules.length === 0 ? (
-              <div className="text-center p-8 border border-dashed rounded-lg">
+              <div className="text-center p-6 border border-dashed rounded-lg">
                 <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
                 <p className="text-muted-foreground mb-4">
                   Comece adicionando um módulo ao seu curso.
@@ -353,7 +350,7 @@ const CourseDetail = () => {
                 <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {course.modules.map((module, index) => (
                   <ModuleItem
                     key={module.id}
@@ -367,7 +364,6 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        {/* Sidebar - Takes 1/3 of the space */}
         <div>
           <Card className="overflow-hidden h-full">
             <div className="relative h-48">
@@ -387,7 +383,7 @@ const CourseDetail = () => {
                 </div>
               </div>
             </div>
-            <CardContent className="pt-6 space-y-6">
+            <CardContent className="pt-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Módulos</p>
@@ -422,7 +418,7 @@ const CourseDetail = () => {
                     <span>Adicionar</span>
                   </Button>
                 </div>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                <div className="space-y-2 max-h-[160px] overflow-y-auto">
                   {getCollaborators().length > 0 ? (
                     getCollaborators().map(collaborator => collaborator && (
                       <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
@@ -469,7 +465,6 @@ const CourseDetail = () => {
         </div>
       </div>
 
-      {/* Modal dialogs and forms */}
       {isEditing && (
         <CourseForm
           course={course}
