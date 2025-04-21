@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -400,9 +399,9 @@ export const useCourseStore = create<CourseStore>()(
           course.id === courseId
             ? {
                 ...course,
-                collaborators: course.collaborators && course.collaborators.includes(userId) 
-                  ? course.collaborators 
-                  : [...(course.collaborators || []), userId],
+                collaborators: course.collaborators 
+                  ? (course.collaborators.includes(userId) ? course.collaborators : [...course.collaborators, userId])
+                  : [userId],
                 updatedAt: new Date(),
               }
             : course

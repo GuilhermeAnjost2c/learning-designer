@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -172,7 +173,7 @@ const CourseDetail = () => {
       return;
     }
     
-    if (course.collaborators.includes(collaborator.id)) {
+    if (course.collaborators && course.collaborators.includes(collaborator.id)) {
       toast.error("Este usuário já é um colaborador");
       return;
     }
@@ -189,6 +190,8 @@ const CourseDetail = () => {
   };
   
   const getCollaborators = () => {
+    if (!course.collaborators) return [];
+    
     return course.collaborators
       .map(userId => users.find(user => user.id === userId))
       .filter(Boolean);
@@ -200,9 +203,14 @@ const CourseDetail = () => {
       return;
     }
     
+    if (!currentUser) {
+      toast.error("Você precisa estar logado para enviar um curso para aprovação");
+      return;
+    }
+    
     submitForApproval(
       course.id,
-      currentUser!.id,
+      currentUser.id,
       approvalData.approverId,
       approvalData.approvalType,
       approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
@@ -300,7 +308,7 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardContent className="pt-6">
@@ -564,6 +572,7 @@ const CourseDetail = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Modal dialogs and forms */}
       {isEditing && (
         <CourseForm
           course={course}
@@ -664,7 +673,7 @@ const CourseDetail = () => {
                 <SelectContent>
                   {managers.map(manager => (
                     <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department})
+                      {manager.name} ({manager.department || 'Sem departamento'})
                     </SelectItem>
                   ))}
                 </SelectContent>
