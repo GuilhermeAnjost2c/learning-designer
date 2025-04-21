@@ -1,14 +1,10 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 
 export type UserRole = 'admin' | 'instructor' | 'student' | 'manager';
 export type DepartmentName = 'Marketing' | 'Vendas' | 'RH' | 'TI' | 'Operações';
-
-export interface Department {
-  name: DepartmentName;
-  color: string;
-}
 
 export interface User {
   id: string;
@@ -26,7 +22,6 @@ interface UserState {
   users: User[];
   currentUser: User | null;
   isAuthenticated: boolean;
-  departments: Department[];
   
   // Authentication
   login: (email: string, password: string) => boolean;
@@ -95,13 +90,6 @@ export const useUserStore = create<UserState>()(
           createdAt: new Date(),
         }
       ],
-      departments: [
-        { name: 'Marketing', color: '#ef4444' },
-        { name: 'Vendas', color: '#3b82f6' },
-        { name: 'RH', color: '#8b5cf6' },
-        { name: 'TI', color: '#10b981' },
-        { name: 'Operações', color: '#f59e0b' }
-      ],
       currentUser: null,
       isAuthenticated: false,
       
@@ -112,17 +100,14 @@ export const useUserStore = create<UserState>()(
         
         if (user) {
           set({ currentUser: user, isAuthenticated: true });
-          toast.success(`Bem-vindo, ${user.name}!`);
           return true;
         }
         
-        toast.error('Credenciais inválidas');
         return false;
       },
       
       logout: () => {
         set({ currentUser: null, isAuthenticated: false });
-        toast.success('Logout realizado com sucesso');
       },
       
       addUser: (userData) => {
@@ -149,10 +134,11 @@ export const useUserStore = create<UserState>()(
           return;
         }
         
+        const now = new Date();
         const newUser: User = {
           ...userData,
           id: generateId(),
-          createdAt: new Date(),
+          createdAt: now,
         };
         
         set((state) => ({
@@ -222,13 +208,6 @@ export const useUserStore = create<UserState>()(
       },
       
       assignUserToCourse: (userId, courseId) => {
-        const user = get().users.find(user => user.id === userId);
-        
-        if (!user) {
-          toast.error('Usuário não encontrado');
-          return;
-        }
-        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === userId) {
@@ -248,13 +227,6 @@ export const useUserStore = create<UserState>()(
       },
       
       removeUserFromCourse: (userId, courseId) => {
-        const user = get().users.find(user => user.id === userId);
-        
-        if (!user) {
-          toast.error('Usuário não encontrado');
-          return;
-        }
-        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === userId && user.assignedCourses) {
@@ -277,19 +249,6 @@ export const useUserStore = create<UserState>()(
           return;
         }
         
-        const user = get().users.find(user => user.id === userId);
-        const manager = get().users.find(user => user.id === managerId);
-        
-        if (!user || !manager) {
-          toast.error('Usuário ou gerente não encontrado');
-          return;
-        }
-        
-        if (manager.role !== 'manager' && manager.role !== 'admin') {
-          toast.error('Apenas gerentes e administradores podem gerenciar usuários');
-          return;
-        }
-        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === managerId) {
@@ -309,14 +268,6 @@ export const useUserStore = create<UserState>()(
       },
       
       removeUserFromManager: (userId, managerId) => {
-        const user = get().users.find(user => user.id === userId);
-        const manager = get().users.find(user => user.id === managerId);
-        
-        if (!user || !manager) {
-          toast.error('Usuário ou gerente não encontrado');
-          return;
-        }
-        
         set((state) => ({
           users: state.users.map((user) => {
             if (user.id === managerId && user.managedUsers) {

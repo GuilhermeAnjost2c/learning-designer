@@ -1,22 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { toast } from 'sonner';
+import { User } from './userStore';
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
 export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
 export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Em aprovação' | 'Aprovado' | 'Revisão solicitada';
 export type ApprovalItemType = 'curso_completo' | 'estrutura' | 'modulo' | 'aula';
-export type ApprovalStatus = 'pendente' | 'aprovado' | 'rejeitado';
 
 export interface ApprovalRequest {
   id: string;
   courseId: string;
   requestDate: Date;
   requestedBy: string; // user ID
-  approverId: string; // user ID (can be empty if no specific approver)
+  approverId: string; // user ID
   approvalType: ApprovalItemType;
   itemId?: string; // moduleId or lessonId if applicable
-  status: ApprovalStatus;
+  status: 'pendente' | 'aprovado' | 'rejeitado';
   comments?: string;
   reviewDate?: Date;
 }
@@ -85,7 +84,7 @@ interface CourseStore {
   addCollaborator: (courseId: string, userId: string) => void;
   removeCollaborator: (courseId: string, userId: string) => void;
   
-  submitForApproval: (courseId: string, requestedById: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
+  submitForApproval: (courseId: string, requestedById: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
   respondToApprovalRequest: (approvalRequestId: string, isApproved: boolean, comments?: string) => void;
   
   getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
@@ -93,8 +92,10 @@ interface CourseStore {
   getPendingApprovals: (approverId: string) => ApprovalRequest[];
 }
 
+// Generate a unique ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+// Calculate total duration of all lessons in a course
 const calculateCourseDuration = (modules: Module[]): number => {
   return modules.reduce((totalDuration, module) => {
     return totalDuration + module.lessons.reduce((moduleDuration, lesson) => {
@@ -122,7 +123,6 @@ export const useCourseStore = create<CourseStore>()(
           collaborators: courseData.collaborators || [],
           estimatedDuration: courseData.estimatedDuration || 0
         };
-        toast.success('Curso criado com sucesso!');
         return { courses: [...state.courses, newCourse] };
       }),
       
@@ -133,7 +133,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        toast.success('Curso atualizado com sucesso!');
         return { courses: updatedCourses };
       }),
       
@@ -153,6 +152,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -177,6 +177,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -197,6 +198,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -224,6 +226,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -255,6 +258,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -282,6 +286,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
+        // Recalculate course duration
         return { 
           courses: updatedCourses.map(course => 
             course.id === courseId 
@@ -361,7 +366,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
-      
+
       updateCourseStatus: (courseId, status) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -373,7 +378,7 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
-      
+
       updateLessonStatus: (courseId, moduleId, lessonId, status) => set((state) => ({
         courses: state.courses.map((course) => 
           course.id === courseId 
@@ -397,49 +402,24 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      addCollaborator: (courseId, userId) => set((state) => {
-        const course = state.courses.find(c => c.id === courseId);
-        
-        if (!course) {
-          toast.error("Curso não encontrado");
-          return state;
-        }
-        
-        if (course.collaborators && course.collaborators.includes(userId)) {
-          toast.error("Este usuário já é um colaborador");
-          return state;
-        }
-        
-        const updatedCourses = state.courses.map((course) =>
+      // Add a collaborator to a course
+      addCollaborator: (courseId, userId) => set((state) => ({
+        courses: state.courses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
-                collaborators: course.collaborators 
-                  ? [...course.collaborators, userId]
-                  : [userId],
+                collaborators: course.collaborators.includes(userId) 
+                  ? course.collaborators 
+                  : [...course.collaborators, userId],
                 updatedAt: new Date(),
               }
             : course
-        );
-        
-        toast.success("Colaborador adicionado com sucesso");
-        return { courses: updatedCourses };
-      }),
+        ),
+      })),
       
-      removeCollaborator: (courseId, userId) => set((state) => {
-        const course = state.courses.find(c => c.id === courseId);
-        
-        if (!course) {
-          toast.error("Curso não encontrado");
-          return state;
-        }
-        
-        if (!course.collaborators || !course.collaborators.includes(userId)) {
-          toast.error("Este usuário não é um colaborador");
-          return state;
-        }
-        
-        const updatedCourses = state.courses.map((course) =>
+      // Remove a collaborator from a course
+      removeCollaborator: (courseId, userId) => set((state) => ({
+        courses: state.courses.map((course) =>
           course.id === courseId
             ? {
                 ...course,
@@ -447,86 +427,61 @@ export const useCourseStore = create<CourseStore>()(
                 updatedAt: new Date(),
               }
             : course
-        );
-        
-        toast.success("Colaborador removido com sucesso");
-        return { courses: updatedCourses };
-      }),
+        ),
+      })),
       
-      submitForApproval: (courseId, requestedById, approvalType, itemId, comments) => set((state) => {
-        const course = state.courses.find(c => c.id === courseId);
-        if (!course) {
-          toast.error("Curso não encontrado");
-          return state;
-        }
-        
-        const existingRequest = state.approvalRequests.find(req => 
-          req.courseId === courseId && 
-          req.approvalType === approvalType && 
-          req.itemId === itemId &&
-          req.status === 'pendente'
-        );
-        
-        if (existingRequest) {
-          toast.error("Já existe uma solicitação de aprovação pendente para este item");
-          return state;
-        }
-        
-        const defaultApproverId = course.createdBy;
-        
+      // Submit a course for approval
+      submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
         const newApprovalRequest: ApprovalRequest = {
           id: generateId(),
           courseId,
           requestDate: new Date(),
           requestedBy: requestedById,
-          approverId: defaultApproverId,
+          approverId,
           approvalType,
           itemId,
           status: 'pendente',
           comments
         };
         
+        // Update course status to 'Em aprovação'
         const updatedCourses = state.courses.map(course => 
           course.id === courseId 
             ? { 
                 ...course, 
                 status: 'Em aprovação' as CourseStatus,
                 approvalRequests: course.approvalRequests 
-                  ? [...course.approvalRequests, newApprovalRequest]
-                  : [newApprovalRequest],
+                  ? [...course.approvalRequests, newApprovalRequest.id]
+                  : [newApprovalRequest.id],
                 updatedAt: new Date() 
               } 
             : course
         );
         
-        toast.success("Solicitação de aprovação enviada com sucesso");
         return {
           courses: updatedCourses,
           approvalRequests: [...state.approvalRequests, newApprovalRequest]
         };
       }),
       
+      // Respond to an approval request
       respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
         const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
         
-        if (!approvalRequest) {
-          toast.error("Solicitação de aprovação não encontrada");
-          return state;
-        }
-        
-        const newStatus: ApprovalStatus = isApproved ? 'aprovado' : 'rejeitado';
+        if (!approvalRequest) return state;
         
         const updatedApprovalRequests = state.approvalRequests.map(request => 
           request.id === approvalRequestId
             ? { 
                 ...request, 
-                status: newStatus,
+                status: isApproved ? 'aprovado' : 'rejeitado',
                 comments: comments || request.comments,
                 reviewDate: new Date()
               }
             : request
         );
         
+        // Update course status based on approval result
         const updatedCourses = state.courses.map(course => 
           course.id === approvalRequest.courseId
             ? { 
@@ -537,27 +492,29 @@ export const useCourseStore = create<CourseStore>()(
             : course
         );
         
-        toast.success(isApproved ? "Solicitação aprovada com sucesso" : "Solicitação rejeitada");
         return {
           approvalRequests: updatedApprovalRequests,
           courses: updatedCourses
         };
       }),
       
+      // Get courses visible to a specific user (created by them, in their department, or where they're a collaborator)
       getVisibleCoursesForUser: (userId, userDepartment) => {
         const { courses } = get();
         return courses.filter(course => 
           course.createdBy === userId || 
           (userDepartment && course.department === userDepartment) ||
-          (course.collaborators && course.collaborators.includes(userId))
+          course.collaborators.includes(userId)
         );
       },
       
+      // Get a specific course by ID
       getCourseById: (courseId) => {
         const { courses } = get();
         return courses.find(course => course.id === courseId);
       },
       
+      // Get pending approval requests for a specific approver
       getPendingApprovals: (approverId) => {
         const { approvalRequests } = get();
         return approvalRequests.filter(request => 

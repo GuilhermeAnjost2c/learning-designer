@@ -1,3 +1,4 @@
+
 import { useCourseStore } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
 import { CourseCard } from "@/components/courses/CourseCard";
