@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -55,7 +54,7 @@ const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
-  const { users, currentUser, getAllManagers } = useUserStore();
+  const { users, currentUser } = useUserStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
@@ -65,13 +64,10 @@ const CourseDetail = () => {
   const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalData, setApprovalData] = useState({
-    approverId: "",
     approvalType: "curso_completo" as ApprovalItemType,
     itemId: "",
     comments: ""
   });
-  
-  const managers = getAllManagers();
   
   useEffect(() => {
     if (courseId) {
@@ -198,11 +194,6 @@ const CourseDetail = () => {
   };
   
   const handleSubmitForApproval = () => {
-    if (!approvalData.approverId) {
-      toast.error("Selecione um aprovador");
-      return;
-    }
-    
     if (!currentUser) {
       toast.error("Você precisa estar logado para enviar um curso para aprovação");
       return;
@@ -211,7 +202,6 @@ const CourseDetail = () => {
     submitForApproval(
       course.id,
       currentUser.id,
-      approvalData.approverId,
       approvalData.approvalType,
       approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
       approvalData.comments
@@ -308,10 +298,11 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      {/* Grade principal com conteúdo do curso */}
+      {/* Reorganized layout: Side-by-side cards instead of stacked */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
+        {/* Main content - Takes 2/3 of the space */}
+        <div className="lg:col-span-2">
+          <Card className="mb-6">
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Bookmark className="h-5 w-5 text-primary" />
@@ -340,60 +331,46 @@ const CourseDetail = () => {
               )}
             </CardContent>
           </Card>
+          
+          {/* Course content/modules section - Directly below description */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Módulos</h2>
+              <div className="flex gap-2">
+                <Button onClick={() => setIsAddingModule(true)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  <span>Adicionar Módulo</span>
+                </Button>
+              </div>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Estrutura</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Módulos</p>
-                    <p className="text-2xl font-bold">{totalModules}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Aulas</p>
-                    <p className="text-2xl font-bold">{totalLessons}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Duração</h3>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tempo Estimado</p>
-                  <p className="text-2xl font-bold">
-                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Público</h3>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Público-alvo</p>
-                  <p className="text-lg font-medium truncate">{course.targetAudience}</p>
-                </div>
-              </CardContent>
-            </Card>
+            {course.modules.length === 0 ? (
+              <div className="text-center p-8 border border-dashed rounded-lg">
+                <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Comece adicionando um módulo ao seu curso.
+                </p>
+                <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {course.modules.map((module, index) => (
+                  <ModuleItem
+                    key={module.id}
+                    courseId={course.id}
+                    module={module}
+                    index={index}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="lg:order-1">
+        {/* Sidebar - Takes 1/3 of the space */}
+        <div>
           <Card className="overflow-hidden h-full">
-            <div className="relative h-48 lg:h-64">
+            <div className="relative h-48">
               <div 
                 className="absolute inset-0 bg-cover bg-center"
                 style={{ 
@@ -411,53 +388,25 @@ const CourseDetail = () => {
               </div>
             </div>
             <CardContent className="pt-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Módulos</p>
+                  <p className="text-2xl font-bold">{course.modules.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Duração</p>
+                  <p className="text-2xl font-bold">
+                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
+                  </p>
+                </div>
+              </div>
+              
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-sm font-medium">Progresso Total</h3>
                   <span className="text-sm font-bold">{getTotalCompletionPercentage()}%</span>
                 </div>
                 <Progress value={getTotalCompletionPercentage()} className="h-2" />
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-muted-foreground rounded-full"></span>
-                        <span>Fazer</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazer')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-blue-400 rounded-full"></span>
-                        <span>Fazendo</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazendo')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-green-500 rounded-full"></span>
-                        <span>Finalizando</span>
-                      </span>
-                      <span>{getStatusPercentage('Finalizando')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
-                  </div>
-                </div>
               </div>
               
               <div>
@@ -473,7 +422,7 @@ const CourseDetail = () => {
                     <span>Adicionar</span>
                   </Button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
                   {getCollaborators().length > 0 ? (
                     getCollaborators().map(collaborator => collaborator && (
                       <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
@@ -497,82 +446,28 @@ const CourseDetail = () => {
                 </div>
               </div>
               
-              <Button onClick={openEditor} className="w-full gap-2 mt-4">
-                <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setIsApprovalDialogOpen(true)} 
+                  className="w-full gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  <span>Enviar para Aprovação</span>
+                </Button>
+                
+                <Button 
+                  onClick={openEditor} 
+                  className="w-full gap-2"
+                >
+                  <FileEdit className="h-4 w-4" />
+                  <span>Editor</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      {/* Tabs para conteúdo e informações - colocado logo abaixo da grade principal */}
-      <Tabs defaultValue="content" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="content">Conteúdo</TabsTrigger>
-          <TabsTrigger value="info">Informações</TabsTrigger>
-        </TabsList>
-        <TabsContent value="content" className="pt-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Módulos</h2>
-            <div className="flex gap-2">
-              <Button onClick={openEditor} className="gap-2" variant="outline">
-                <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
-              </Button>
-              <Button onClick={() => setIsAddingModule(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Adicionar Módulo</span>
-              </Button>
-            </div>
-          </div>
-
-          {course.modules.length === 0 ? (
-            <div className="text-center p-8 border border-dashed rounded-lg">
-              <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
-              <p className="text-muted-foreground mb-4">
-                Comece adicionando um módulo ao seu curso.
-              </p>
-              <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {course.modules.map((module, index) => (
-                <ModuleItem
-                  key={module.id}
-                  courseId={course.id}
-                  module={module}
-                  index={index}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="info">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Descrição</h3>
-              <p className="whitespace-pre-wrap">{course.description}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Objetivos</h3>
-              <p className="whitespace-pre-wrap">{course.objectives}</p>
-            </div>
-          </div>
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-2">Tags</h3>
-            <div className="flex flex-wrap gap-2">
-              {course.tags && course.tags.length > 0 ? (
-                course.tags.map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
-                ))
-              ) : (
-                <p className="text-muted-foreground">Nenhuma tag adicionada</p>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
 
       {/* Modal dialogs and forms */}
       {isEditing && (
@@ -663,25 +558,6 @@ const CourseDetail = () => {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approver">Aprovador</Label>
-              <Select 
-                value={approvalData.approverId} 
-                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
-              >
-                <SelectTrigger id="approver">
-                  <SelectValue placeholder="Selecione o aprovador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map(manager => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department || 'Sem departamento'})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div>
               <Label htmlFor="approval-type">O que deseja aprovar?</Label>
               <Select 

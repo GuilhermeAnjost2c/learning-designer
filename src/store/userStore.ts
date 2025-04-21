@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
@@ -150,11 +149,10 @@ export const useUserStore = create<UserState>()(
           return;
         }
         
-        const now = new Date();
         const newUser: User = {
           ...userData,
           id: generateId(),
-          createdAt: now,
+          createdAt: new Date(),
         };
         
         set((state) => ({

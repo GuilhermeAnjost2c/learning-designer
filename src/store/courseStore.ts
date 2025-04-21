@@ -13,7 +13,7 @@ export interface ApprovalRequest {
   courseId: string;
   requestDate: Date;
   requestedBy: string; // user ID
-  approverId: string; // user ID
+  approverId: string; // user ID (can be empty if no specific approver)
   approvalType: ApprovalItemType;
   itemId?: string; // moduleId or lessonId if applicable
   status: ApprovalStatus;
@@ -85,7 +85,7 @@ interface CourseStore {
   addCollaborator: (courseId: string, userId: string) => void;
   removeCollaborator: (courseId: string, userId: string) => void;
   
-  submitForApproval: (courseId: string, requestedById: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
+  submitForApproval: (courseId: string, requestedById: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
   respondToApprovalRequest: (approvalRequestId: string, isApproved: boolean, comments?: string) => void;
   
   getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
@@ -453,7 +453,7 @@ export const useCourseStore = create<CourseStore>()(
         return { courses: updatedCourses };
       }),
       
-      submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
+      submitForApproval: (courseId, requestedById, approvalType, itemId, comments) => set((state) => {
         const course = state.courses.find(c => c.id === courseId);
         if (!course) {
           toast.error("Curso não encontrado");
@@ -472,12 +472,14 @@ export const useCourseStore = create<CourseStore>()(
           return state;
         }
         
+        const defaultApproverId = course.createdBy;
+        
         const newApprovalRequest: ApprovalRequest = {
           id: generateId(),
           courseId,
           requestDate: new Date(),
           requestedBy: requestedById,
-          approverId,
+          approverId: defaultApproverId,
           approvalType,
           itemId,
           status: 'pendente',
