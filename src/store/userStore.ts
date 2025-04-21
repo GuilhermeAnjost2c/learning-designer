@@ -33,11 +33,6 @@ interface UserState {
   // Course assignments
   assignUserToCourse: (userId: string, courseId: string) => void;
   removeUserFromCourse: (userId: string, courseId: string) => void;
-  
-  // Helper methods
-  getUsersInDepartment: (department?: DepartmentName) => User[];
-  getUsersByIds: (userIds: string[]) => User[];
-  getCourseCollaborators: (courseId: string) => User[];
 }
 
 // Generate a unique ID
@@ -85,37 +80,16 @@ export const useUserStore = create<UserState>()(
           createdAt: now,
         };
         
-        // Check if email already exists
-        const emailExists = get().users.some(user => user.email === userData.email);
-        if (emailExists) {
-          throw new Error("Email já está em uso");
-        }
-        
         set((state) => ({
           users: [...state.users, newUser],
         }));
       },
       
       updateUser: (id, userData) => {
-        // Check if updating email and if it already exists
-        if (userData.email) {
-          const emailExists = get().users.some(
-            user => user.email === userData.email && user.id !== id
-          );
-          
-          if (emailExists) {
-            throw new Error("Email já está em uso");
-          }
-        }
-        
         set((state) => ({
           users: state.users.map((user) =>
             user.id === id ? { ...user, ...userData } : user
           ),
-          // Update currentUser if it's the one being updated
-          currentUser: state.currentUser?.id === id 
-            ? { ...state.currentUser, ...userData } 
-            : state.currentUser
         }));
       },
       
@@ -154,22 +128,6 @@ export const useUserStore = create<UserState>()(
             return user;
           }),
         }));
-      },
-      
-      // Helper methods
-      getUsersInDepartment: (department) => {
-        if (!department) return [];
-        return get().users.filter(user => user.department === department);
-      },
-      
-      getUsersByIds: (userIds) => {
-        return get().users.filter(user => userIds.includes(user.id));
-      },
-      
-      getCourseCollaborators: (courseId) => {
-        return get().users.filter(user => 
-          user.assignedCourses && user.assignedCourses.includes(courseId)
-        );
       },
     }),
     {

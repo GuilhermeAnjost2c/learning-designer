@@ -36,57 +36,25 @@ export interface Course {
   updatedAt: Date;
   tags: string[];
   status: CourseStatus;
-  departmentId?: string; // Department this course belongs to
-  createdBy: string; // User ID of the creator
-  collaborators: string[]; // User IDs of collaborators
 }
 
 interface CourseStore {
   courses: Course[];
-  
-  // Course CRUD
-  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'collaborators'> & { collaborators?: string[] }) => void;
+  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => void;
   updateCourse: (id: string, course: Partial<Course>) => void;
   deleteCourse: (id: string) => void;
-  
-  // Module CRUD
   addModule: (courseId: string, module: Omit<Module, 'id' | 'lessons'>) => void;
   updateModule: (courseId: string, moduleId: string, module: Partial<Module>) => void;
   deleteModule: (courseId: string, moduleId: string) => void;
-  
-  // Lesson CRUD
   addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, 'id' | 'status'>) => void;
   updateLesson: (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => void;
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
-  
-  // Reordering
   reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
-  
-  // Tags
   addTagToCourse: (courseId: string, tag: string) => void;
   removeTagFromCourse: (courseId: string, tag: string) => void;
-  
-  // Status
   updateCourseStatus: (courseId: string, status: CourseStatus) => void;
   updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => void;
-  
-  // Collaborators
-  addCollaborator: (courseId: string, userId: string) => void;
-  removeCollaborator: (courseId: string, userId: string) => void;
-  
-  // Access control
-  getAccessibleCourses: (userId: string, userDepartment?: string) => Course[];
-  isUserAuthorized: (userId: string, courseId: string, userDepartment?: string) => boolean;
-  
-  // Statistics
-  getCourseProgress: (courseId: string) => { 
-    total: number; 
-    fazer: number; 
-    fazendo: number; 
-    finalizando: number;
-    percentage: number;
-  };
 }
 
 // Generate a unique ID
@@ -112,7 +80,7 @@ const updateCourseDuration = (course: Course): Course => {
 
 export const useCourseStore = create<CourseStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       courses: [],
       
       addCourse: (courseData) => set((state) => {
@@ -120,13 +88,11 @@ export const useCourseStore = create<CourseStore>()(
         const newCourse: Course = {
           ...courseData,
           id: generateId(),
-          modules: courseData.modules || [],
+          modules: [],
           createdAt: now,
           updatedAt: now,
           tags: courseData.tags || [],
-          status: 'Rascunho' as CourseStatus, // Default status
-          collaborators: courseData.collaborators || [], // Default empty collaborators
-          createdBy: courseData.createdBy, // Ensure createdBy is passed through
+          status: 'Rascunho', // Default status
         };
         return { courses: [...state.courses, newCourse] };
       }),
@@ -391,91 +357,6 @@ export const useCourseStore = create<CourseStore>()(
             : course
         ),
       })),
-      
-      // New methods for collaborators
-      addCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                collaborators: course.collaborators 
-                  ? (course.collaborators.includes(userId) 
-                      ? course.collaborators 
-                      : [...course.collaborators, userId])
-                  : [userId],
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
-      
-      removeCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                collaborators: course.collaborators 
-                  ? course.collaborators.filter(id => id !== userId)
-                  : [],
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
-      
-      // Access control methods
-      getAccessibleCourses: (userId, userDepartment) => {
-        const courses = get().courses;
-        
-        return courses.filter(course => 
-          // User is creator
-          course.createdBy === userId ||
-          // User is collaborator
-          (course.collaborators && course.collaborators.includes(userId)) ||
-          // Course is in user's department
-          (userDepartment && course.departmentId === userDepartment)
-        );
-      },
-      
-      isUserAuthorized: (userId, courseId, userDepartment) => {
-        const course = get().courses.find(c => c.id === courseId);
-        if (!course) return false;
-        
-        return (
-          // User is creator
-          course.createdBy === userId ||
-          // User is collaborator
-          (course.collaborators && course.collaborators.includes(userId)) ||
-          // Course is in user's department
-          (userDepartment && course.departmentId === userDepartment)
-        );
-      },
-      
-      // Course progress statistics
-      getCourseProgress: (courseId) => {
-        const course = get().courses.find(c => c.id === courseId);
-        if (!course) return { total: 0, fazer: 0, fazendo: 0, finalizando: 0, percentage: 0 };
-        
-        let total = 0;
-        let fazer = 0;
-        let fazendo = 0;
-        let finalizando = 0;
-        
-        course.modules.forEach(module => {
-          module.lessons.forEach(lesson => {
-            total++;
-            if (lesson.status === 'Fazer') fazer++;
-            else if (lesson.status === 'Fazendo') fazendo++;
-            else if (lesson.status === 'Finalizando') finalizando++;
-          });
-        });
-        
-        const percentage = total > 0 
-          ? Math.round((finalizando / total) * 100) 
-          : 0;
-        
-        return { total, fazer, fazendo, finalizando, percentage };
-      },
     }),
     {
       name: 'course-storage',

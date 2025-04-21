@@ -13,7 +13,6 @@ import EduAI from "./pages/EduAI";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import { useUserStore } from "./store/userStore";
-import { useCourseStore } from "./store/courseStore";
 
 // Protected route component
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: JSX.Element, requireAdmin?: boolean }) => {
@@ -25,31 +24,6 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: JSX.Elem
   
   if (requireAdmin && currentUser?.role !== 'admin') {
     return <Navigate to="/" />;
-  }
-  
-  return children;
-};
-
-// Course access control route
-const CourseAccessRoute = ({ children }: { children: JSX.Element }) => {
-  const { currentUser } = useUserStore();
-  const { isUserAuthorized } = useCourseStore();
-  
-  // Extract courseId from URL
-  const path = window.location.pathname;
-  const courseIdMatch = path.match(/\/courses\/([^\/]+)/);
-  const courseId = courseIdMatch ? courseIdMatch[1] : null;
-  
-  // If no course ID or not authenticated, render children
-  if (!courseId || !currentUser) {
-    return children;
-  }
-  
-  // Check if user has access to this course
-  const hasAccess = isUserAuthorized(currentUser.id, courseId, currentUser.department);
-  
-  if (!hasAccess) {
-    return <Navigate to="/courses" />;
   }
   
   return children;
@@ -70,11 +44,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="courses" element={<CoursesList />} />
             <Route path="courses/new" element={<CreateCourse />} />
-            <Route path="courses/:courseId" element={
-              <CourseAccessRoute>
-                <CourseDetail />
-              </CourseAccessRoute>
-            } />
+            <Route path="courses/:courseId" element={<CourseDetail />} />
             <Route path="dynamics" element={<DynamicsBank />} />
             <Route path="edu" element={<EduAI />} />
             <Route path="admin" element={
