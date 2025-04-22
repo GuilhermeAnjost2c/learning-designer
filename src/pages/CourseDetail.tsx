@@ -1,18 +1,16 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound, UserPlus } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
-import { ModuleItem } from "@/components/courses/ModuleItem";
-import { Badge } from "@/components/ui/badge";
-import { CourseProgressPanel } from "@/components/courses/CourseProgressPanel";
+import { CourseEditor } from "@/components/courses/CourseEditor";
+import { CourseHeader } from "@/components/courses/CourseHeader";
+import { CourseContent } from "@/components/courses/CourseContent";
+import { CourseInfo } from "@/components/courses/CourseInfo";
 import { CourseSummaryCard } from "@/components/courses/CourseSummaryCard";
+import { CourseProgressPanel } from "@/components/courses/CourseProgressPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,12 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -47,9 +39,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { CourseEditor } from "@/components/courses/CourseEditor";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -187,92 +178,14 @@ const CourseDetail = () => {
 
   return (
     <div className="container mx-auto px-4 w-full max-w-7xl">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <div className="flex items-center mb-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/courses")}
-            className="mr-2"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-3xl font-bold truncate">{course.name}</h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 mt-4">
-          <Badge variant={getStatusVariant(course.status)} className="h-7 px-3 text-sm">
-            {course.status}
-          </Badge>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1">
-                <PenLine className="h-4 w-4" />
-                <span className="hidden sm:inline">Mudar Status</span>
-                <span className="sm:hidden">Status</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleStatusChange('Rascunho')}>
-                Rascunho
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange('Em andamento')}>
-                Em andamento
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange('Concluído')}>
-                Concluído
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-7 gap-1"
-            onClick={() => setIsCollaboratorDialogOpen(true)}
-          >
-            <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Colaboradores</span>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-7 gap-1"
-            onClick={() => setIsApprovalDialogOpen(true)}
-          >
-            <Send className="h-4 w-4" />
-            <span className="hidden sm:inline">Enviar para Aprovação</span>
-            <span className="sm:hidden">Aprovar</span>
-          </Button>
-          
-          <div className="ml-auto flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="gap-1"
-            >
-              <Edit className="h-4 w-4" />
-              <span className="hidden sm:inline">Editar</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="gap-1"
-            >
-              <Trash className="h-4 w-4" />
-              <span className="hidden sm:inline">Excluir</span>
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+      <CourseHeader
+        course={course}
+        onEdit={() => setIsEditing(true)}
+        onDelete={() => setDeleteDialogOpen(true)}
+        onAddCollaborator={() => setIsCollaboratorDialogOpen(true)}
+        onSubmitApproval={() => setIsApprovalDialogOpen(true)}
+        handleStatusChange={handleStatusChange}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         <div className="lg:col-span-8 space-y-6">
@@ -418,66 +331,14 @@ const CourseDetail = () => {
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
         <TabsContent value="content" className="mt-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            <h2 className="text-xl font-semibold">Módulos</h2>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={openEditor} className="gap-2" variant="outline">
-                <FileEdit className="h-4 w-4" />
-                <span className="hidden sm:inline">Editor Avançado</span>
-                <span className="sm:hidden">Editor</span>
-              </Button>
-              <Button onClick={() => setIsAddingModule(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Adicionar Módulo</span>
-                <span className="sm:hidden">Módulo</span>
-              </Button>
-            </div>
-          </div>
-
-          {course.modules.length === 0 ? (
-            <div className="text-center p-8 border border-dashed rounded-lg">
-              <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
-              <p className="text-muted-foreground mb-4">
-                Comece adicionando um módulo ao seu curso.
-              </p>
-              <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {course.modules.map((module, index) => (
-                <ModuleItem
-                  key={module.id}
-                  courseId={course.id}
-                  module={module}
-                  index={index}
-                />
-              ))}
-            </div>
-          )}
+          <CourseContent
+            course={course}
+            onAddModule={() => setIsAddingModule(true)}
+            onOpenEditor={openEditor}
+          />
         </TabsContent>
         <TabsContent value="info">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Descrição</h3>
-              <p className="whitespace-pre-wrap">{course.description}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Objetivos</h3>
-              <p className="whitespace-pre-wrap">{course.objectives}</p>
-            </div>
-          </div>
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-2">Tags</h3>
-            <div className="flex flex-wrap gap-2">
-              {course.tags && course.tags.length > 0 ? (
-                course.tags.map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
-                ))
-              ) : (
-                <p className="text-muted-foreground">Nenhuma tag adicionada</p>
-              )}
-            </div>
-          </div>
+          <CourseInfo course={course} />
         </TabsContent>
       </Tabs>
 
