@@ -186,7 +186,7 @@ const CourseDetail = () => {
   };
 
   return (
-    <div className="container px-0 md:px-4 w-full max-w-7xl mx-auto">
+    <div className="container mx-auto px-4 w-full max-w-7xl">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
