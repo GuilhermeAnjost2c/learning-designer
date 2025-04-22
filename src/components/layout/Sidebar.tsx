@@ -1,5 +1,5 @@
 
-import { Home, BookOpen, Database, Bot, UserCog, X } from "lucide-react";
+import { Home, BookOpen, Database, Bot, UserCog, X, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -33,21 +33,20 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     setIsOpen(false);
   };
 
+  const toggleSidebar = () => {
+    setIsOpen(!isOpen);
+  };
+
   // Window resize handler
   useEffect(() => {
     const handleResize = () => {
       const newIsMobile = window.innerWidth < 1024;
       setIsMobile(newIsMobile);
-      
-      // Auto-open on desktop, maintain closed state on mobile
-      if (!newIsMobile && !isOpen) {
-        setIsOpen(true);
-      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isOpen, setIsOpen]);
+  }, []);
 
   return (
     <>
@@ -70,16 +69,28 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       <motion.aside
         initial={false}
         animate={{
-          width: isOpen ? (isMobile ? "240px" : "16rem") : (isMobile ? "0" : "4rem"),
-          x: isOpen || !isMobile ? 0 : -40,
+          width: isOpen ? (isMobile ? "240px" : "16rem") : "0px",
+          opacity: isOpen ? 1 : 0
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className={cn(
-          "h-screen bg-white shadow-lg z-40 flex-shrink-0 overflow-hidden",
-          "fixed lg:sticky top-0 left-0"
+          "h-screen bg-white dark:bg-gray-950 shadow-lg z-40 flex-shrink-0 overflow-hidden",
+          "fixed lg:relative top-0 left-0"
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full relative">
+          {/* Retract button for desktop */}
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleSidebar}
+              className="absolute -right-3 top-6 size-6 z-50 rounded-full border shadow-md bg-white dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              <ChevronLeft className={cn("h-4 w-4 transition-transform", !isOpen && "rotate-180")} />
+            </Button>
+          )}
+          
           <div className="flex justify-between items-center h-16 border-b px-4">
             <AnimatePresence mode="wait">
               {isOpen ? (

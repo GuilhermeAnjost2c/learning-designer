@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -70,17 +69,16 @@ const CourseDetail = () => {
     itemId: "",
     comments: ""
   });
-  
-  // Encontrar administradores (para o contexto da aprovação)
+
   const admins = users.filter(user => user.role === 'admin');
-  
+
   useEffect(() => {
     if (courseId) {
       const foundCourse = courses.find(c => c.id === courseId);
       setCourse(foundCourse || null);
     }
   }, [courseId, courses]);
-  
+
   const canViewCourse = () => {
     if (!currentUser || !course) return false;
     
@@ -137,7 +135,7 @@ const CourseDetail = () => {
   const openEditor = () => {
     setEditorOpen(true);
   };
-  
+
   const handleAddCollaborator = () => {
     if (!collaboratorEmail) {
       toast.error("Informe o email do colaborador");
@@ -160,21 +158,19 @@ const CourseDetail = () => {
     setCollaboratorEmail("");
     setIsCollaboratorDialogOpen(false);
   };
-  
+
   const handleRemoveCollaborator = (userId: string) => {
     removeCollaborator(course.id, userId);
     toast.success("Colaborador removido com sucesso");
   };
-  
+
   const getCollaborators = () => {
     return course.collaborators
       .map(userId => users.find(user => user.id === userId))
       .filter(Boolean);
   };
-  
-  // Modificado: agora envia o curso para aprovação sem precisar escolher um aprovador específico
+
   const handleSubmitForApproval = () => {
-    // Encontrar um administrador para ser o aprovador padrão
     const adminId = admins.length > 0 ? admins[0].id : "admin";
     
     submitForApproval(
@@ -190,7 +186,7 @@ const CourseDetail = () => {
   };
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="w-full max-w-full overflow-x-hidden">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -205,7 +201,7 @@ const CourseDetail = () => {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-3xl font-bold">{course.name}</h1>
+          <h1 className="text-3xl font-bold truncate">{course.name}</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -217,7 +213,8 @@ const CourseDetail = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-7 gap-1">
                 <PenLine className="h-4 w-4" />
-                <span>Mudar Status</span>
+                <span className="hidden sm:inline">Mudar Status</span>
+                <span className="sm:hidden">Status</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -240,7 +237,7 @@ const CourseDetail = () => {
             onClick={() => setIsCollaboratorDialogOpen(true)}
           >
             <UserPlus className="h-4 w-4" />
-            <span>Colaboradores</span>
+            <span className="hidden sm:inline">Colaboradores</span>
           </Button>
           
           <Button 
@@ -250,10 +247,11 @@ const CourseDetail = () => {
             onClick={() => setIsApprovalDialogOpen(true)}
           >
             <Send className="h-4 w-4" />
-            <span>Enviar para Aprovação</span>
+            <span className="hidden sm:inline">Enviar para Aprovação</span>
+            <span className="sm:hidden">Aprovar</span>
           </Button>
           
-          <div className="ml-auto flex gap-2">
+          <div className="ml-auto flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -261,7 +259,7 @@ const CourseDetail = () => {
               className="gap-1"
             >
               <Edit className="h-4 w-4" />
-              <span>Editar</span>
+              <span className="hidden sm:inline">Editar</span>
             </Button>
             <Button
               variant="outline"
@@ -270,16 +268,15 @@ const CourseDetail = () => {
               className="gap-1"
             >
               <Trash className="h-4 w-4" />
-              <span>Excluir</span>
+              <span className="hidden sm:inline">Excluir</span>
             </Button>
           </div>
         </div>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        {/* Área principal - 8 colunas */}
         <div className="lg:col-span-8 space-y-6">
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Bookmark className="h-5 w-5 text-primary" />
@@ -361,15 +358,11 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        {/* Área lateral - 4 colunas */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Card de resumo */}
           <CourseSummaryCard course={course} />
           
-          {/* Painel de progresso */}
           <CourseProgressPanel course={course} />
           
-          {/* Colaboradores */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
@@ -384,7 +377,7 @@ const CourseDetail = () => {
                     <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
                       <div className="flex items-center gap-2">
                         <UserRound className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{collaborator.name}</span>
+                        <span className="text-sm truncate">{collaborator.name}</span>
                       </div>
                       <Button 
                         variant="ghost" 
@@ -420,21 +413,23 @@ const CourseDetail = () => {
       </div>
 
       <Tabs defaultValue="content" className="mt-6">
-        <TabsList>
+        <TabsList className="w-full sm:w-auto">
           <TabsTrigger value="content">Conteúdo</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
         <TabsContent value="content" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <h2 className="text-xl font-semibold">Módulos</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={openEditor} className="gap-2" variant="outline">
                 <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
+                <span className="hidden sm:inline">Editor Avançado</span>
+                <span className="sm:hidden">Editor</span>
               </Button>
               <Button onClick={() => setIsAddingModule(true)} className="gap-2">
                 <Plus className="h-4 w-4" />
-                <span>Adicionar Módulo</span>
+                <span className="hidden sm:inline">Adicionar Módulo</span>
+                <span className="sm:hidden">Módulo</span>
               </Button>
             </div>
           </div>
@@ -564,7 +559,6 @@ const CourseDetail = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Diálogo de aprovação modificado para não exigir a seleção de um aprovador */}
       <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
