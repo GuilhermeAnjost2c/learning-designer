@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -48,7 +47,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
 
-// Instead of redefining User interface, just use the one from userStore
 import { UserRole, DepartmentName } from "@/store/userStore";
 
 const Admin = () => {
@@ -152,7 +150,7 @@ const Admin = () => {
       setUserFormData({
         name: user.name,
         email: user.email,
-        password: "", // Don't pre-fill password
+        password: "",
         role: user.role,
         department: user.department,
       });
@@ -350,12 +348,17 @@ const Admin = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {courses.flatMap(course => 
-                    course.approvalRequests?.map(requestId => {
-                      const request = courses.flatMap(c => c.approvalRequests).find((req: any) => req?.id === requestId);
-                      const requestedBy = users.find(user => user.id === request?.requestedBy);
-
-                      return request ? (
+                  {courses.flatMap(course => {
+                    if (!course.approvalRequests || course.approvalRequests.length === 0) return [];
+                    
+                    return course.approvalRequests.map(requestId => {
+                      const request = useCourseStore.getState().approvalRequests.find(req => req.id === requestId);
+                      
+                      if (!request) return null;
+                      
+                      const requestedBy = users.find(user => user.id === request.requestedBy);
+                      
+                      return (
                         <TableRow key={request.id}>
                           <TableCell>{course.name}</TableCell>
                           <TableCell>{request.approvalType}</TableCell>
@@ -368,9 +371,9 @@ const Admin = () => {
                             </Button>
                           </TableCell>
                         </TableRow>
-                      ) : null;
-                    }) || []
-                  )}
+                      );
+                    });
+                  }).filter(Boolean)}
                 </TableBody>
               </Table>
             </TabsContent>
@@ -378,7 +381,6 @@ const Admin = () => {
         </CardContent>
       </Card>
 
-      {/* User Dialog */}
       <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -483,7 +485,6 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Course Dialog */}
       <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -523,7 +524,6 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
