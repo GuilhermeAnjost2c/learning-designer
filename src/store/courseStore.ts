@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from './userStore';
@@ -53,7 +54,7 @@ export interface Course {
   createdBy: string; // user ID
   department?: string; // department name
   collaborators: string[]; // array of user IDs
-  approvalRequests?: ApprovalRequest[];
+  approvalRequests?: string[]; // array of approval request IDs
 }
 
 interface CourseStore {
@@ -474,7 +475,7 @@ export const useCourseStore = create<CourseStore>()(
           request.id === approvalRequestId
             ? { 
                 ...request, 
-                status: isApproved ? 'aprovado' : 'rejeitado',
+                status: isApproved ? 'aprovado' as const : 'rejeitado' as const,
                 comments: comments || request.comments,
                 reviewDate: new Date()
               }
@@ -504,7 +505,7 @@ export const useCourseStore = create<CourseStore>()(
         return courses.filter(course => 
           course.createdBy === userId || 
           (userDepartment && course.department === userDepartment) ||
-          course.collaborators.includes(userId)
+          (course.collaborators && course.collaborators.includes(userId))
         );
       },
       
