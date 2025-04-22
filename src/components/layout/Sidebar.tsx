@@ -70,7 +70,8 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
         initial={false}
         animate={{
           width: isOpen ? (isMobile ? "240px" : "16rem") : "0px",
-          opacity: isOpen ? 1 : 0
+          opacity: isOpen ? 1 : 0,
+          x: isOpen ? 0 : -40
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className={cn(

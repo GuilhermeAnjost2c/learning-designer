@@ -45,9 +45,9 @@ export const Layout = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-        <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-screen overflow-hidden w-full">
           <Navbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-          <main className="flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300">
+          <main className="flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300 w-full">
             <Outlet />
           </main>
         </div>
