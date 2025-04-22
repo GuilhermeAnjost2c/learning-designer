@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -77,7 +78,7 @@ const Admin = () => {
     if (departmentFilter === "all") {
       setFilteredUsers(users);
     } else {
-      setFilteredUsers(usersByDepartment(departmentFilter));
+      setFilteredUsers(getUsersByDepartment(departmentFilter));
     }
   }, [users, departmentFilter, getUsersByDepartment]);
 
@@ -448,12 +449,20 @@ const Admin = () => {
               <Label htmlFor="department" className="text-right">
                 Departamento
               </Label>
-              <Select value={userFormData.department || ""} onValueChange={(value) => handleUserInputChange({ target: { name: 'department', value } } as any)}>
+              <Select 
+                value={userFormData.department || "none"} 
+                onValueChange={(value) => handleUserInputChange({ 
+                  target: { 
+                    name: 'department', 
+                    value: value === "none" ? undefined : value 
+                  } 
+                } as any)}
+              >
                 <SelectTrigger id="department" className="col-span-3">
                   <SelectValue placeholder="Selecione um departamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   <SelectItem value="Marketing">Marketing</SelectItem>
                   <SelectItem value="Vendas">Vendas</SelectItem>
                   <SelectItem value="RH">RH</SelectItem>
