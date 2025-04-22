@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
+import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound, UserPlus } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
-import { CourseEditor } from "@/components/courses/CourseEditor";
-import { CourseHeader } from "@/components/courses/CourseHeader";
-import { CourseContent } from "@/components/courses/CourseContent";
-import { CourseInfo } from "@/components/courses/CourseInfo";
-import { CourseSummaryCard } from "@/components/courses/CourseSummaryCard";
-import { CourseProgressPanel } from "@/components/courses/CourseProgressPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ModuleItem } from "@/components/courses/ModuleItem";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +27,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -36,17 +42,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { CourseEditor } from "@/components/courses/CourseEditor";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
-  const { users, currentUser } = useUserStore();
+  const { users, currentUser, getAllManagers } = useUserStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
@@ -56,20 +64,21 @@ const CourseDetail = () => {
   const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalData, setApprovalData] = useState({
+    approverId: "",
     approvalType: "curso_completo" as ApprovalItemType,
     itemId: "",
     comments: ""
   });
-
-  const admins = users.filter(user => user.role === 'admin');
-
+  
+  const managers = getAllManagers();
+  
   useEffect(() => {
     if (courseId) {
       const foundCourse = courses.find(c => c.id === courseId);
       setCourse(foundCourse || null);
     }
   }, [courseId, courses]);
-
+  
   const canViewCourse = () => {
     if (!currentUser || !course) return false;
     
@@ -100,6 +109,30 @@ const CourseDetail = () => {
     );
   }
 
+  const totalModules = course.modules.length;
+  const totalLessons = course.modules.reduce(
+    (acc, module) => acc + module.lessons.length, 
+    0
+  );
+  
+  const lessonStatusStats = course.modules.reduce((acc, module) => {
+    module.lessons.forEach(lesson => {
+      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const getStatusPercentage = (status: string) => {
+    if (totalLessons === 0) return 0;
+    return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
+  };
+  
+  const getTotalCompletionPercentage = () => {
+    if (totalLessons === 0) return 0;
+    const finalizandoCount = lessonStatusStats['Finalizando'] || 0;
+    return Math.round((finalizandoCount / totalLessons) * 100);
+  };
+
   const handleDelete = () => {
     deleteCourse(course.id);
     toast.success("Curso excluído com sucesso");
@@ -126,7 +159,7 @@ const CourseDetail = () => {
   const openEditor = () => {
     setEditorOpen(true);
   };
-
+  
   const handleAddCollaborator = () => {
     if (!collaboratorEmail) {
       toast.error("Informe o email do colaborador");
@@ -149,24 +182,28 @@ const CourseDetail = () => {
     setCollaboratorEmail("");
     setIsCollaboratorDialogOpen(false);
   };
-
+  
   const handleRemoveCollaborator = (userId: string) => {
     removeCollaborator(course.id, userId);
     toast.success("Colaborador removido com sucesso");
   };
-
+  
   const getCollaborators = () => {
     return course.collaborators
       .map(userId => users.find(user => user.id === userId))
       .filter(Boolean);
   };
-
+  
   const handleSubmitForApproval = () => {
-    const adminId = admins.length > 0 ? admins[0].id : "admin";
+    if (!approvalData.approverId) {
+      toast.error("Selecione um aprovador");
+      return;
+    }
     
     submitForApproval(
       course.id,
       currentUser!.id,
+      approvalData.approverId,
       approvalData.approvalType,
       approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
       approvalData.comments
@@ -177,19 +214,95 @@ const CourseDetail = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 w-full max-w-7xl">
-      <CourseHeader
-        course={course}
-        onEdit={() => setIsEditing(true)}
-        onDelete={() => setDeleteDialogOpen(true)}
-        onAddCollaborator={() => setIsCollaboratorDialogOpen(true)}
-        onSubmitApproval={() => setIsApprovalDialogOpen(true)}
-        handleStatusChange={handleStatusChange}
-      />
+    <div className="container mx-auto py-6">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-6"
+      >
+        <div className="flex items-center mb-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/courses")}
+            className="mr-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold">{course.name}</h1>
+        </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        <div className="lg:col-span-8 space-y-6">
-          <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-3 mt-4">
+          <Badge variant={getStatusVariant(course.status)} className="h-7 px-3 text-sm">
+            {course.status}
+          </Badge>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 gap-1">
+                <PenLine className="h-4 w-4" />
+                <span>Mudar Status</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleStatusChange('Rascunho')}>
+                Rascunho
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange('Em andamento')}>
+                Em andamento
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusChange('Concluído')}>
+                Concluído
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-7 gap-1"
+            onClick={() => setIsCollaboratorDialogOpen(true)}
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Colaboradores</span>
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-7 gap-1"
+            onClick={() => setIsApprovalDialogOpen(true)}
+          >
+            <Send className="h-4 w-4" />
+            <span>Enviar para Aprovação</span>
+          </Button>
+          
+          <div className="ml-auto flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="gap-1"
+            >
+              <Edit className="h-4 w-4" />
+              <span>Editar</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="gap-1"
+            >
+              <Trash className="h-4 w-4" />
+              <span>Excluir</span>
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
                 <Bookmark className="h-5 w-5 text-primary" />
@@ -229,13 +342,11 @@ const CourseDetail = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Módulos</p>
-                    <p className="text-2xl font-bold">{course.modules.length}</p>
+                    <p className="text-2xl font-bold">{totalModules}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Aulas</p>
-                    <p className="text-2xl font-bold">
-                      {course.modules.reduce((acc, module) => acc + module.lessons.length, 0)}
-                    </p>
+                    <p className="text-2xl font-bold">{totalLessons}</p>
                   </div>
                 </div>
               </CardContent>
@@ -271,74 +382,185 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-4 space-y-6">
-          <CourseSummaryCard course={course} />
-          
-          <CourseProgressPanel course={course} />
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                <span>Colaboradores</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {getCollaborators().length > 0 ? (
-                  getCollaborators().map(collaborator => collaborator && (
-                    <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
-                      <div className="flex items-center gap-2">
-                        <UserRound className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm truncate">{collaborator.name}</span>
-                      </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6"
-                        onClick={() => handleRemoveCollaborator(collaborator.id)}
-                      >
-                        <Trash className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
-                )}
+        <div className="lg:order-1">
+          <Card className="overflow-hidden h-full">
+            <div className="relative h-48 lg:h-64">
+              <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ 
+                  backgroundImage: `url(${course.thumbnail || '/placeholder.svg'})`,
+                }} 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <h2 className="text-white text-xl font-bold mb-1">{course.name}</h2>
+                <div className="flex items-center gap-2">
+                  <Badge variant={getStatusVariant(course.status)} className="bg-opacity-90">
+                    {course.status}
+                  </Badge>
+                </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full mt-3"
-                onClick={() => setIsCollaboratorDialogOpen(true)}
-              >
-                <UserPlus className="h-3 w-3 mr-1" />
-                <span>Adicionar Colaborador</span>
+            </div>
+            <CardContent className="pt-6 space-y-6">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-medium">Progresso Total</h3>
+                  <span className="text-sm font-bold">{getTotalCompletionPercentage()}%</span>
+                </div>
+                <Progress value={getTotalCompletionPercentage()} className="h-2" />
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-muted-foreground rounded-full"></span>
+                        <span>Fazer</span>
+                      </span>
+                      <span>{getStatusPercentage('Fazer')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-blue-400 rounded-full"></span>
+                        <span>Fazendo</span>
+                      </span>
+                      <span>{getStatusPercentage('Fazendo')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
+                  </div>
+                  
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 inline-block bg-green-500 rounded-full"></span>
+                        <span>Finalizando</span>
+                      </span>
+                      <span>{getStatusPercentage('Finalizando')}%</span>
+                    </div>
+                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" />
+                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium">Colaboradores</h3>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 text-xs"
+                    onClick={() => setIsCollaboratorDialogOpen(true)}
+                  >
+                    <UserPlus className="h-3 w-3 mr-1" />
+                    <span>Adicionar</span>
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {getCollaborators().length > 0 ? (
+                    getCollaborators().map(collaborator => collaborator && (
+                      <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
+                        <div className="flex items-center gap-2">
+                          <UserRound className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{collaborator.name}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={() => handleRemoveCollaborator(collaborator.id)}
+                        >
+                          <Trash className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
+                  )}
+                </div>
+              </div>
+              
+              <Button onClick={openEditor} className="w-full gap-2 mt-4">
+                <FileEdit className="h-4 w-4" />
+                <span>Editor Avançado</span>
               </Button>
             </CardContent>
           </Card>
-          
-          <Button onClick={openEditor} className="w-full gap-2">
-            <FileEdit className="h-4 w-4" />
-            <span>Editor Avançado</span>
-          </Button>
         </div>
       </div>
 
       <Tabs defaultValue="content" className="mt-6">
-        <TabsList className="w-full sm:w-auto">
+        <TabsList>
           <TabsTrigger value="content">Conteúdo</TabsTrigger>
           <TabsTrigger value="info">Informações</TabsTrigger>
         </TabsList>
         <TabsContent value="content" className="mt-6">
-          <CourseContent
-            course={course}
-            onAddModule={() => setIsAddingModule(true)}
-            onOpenEditor={openEditor}
-          />
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Módulos</h2>
+            <div className="flex gap-2">
+              <Button onClick={openEditor} className="gap-2" variant="outline">
+                <FileEdit className="h-4 w-4" />
+                <span>Editor Avançado</span>
+              </Button>
+              <Button onClick={() => setIsAddingModule(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                <span>Adicionar Módulo</span>
+              </Button>
+            </div>
+          </div>
+
+          {course.modules.length === 0 ? (
+            <div className="text-center p-8 border border-dashed rounded-lg">
+              <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
+              <p className="text-muted-foreground mb-4">
+                Comece adicionando um módulo ao seu curso.
+              </p>
+              <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {course.modules.map((module, index) => (
+                <ModuleItem
+                  key={module.id}
+                  courseId={course.id}
+                  module={module}
+                  index={index}
+                />
+              ))}
+            </div>
+          )}
         </TabsContent>
         <TabsContent value="info">
-          <CourseInfo course={course} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Descrição</h3>
+              <p className="whitespace-pre-wrap">{course.description}</p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Objetivos</h3>
+              <p className="whitespace-pre-wrap">{course.objectives}</p>
+            </div>
+          </div>
+          <div className="mt-8">
+            <h3 className="text-lg font-semibold mb-2">Tags</h3>
+            <div className="flex flex-wrap gap-2">
+              {course.tags && course.tags.length > 0 ? (
+                course.tags.map((tag) => (
+                  <Badge key={tag} variant="outline">{tag}</Badge>
+                ))
+              ) : (
+                <p className="text-muted-foreground">Nenhuma tag adicionada</p>
+              )}
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -425,11 +647,30 @@ const CourseDetail = () => {
           <DialogHeader>
             <DialogTitle>Enviar para Aprovação</DialogTitle>
             <DialogDescription>
-              Solicite a aprovação do curso ou de elementos específicos. O curso será enviado para análise pelos administradores.
+              Solicite a aprovação do curso ou de elementos específicos.
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="approver">Aprovador</Label>
+              <Select 
+                value={approvalData.approverId} 
+                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
+              >
+                <SelectTrigger id="approver">
+                  <SelectValue placeholder="Selecione o aprovador" />
+                </SelectTrigger>
+                <SelectContent>
+                  {managers.map(manager => (
+                    <SelectItem key={manager.id} value={manager.id}>
+                      {manager.name} ({manager.department})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div>
               <Label htmlFor="approval-type">O que deseja aprovar?</Label>
               <Select 
