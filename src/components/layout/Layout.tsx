@@ -20,12 +20,16 @@ export const Layout = () => {
     // Handle window resize to adjust sidebar on larger screens
     const handleResize = () => {
       if (window.innerWidth >= 1024) {
-        // Only auto-open sidebar if the window width becomes large
-        if (!sidebarOpen) {
-          setSidebarOpen(true);
-        }
+        // Auto-open sidebar on desktop
+        setSidebarOpen(true);
+      } else if (window.innerWidth < 768 && sidebarOpen) {
+        // Auto-close sidebar on mobile
+        setSidebarOpen(false);
       }
     };
+
+    // Initialize correctly based on screen size
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -36,20 +40,15 @@ export const Layout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <div 
-        className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity ${
-          sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`} 
-        onClick={toggleSidebar}
-        aria-hidden="true"
-      />
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <div className="flex-1 flex flex-col">
-        <Navbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <Outlet />
-        </main>
+    <div className="min-h-screen bg-background">
+      <div className="flex">
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <div className="flex-1 flex flex-col min-h-screen">
+          <Navbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+          <main className="flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300">
+            <Outlet />
+          </main>
+        </div>
       </div>
       <Toaster position="top-right" />
     </div>

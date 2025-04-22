@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
   const isAdmin = currentUser?.role === 'admin';
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   
   const navItems = [
     { name: "Dashboard", icon: Home, path: "/" },
@@ -31,53 +33,88 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     setIsOpen(false);
   };
 
+  // Window resize handler
+  useEffect(() => {
+    const handleResize = () => {
+      const newIsMobile = window.innerWidth < 1024;
+      setIsMobile(newIsMobile);
+      
+      // Auto-open on desktop, maintain closed state on mobile
+      if (!newIsMobile && !isOpen) {
+        setIsOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isOpen, setIsOpen]);
+
   return (
     <>
       {/* Mobile backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300",
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+      <AnimatePresence>
+        {isOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={closeSidebar}
+            aria-hidden="true"
+          />
         )}
-        onClick={closeSidebar}
-        aria-hidden="true"
-      />
+      </AnimatePresence>
       
       {/* Sidebar */}
       <motion.aside
         initial={false}
         animate={{
-          width: isOpen ? "16rem" : "0rem",
-          opacity: isOpen ? 1 : 0,
-          x: isOpen ? 0 : -40,
+          width: isOpen ? (isMobile ? "240px" : "16rem") : (isMobile ? "0" : "4rem"),
+          x: isOpen || !isMobile ? 0 : -40,
         }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
         className={cn(
           "h-screen bg-white shadow-lg z-40 flex-shrink-0 overflow-hidden",
-          "fixed lg:sticky top-0 left-0",
-          "lg:opacity-100 lg:translate-x-0",
-          !isOpen && "lg:!w-20 lg:!opacity-100 lg:!translate-x-0"
+          "fixed lg:sticky top-0 left-0"
         )}
       >
         <div className="flex flex-col h-full">
           <div className="flex justify-between items-center h-16 border-b px-4">
-            <h1 className={cn(
-              "text-xl font-bold text-primary transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
-            )}>
-              Learning Designer
-            </h1>
-            {!isOpen && (
-              <span className="hidden lg:block text-xl font-bold text-primary">LD</span>
+            <AnimatePresence mode="wait">
+              {isOpen ? (
+                <motion.h1
+                  key="full-logo"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xl font-bold text-primary"
+                >
+                  Learning Designer
+                </motion.h1>
+              ) : (
+                <motion.span
+                  key="compact-logo"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xl font-bold text-primary"
+                >
+                  LD
+                </motion.span>
+              )}
+            </AnimatePresence>
+            
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={closeSidebar}
+              >
+                <X className="h-5 w-5" />
+              </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden"
-              onClick={closeSidebar}
-            >
-              <X className="h-5 w-5" />
-            </Button>
           </div>
           
           <div className="flex-1 py-4 overflow-y-auto">
@@ -95,13 +132,20 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                       )
                     }
                   >
-                    <item.icon className="w-5 h-5" />
-                    <span className={cn(
-                      "transition-opacity duration-200", 
-                      !isOpen && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
-                    )}>
-                      {item.name}
-                    </span>
+                    <item.icon className="w-5 h-5 flex-shrink-0" />
+                    <AnimatePresence mode="wait">
+                      {isOpen && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="whitespace-nowrap overflow-hidden"
+                        >
+                          {item.name}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
                   </NavLink>
                 </li>
               ))}
@@ -109,12 +153,18 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </div>
           
           <div className="p-4 border-t">
-            <div className={cn(
-              "text-xs text-muted-foreground text-center transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
-            )}>
-              © 2025 Learning Designer
-            </div>
+            <AnimatePresence mode="wait">
+              {isOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xs text-muted-foreground text-center"
+                >
+                  © 2025 Learning Designer
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </motion.aside>

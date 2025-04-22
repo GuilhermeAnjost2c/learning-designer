@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User } from './userStore';
@@ -13,7 +12,7 @@ export interface ApprovalRequest {
   courseId: string;
   requestDate: Date;
   requestedBy: string; // user ID
-  approverId: string; // user ID
+  approverId: string; // user ID (admin ID)
   approvalType: ApprovalItemType;
   itemId?: string; // moduleId or lessonId if applicable
   status: 'pendente' | 'aprovado' | 'rejeitado';
@@ -85,7 +84,7 @@ interface CourseStore {
   addCollaborator: (courseId: string, userId: string) => void;
   removeCollaborator: (courseId: string, userId: string) => void;
   
-  submitForApproval: (courseId: string, requestedById: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
+  submitForApproval: (courseId: string, requestedById: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
   respondToApprovalRequest: (approvalRequestId: string, isApproved: boolean, comments?: string) => void;
   
   getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
@@ -403,7 +402,6 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Add a collaborator to a course
       addCollaborator: (courseId, userId) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -418,7 +416,6 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Remove a collaborator from a course
       removeCollaborator: (courseId, userId) => set((state) => ({
         courses: state.courses.map((course) =>
           course.id === courseId
@@ -431,14 +428,17 @@ export const useCourseStore = create<CourseStore>()(
         ),
       })),
       
-      // Submit a course for approval
-      submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
+      submitForApproval: (courseId, requestedById, approvalType, itemId, comments) => set((state) => {
+        // Encontrar usuários administradores
+        // Como não temos acesso direto ao userStore, vamos criar um ID fictício para o admin
+        const adminId = "admin"; // Isso será substituído pelo ID do admin em componentes que usam essa função
+        
         const newApprovalRequest: ApprovalRequest = {
           id: generateId(),
           courseId,
           requestDate: new Date(),
           requestedBy: requestedById,
-          approverId,
+          approverId: adminId, // Administrador padrão
           approvalType,
           itemId,
           status: 'pendente',
@@ -465,7 +465,6 @@ export const useCourseStore = create<CourseStore>()(
         };
       }),
       
-      // Respond to an approval request
       respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
         const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
         
@@ -499,7 +498,6 @@ export const useCourseStore = create<CourseStore>()(
         };
       }),
       
-      // Get courses visible to a specific user (created by them, in their department, or where they're a collaborator)
       getVisibleCoursesForUser: (userId, userDepartment) => {
         const { courses } = get();
         return courses.filter(course => 
@@ -509,13 +507,11 @@ export const useCourseStore = create<CourseStore>()(
         );
       },
       
-      // Get a specific course by ID
       getCourseById: (courseId) => {
         const { courses } = get();
         return courses.find(course => course.id === courseId);
       },
       
-      // Get pending approval requests for a specific approver
       getPendingApprovals: (approverId) => {
         const { approvalRequests } = get();
         return approvalRequests.filter(request => 

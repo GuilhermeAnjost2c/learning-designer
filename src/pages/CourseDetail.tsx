@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
 import { ModuleItem } from "@/components/courses/ModuleItem";
 import { Badge } from "@/components/ui/badge";
+import { CourseProgressPanel } from "@/components/courses/CourseProgressPanel";
+import { CourseSummaryCard } from "@/components/courses/CourseSummaryCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,7 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -54,7 +56,7 @@ const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
-  const { users, currentUser, getAllManagers } = useUserStore();
+  const { users, currentUser } = useUserStore();
   const [course, setCourse] = useState<Course | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingModule, setIsAddingModule] = useState(false);
@@ -64,13 +66,13 @@ const CourseDetail = () => {
   const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalData, setApprovalData] = useState({
-    approverId: "",
     approvalType: "curso_completo" as ApprovalItemType,
     itemId: "",
     comments: ""
   });
   
-  const managers = getAllManagers();
+  // Encontrar administradores (para o contexto da aprovação)
+  const admins = users.filter(user => user.role === 'admin');
   
   useEffect(() => {
     if (courseId) {
@@ -108,30 +110,6 @@ const CourseDetail = () => {
       </div>
     );
   }
-
-  const totalModules = course.modules.length;
-  const totalLessons = course.modules.reduce(
-    (acc, module) => acc + module.lessons.length, 
-    0
-  );
-  
-  const lessonStatusStats = course.modules.reduce((acc, module) => {
-    module.lessons.forEach(lesson => {
-      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const getStatusPercentage = (status: string) => {
-    if (totalLessons === 0) return 0;
-    return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
-  };
-  
-  const getTotalCompletionPercentage = () => {
-    if (totalLessons === 0) return 0;
-    const finalizandoCount = lessonStatusStats['Finalizando'] || 0;
-    return Math.round((finalizandoCount / totalLessons) * 100);
-  };
 
   const handleDelete = () => {
     deleteCourse(course.id);
@@ -194,16 +172,14 @@ const CourseDetail = () => {
       .filter(Boolean);
   };
   
+  // Modificado: agora envia o curso para aprovação sem precisar escolher um aprovador específico
   const handleSubmitForApproval = () => {
-    if (!approvalData.approverId) {
-      toast.error("Selecione um aprovador");
-      return;
-    }
+    // Encontrar um administrador para ser o aprovador padrão
+    const adminId = admins.length > 0 ? admins[0].id : "admin";
     
     submitForApproval(
       course.id,
       currentUser!.id,
-      approvalData.approverId,
       approvalData.approvalType,
       approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
       approvalData.comments
@@ -300,8 +276,9 @@ const CourseDetail = () => {
         </div>
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        {/* Área principal - 8 colunas */}
+        <div className="lg:col-span-8 space-y-6">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-2 mb-3">
@@ -342,11 +319,13 @@ const CourseDetail = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Módulos</p>
-                    <p className="text-2xl font-bold">{totalModules}</p>
+                    <p className="text-2xl font-bold">{course.modules.length}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Aulas</p>
-                    <p className="text-2xl font-bold">{totalLessons}</p>
+                    <p className="text-2xl font-bold">
+                      {course.modules.reduce((acc, module) => acc + module.lessons.length, 0)}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -382,118 +361,61 @@ const CourseDetail = () => {
           </div>
         </div>
 
-        <div className="lg:order-1">
-          <Card className="overflow-hidden h-full">
-            <div className="relative h-48 lg:h-64">
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ 
-                  backgroundImage: `url(${course.thumbnail || '/placeholder.svg'})`,
-                }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h2 className="text-white text-xl font-bold mb-1">{course.name}</h2>
-                <div className="flex items-center gap-2">
-                  <Badge variant={getStatusVariant(course.status)} className="bg-opacity-90">
-                    {course.status}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            <CardContent className="pt-6 space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium">Progresso Total</h3>
-                  <span className="text-sm font-bold">{getTotalCompletionPercentage()}%</span>
-                </div>
-                <Progress value={getTotalCompletionPercentage()} className="h-2" />
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-muted-foreground rounded-full"></span>
-                        <span>Fazer</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazer')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-blue-400 rounded-full"></span>
-                        <span>Fazendo</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazendo')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-green-500 rounded-full"></span>
-                        <span>Finalizando</span>
-                      </span>
-                      <span>{getStatusPercentage('Finalizando')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium">Colaboradores</h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 text-xs"
-                    onClick={() => setIsCollaboratorDialogOpen(true)}
-                  >
-                    <UserPlus className="h-3 w-3 mr-1" />
-                    <span>Adicionar</span>
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {getCollaborators().length > 0 ? (
-                    getCollaborators().map(collaborator => collaborator && (
-                      <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
-                        <div className="flex items-center gap-2">
-                          <UserRound className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{collaborator.name}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6"
-                          onClick={() => handleRemoveCollaborator(collaborator.id)}
-                        >
-                          <Trash className="h-3 w-3" />
-                        </Button>
+        {/* Área lateral - 4 colunas */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Card de resumo */}
+          <CourseSummaryCard course={course} />
+          
+          {/* Painel de progresso */}
+          <CourseProgressPanel course={course} />
+          
+          {/* Colaboradores */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                <span>Colaboradores</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {getCollaborators().length > 0 ? (
+                  getCollaborators().map(collaborator => collaborator && (
+                    <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
+                      <div className="flex items-center gap-2">
+                        <UserRound className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{collaborator.name}</span>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
-                  )}
-                </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => handleRemoveCollaborator(collaborator.id)}
+                      >
+                        <Trash className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
+                )}
               </div>
-              
-              <Button onClick={openEditor} className="w-full gap-2 mt-4">
-                <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full mt-3"
+                onClick={() => setIsCollaboratorDialogOpen(true)}
+              >
+                <UserPlus className="h-3 w-3 mr-1" />
+                <span>Adicionar Colaborador</span>
               </Button>
             </CardContent>
           </Card>
+          
+          <Button onClick={openEditor} className="w-full gap-2">
+            <FileEdit className="h-4 w-4" />
+            <span>Editor Avançado</span>
+          </Button>
         </div>
       </div>
 
@@ -642,35 +564,17 @@ const CourseDetail = () => {
         </DialogContent>
       </Dialog>
       
+      {/* Diálogo de aprovação modificado para não exigir a seleção de um aprovador */}
       <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Enviar para Aprovação</DialogTitle>
             <DialogDescription>
-              Solicite a aprovação do curso ou de elementos específicos.
+              Solicite a aprovação do curso ou de elementos específicos. O curso será enviado para análise pelos administradores.
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approver">Aprovador</Label>
-              <Select 
-                value={approvalData.approverId} 
-                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
-              >
-                <SelectTrigger id="approver">
-                  <SelectValue placeholder="Selecione o aprovador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map(manager => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div>
               <Label htmlFor="approval-type">O que deseja aprovar?</Label>
               <Select 
