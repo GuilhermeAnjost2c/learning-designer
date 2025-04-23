@@ -123,7 +123,7 @@ const CourseDetail = () => {
       return;
     }
     
-    if (course.collaborators.includes(collaborator.id)) {
+    if (course.collaborators && course.collaborators.includes(collaborator.id)) {
       toast.error("Este usuário já é um colaborador");
       return;
     }
@@ -140,9 +140,12 @@ const CourseDetail = () => {
   };
   
   const getCollaborators = () => {
-    return course.collaborators
-      .map(userId => users.find(user => user.id === userId))
-      .filter(Boolean);
+    // Make sure course.collaborators exists before trying to map over it
+    return course.collaborators && Array.isArray(course.collaborators) 
+      ? course.collaborators
+          .map(userId => users.find(user => user.id === userId))
+          .filter(Boolean)
+      : [];
   };
   
   const handleSubmitForApproval = () => {
