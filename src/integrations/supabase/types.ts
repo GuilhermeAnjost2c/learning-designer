@@ -9,7 +9,203 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      approval_requests: {
+        Row: {
+          approval_type: string | null
+          approver_id: string | null
+          comments: string | null
+          course_id: string | null
+          id: string
+          item_id: string | null
+          request_date: string | null
+          requested_by: string | null
+          review_date: string | null
+          status: string | null
+        }
+        Insert: {
+          approval_type?: string | null
+          approver_id?: string | null
+          comments?: string | null
+          course_id?: string | null
+          id?: string
+          item_id?: string | null
+          request_date?: string | null
+          requested_by?: string | null
+          review_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          approval_type?: string | null
+          approver_id?: string | null
+          comments?: string | null
+          course_id?: string | null
+          id?: string
+          item_id?: string | null
+          request_date?: string | null
+          requested_by?: string | null
+          review_date?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_requests_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_collaborators: {
+        Row: {
+          course_id: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          course_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          course_id?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_collaborators_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          department: string | null
+          description: string | null
+          estimated_duration: number | null
+          id: string
+          name: string
+          objectives: string | null
+          status: string | null
+          tags: string[] | null
+          target_audience: string | null
+          thumbnail: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          estimated_duration?: number | null
+          id?: string
+          name: string
+          objectives?: string | null
+          status?: string | null
+          tags?: string[] | null
+          target_audience?: string | null
+          thumbnail?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          department?: string | null
+          description?: string | null
+          estimated_duration?: number | null
+          id?: string
+          name?: string
+          objectives?: string | null
+          status?: string | null
+          tags?: string[] | null
+          target_audience?: string | null
+          thumbnail?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lessons: {
+        Row: {
+          activity_type: string | null
+          description: string | null
+          duration: number | null
+          id: string
+          module_id: string | null
+          notes: string | null
+          position: number
+          status: string | null
+          title: string
+        }
+        Insert: {
+          activity_type?: string | null
+          description?: string | null
+          duration?: number | null
+          id?: string
+          module_id?: string | null
+          notes?: string | null
+          position: number
+          status?: string | null
+          title: string
+        }
+        Update: {
+          activity_type?: string | null
+          description?: string | null
+          duration?: number | null
+          id?: string
+          module_id?: string | null
+          notes?: string | null
+          position?: number
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modules: {
+        Row: {
+          course_id: string | null
+          description: string | null
+          id: string
+          position: number
+          title: string
+        }
+        Insert: {
+          course_id?: string | null
+          description?: string | null
+          id?: string
+          position: number
+          title: string
+        }
+        Update: {
+          course_id?: string | null
+          description?: string | null
+          id?: string
+          position?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modules_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

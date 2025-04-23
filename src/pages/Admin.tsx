@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -48,8 +47,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
 
-// Instead of redefining User interface, just use the one from userStore
 import { UserRole, DepartmentName } from "@/store/userStore";
+
+interface ApprovalRequestWithDetails {
+  id: string;
+  courseId: string;
+  requestDate: Date;
+  requestedBy: string;
+  approverId: string;
+  approvalType: string;
+  itemId?: string;
+  status: string;
+  comments?: string;
+  reviewDate?: Date;
+}
 
 const Admin = () => {
   const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
@@ -352,7 +363,13 @@ const Admin = () => {
                 <TableBody>
                   {courses.flatMap(course => 
                     course.approvalRequests?.map(requestId => {
-                      const request = courses.flatMap(c => c.approvalRequests).find((req: any) => req?.id === requestId);
+                      const request = (courses.flatMap(c => 
+                        c.approvalRequests?.map(req => {
+                          if (typeof req === 'string') return null;
+                          return req;
+                        })
+                      ).filter(Boolean).find(req => req?.id === requestId)) as ApprovalRequestWithDetails | undefined;
+                      
                       const requestedBy = users.find(user => user.id === request?.requestedBy);
 
                       return request ? (
@@ -378,7 +395,6 @@ const Admin = () => {
         </CardContent>
       </Card>
 
-      {/* User Dialog */}
       <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -483,7 +499,6 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Course Dialog */}
       <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -523,7 +538,6 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
