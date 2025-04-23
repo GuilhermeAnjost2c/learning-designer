@@ -1,54 +1,17 @@
+
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
-import { ArrowLeft, Edit, Trash, Clock, Users, BookOpen, Plus, PenLine, FileEdit, Bookmark, Target, Tag, UserCheck, Send, UserRound, UserPlus } from "lucide-react";
 import { CourseForm } from "@/components/courses/CourseForm";
 import { ModuleForm } from "@/components/courses/ModuleForm";
-import { ModuleItem } from "@/components/courses/ModuleItem";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import { CourseEditor } from "@/components/courses/CourseEditor";
+import { CourseHeader } from "@/components/courses/CourseHeader";
+import { CourseInfo } from "@/components/courses/CourseInfo";
+import { CourseContent } from "@/components/courses/CourseContent";
+import { CourseDialogs } from "@/components/courses/CourseDialogs";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -144,18 +107,6 @@ const CourseDetail = () => {
     toast.success(`Status do curso atualizado para "${status}"`);
   };
 
-  const getStatusVariant = (status: CourseStatus) => {
-    switch(status) {
-      case 'Rascunho': return 'outline';
-      case 'Em andamento': return 'secondary';
-      case 'Concluído': return 'default';
-      case 'Em aprovação': return 'default';
-      case 'Aprovado': return 'default';
-      case 'Revisão solicitada': return 'destructive';
-      default: return 'outline';
-    }
-  };
-
   const openEditor = () => {
     setEditorOpen(true);
   };
@@ -215,354 +166,34 @@ const CourseDetail = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
-      >
-        <div className="flex items-center mb-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/courses")}
-            className="mr-2"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-3xl font-bold">{course.name}</h1>
-        </div>
+      <CourseHeader 
+        course={course}
+        onDelete={handleDelete}
+        onEdit={() => setIsEditing(true)}
+        onStatusChange={handleStatusChange}
+        onAddCollaborators={() => setIsCollaboratorDialogOpen(true)}
+        onApprovalRequest={() => setIsApprovalDialogOpen(true)}
+        handleDeleteDialogOpen={() => setDeleteDialogOpen(true)}
+      />
 
-        <div className="flex flex-wrap items-center gap-3 mt-4">
-          <Badge variant={getStatusVariant(course.status)} className="h-7 px-3 text-sm">
-            {course.status}
-          </Badge>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1">
-                <PenLine className="h-4 w-4" />
-                <span>Mudar Status</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleStatusChange('Rascunho')}>
-                Rascunho
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange('Em andamento')}>
-                Em andamento
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusChange('Concluído')}>
-                Concluído
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-7 gap-1"
-            onClick={() => setIsCollaboratorDialogOpen(true)}
-          >
-            <UserPlus className="h-4 w-4" />
-            <span>Colaboradores</span>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-7 gap-1"
-            onClick={() => setIsApprovalDialogOpen(true)}
-          >
-            <Send className="h-4 w-4" />
-            <span>Enviar para Aprovação</span>
-          </Button>
-          
-          <div className="ml-auto flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              className="gap-1"
-            >
-              <Edit className="h-4 w-4" />
-              <span>Editar</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="gap-1"
-            >
-              <Trash className="h-4 w-4" />
-              <span>Excluir</span>
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+      <CourseInfo 
+        course={course}
+        totalModules={totalModules}
+        totalLessons={totalLessons}
+        lessonStatusStats={lessonStatusStats}
+        getStatusPercentage={getStatusPercentage}
+        getTotalCompletionPercentage={getTotalCompletionPercentage}
+        collaborators={getCollaborators()}
+        onOpenEditor={openEditor}
+        onRemoveCollaborator={handleRemoveCollaborator}
+        onOpenCollaboratorDialog={() => setIsCollaboratorDialogOpen(true)}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Bookmark className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-lg">Descrição do Curso</h3>
-              </div>
-              <p className="text-muted-foreground whitespace-pre-wrap">{course.description}</p>
-              
-              <div className="mt-6 flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-lg">Objetivos de Aprendizagem</h3>
-              </div>
-              <p className="text-muted-foreground whitespace-pre-wrap">{course.objectives}</p>
-              
-              {course.tags && course.tags.length > 0 && (
-                <div className="mt-6">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Tag className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Tags</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {course.tags.map((tag) => (
-                      <Badge key={tag} variant="outline">{tag}</Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Estrutura</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Módulos</p>
-                    <p className="text-2xl font-bold">{totalModules}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Aulas</p>
-                    <p className="text-2xl font-bold">{totalLessons}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Duração</h3>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tempo Estimado</p>
-                  <p className="text-2xl font-bold">
-                    {Math.floor(course.estimatedDuration / 60)}h {course.estimatedDuration % 60}min
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Público</h3>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Público-alvo</p>
-                  <p className="text-lg font-medium truncate">{course.targetAudience}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <div className="lg:order-1">
-          <Card className="overflow-hidden h-full">
-            <div className="relative h-48 lg:h-64">
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ 
-                  backgroundImage: `url(${course.thumbnail || '/placeholder.svg'})`,
-                }} 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h2 className="text-white text-xl font-bold mb-1">{course.name}</h2>
-                <div className="flex items-center gap-2">
-                  <Badge variant={getStatusVariant(course.status)} className="bg-opacity-90">
-                    {course.status}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            <CardContent className="pt-6 space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-medium">Progresso Total</h3>
-                  <span className="text-sm font-bold">{getTotalCompletionPercentage()}%</span>
-                </div>
-                <Progress value={getTotalCompletionPercentage()} className="h-2" />
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium mb-3">Status das Aulas</h3>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-muted-foreground rounded-full"></span>
-                        <span>Fazer</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazer')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazer')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazer'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-blue-400 rounded-full"></span>
-                        <span>Fazendo</span>
-                      </span>
-                      <span>{getStatusPercentage('Fazendo')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Fazendo')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Fazendo'] || 0} aulas</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 inline-block bg-green-500 rounded-full"></span>
-                        <span>Finalizando</span>
-                      </span>
-                      <span>{getStatusPercentage('Finalizando')}%</span>
-                    </div>
-                    <Progress value={getStatusPercentage('Finalizando')} className="h-1.5 bg-muted" />
-                    <p className="text-xs text-muted-foreground mt-1">{lessonStatusStats['Finalizando'] || 0} aulas</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium">Colaboradores</h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-6 text-xs"
-                    onClick={() => setIsCollaboratorDialogOpen(true)}
-                  >
-                    <UserPlus className="h-3 w-3 mr-1" />
-                    <span>Adicionar</span>
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {getCollaborators().length > 0 ? (
-                    getCollaborators().map(collaborator => collaborator && (
-                      <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
-                        <div className="flex items-center gap-2">
-                          <UserRound className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{collaborator.name}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6"
-                          onClick={() => handleRemoveCollaborator(collaborator.id)}
-                        >
-                          <Trash className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Nenhum colaborador adicionado</p>
-                  )}
-                </div>
-              </div>
-              
-              <Button onClick={openEditor} className="w-full gap-2 mt-4">
-                <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <Tabs defaultValue="content" className="mt-6">
-        <TabsList>
-          <TabsTrigger value="content">Conteúdo</TabsTrigger>
-          <TabsTrigger value="info">Informações</TabsTrigger>
-        </TabsList>
-        <TabsContent value="content" className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Módulos</h2>
-            <div className="flex gap-2">
-              <Button onClick={openEditor} className="gap-2" variant="outline">
-                <FileEdit className="h-4 w-4" />
-                <span>Editor Avançado</span>
-              </Button>
-              <Button onClick={() => setIsAddingModule(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span>Adicionar Módulo</span>
-              </Button>
-            </div>
-          </div>
-
-          {course.modules.length === 0 ? (
-            <div className="text-center p-8 border border-dashed rounded-lg">
-              <h3 className="font-medium text-lg mb-2">Nenhum módulo adicionado</h3>
-              <p className="text-muted-foreground mb-4">
-                Comece adicionando um módulo ao seu curso.
-              </p>
-              <Button onClick={() => setIsAddingModule(true)}>Adicionar Módulo</Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {course.modules.map((module, index) => (
-                <ModuleItem
-                  key={module.id}
-                  courseId={course.id}
-                  module={module}
-                  index={index}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-        <TabsContent value="info">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Descrição</h3>
-              <p className="whitespace-pre-wrap">{course.description}</p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Objetivos</h3>
-              <p className="whitespace-pre-wrap">{course.objectives}</p>
-            </div>
-          </div>
-          <div className="mt-8">
-            <h3 className="text-lg font-semibold mb-2">Tags</h3>
-            <div className="flex flex-wrap gap-2">
-              {course.tags && course.tags.length > 0 ? (
-                course.tags.map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
-                ))
-              ) : (
-                <p className="text-muted-foreground">Nenhuma tag adicionada</p>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+      <CourseContent 
+        course={course}
+        onOpenEditor={openEditor}
+        onAddModule={() => setIsAddingModule(true)}
+      />
 
       {isEditing && (
         <CourseForm
@@ -585,185 +216,25 @@ const CourseDetail = () => {
         />
       )}
 
-      <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Adicionar Colaborador</DialogTitle>
-            <DialogDescription>
-              Adicione membros da equipe como colaboradores deste curso.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <Label htmlFor="collaborator-email">Email do Colaborador</Label>
-            <Input
-              id="collaborator-email"
-              placeholder="email@exemplo.com"
-              value={collaboratorEmail}
-              onChange={(e) => setCollaboratorEmail(e.target.value)}
-            />
-          </div>
-          
-          {getCollaborators().length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium mb-2">Colaboradores Atuais</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {getCollaborators().map(collaborator => collaborator && (
-                  <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
-                    <div className="flex items-center gap-2">
-                      <UserRound className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{collaborator.name}</p>
-                        <p className="text-xs text-muted-foreground">{collaborator.email}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6"
-                      onClick={() => handleRemoveCollaborator(collaborator.id)}
-                    >
-                      <Trash className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCollaboratorDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddCollaborator}>
-              Adicionar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Enviar para Aprovação</DialogTitle>
-            <DialogDescription>
-              Solicite a aprovação do curso ou de elementos específicos.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approver">Aprovador</Label>
-              <Select 
-                value={approvalData.approverId} 
-                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
-              >
-                <SelectTrigger id="approver">
-                  <SelectValue placeholder="Selecione o aprovador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map(manager => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="approval-type">O que deseja aprovar?</Label>
-              <Select 
-                value={approvalData.approvalType}
-                onValueChange={(value) => setApprovalData({...approvalData, approvalType: value as ApprovalItemType})}
-              >
-                <SelectTrigger id="approval-type">
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="curso_completo">Curso Completo</SelectItem>
-                  <SelectItem value="estrutura">Estrutura do Curso</SelectItem>
-                  <SelectItem value="modulo">Módulo Específico</SelectItem>
-                  <SelectItem value="aula">Aula Específica</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {(approvalData.approvalType === 'modulo' || approvalData.approvalType === 'aula') && (
-              <div>
-                <Label htmlFor="item-id">
-                  {approvalData.approvalType === 'modulo' ? 'Selecione o Módulo' : 'Selecione a Aula'}
-                </Label>
-                <Select 
-                  value={approvalData.itemId}
-                  onValueChange={(value) => setApprovalData({...approvalData, itemId: value})}
-                >
-                  <SelectTrigger id="item-id">
-                    <SelectValue placeholder="Selecione o item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {approvalData.approvalType === 'modulo' 
-                      ? course.modules.map(module => (
-                          <SelectItem key={module.id} value={module.id}>
-                            {module.title}
-                          </SelectItem>
-                        ))
-                      : course.modules.flatMap(module => 
-                          module.lessons.map(lesson => (
-                            <SelectItem key={lesson.id} value={lesson.id}>
-                              {module.title} - {lesson.title}
-                            </SelectItem>
-                          ))
-                        )
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
-            <div>
-              <Label htmlFor="comments">Comentários (opcional)</Label>
-              <Textarea
-                id="comments"
-                placeholder="Informe detalhes adicionais se necessário"
-                value={approvalData.comments}
-                onChange={(e) => setApprovalData({...approvalData, comments: e.target.value})}
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmitForApproval}>
-              Enviar para Aprovação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Curso</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita e
-              todos os módulos e aulas serão excluídos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CourseDialogs 
+        course={course}
+        managers={managers}
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        handleDelete={handleDelete}
+        collaboratorEmail={collaboratorEmail}
+        setCollaboratorEmail={setCollaboratorEmail}
+        isCollaboratorDialogOpen={isCollaboratorDialogOpen}
+        setIsCollaboratorDialogOpen={setIsCollaboratorDialogOpen}
+        handleAddCollaborator={handleAddCollaborator}
+        handleRemoveCollaborator={handleRemoveCollaborator}
+        getCollaborators={getCollaborators}
+        approvalData={approvalData}
+        setApprovalData={setApprovalData}
+        isApprovalDialogOpen={isApprovalDialogOpen}
+        setIsApprovalDialogOpen={setIsApprovalDialogOpen}
+        handleSubmitForApproval={handleSubmitForApproval}
+      />
     </div>
   );
 };
