@@ -30,13 +30,24 @@ const Login = () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
         // Já está logado, redirecionar para cursos
+        const user = data.session.user;
+        
+        setCurrentUser({
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || '',
+          role: user.user_metadata?.role || 'student',
+          department: user.user_metadata?.department,
+          avatar: user.user_metadata?.avatar,
+        });
+        
         navigate('/courses');
       }
       setCheckingSession(false);
     };
     
     checkSession();
-  }, [navigate]);
+  }, [navigate, setCurrentUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,15 +67,16 @@ const Login = () => {
         setCurrentUser({
           id: data.user.id,
           email: data.user.email || '',
-          name: data.user.user_metadata.name || '',
-          role: data.user.user_metadata.role || 'student',
-          department: data.user.user_metadata.department,
+          name: data.user.user_metadata?.name || '',
+          role: data.user.user_metadata?.role || 'student',
+          department: data.user.user_metadata?.department,
+          avatar: data.user.user_metadata?.avatar,
         });
         
         toast.success("Login realizado com sucesso!");
         navigate("/courses");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Erro ao fazer login: " + error.message);
     } finally {
       setLoading(false);

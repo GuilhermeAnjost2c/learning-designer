@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/store/userStore';
+import { toast } from 'sonner';
 
 export const useUserManagement = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -26,9 +27,11 @@ export const useUserManagement = () => {
       });
 
       if (error) throw error;
+      toast.success('Usuário criado com sucesso');
       return data;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao criar usuário: ' + err.message);
       console.error('Error creating user:', err);
       return null;
     } finally {
@@ -60,8 +63,9 @@ export const useUserManagement = () => {
       })) || [];
 
       return formattedUsers;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao listar usuários: ' + err.message);
       console.error('Error listing users:', err);
       return [];
     } finally {
@@ -94,8 +98,9 @@ export const useUserManagement = () => {
       })) || [];
 
       return formattedUsers;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
+      toast.error('Erro ao buscar usuários: ' + err.message);
       console.error('Error searching users:', err);
       return [];
     } finally {

@@ -41,12 +41,12 @@ export const Layout = () => {
         className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity ${
           sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`} 
-        onClick={toggleSidebar}
+        onClick={() => setSidebarOpen(false)}
         aria-hidden="true"
       />
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       <div className="flex-1 flex flex-col">
-        <Navbar toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+        <Navbar onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           <Outlet />
         </main>

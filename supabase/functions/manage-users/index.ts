@@ -48,7 +48,7 @@ serve(async (req) => {
       }
 
       case 'updateUser': {
-        const { userId, ...updates } = requestData;
+        const { userId, updates } = requestData;
         
         const { data, error } = await supabase.auth.admin.updateUserById(
           userId, 
@@ -68,6 +68,17 @@ serve(async (req) => {
         if (error) throw error;
         return new Response(
           JSON.stringify({ data }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'getUserById': {
+        const { userId } = requestData;
+        const { data, error } = await supabase.auth.admin.getUserById(userId);
+
+        if (error) throw error;
+        return new Response(
+          JSON.stringify({ user: data.user }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

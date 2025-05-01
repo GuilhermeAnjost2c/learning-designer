@@ -10,12 +10,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password: string; // In a real app, this would be hashed
+  password?: string; // In a real app, this would be hashed
   role: UserRole;
   department?: DepartmentName;
   assignedCourses?: string[]; // Course IDs
-  createdAt: Date;
+  createdAt?: Date;
   managedUsers?: string[]; // User IDs of people managed by this user
+  avatar?: string; // URL para avatar do usuário
 }
 
 interface UserState {
@@ -26,6 +27,7 @@ interface UserState {
   // Authentication
   login: (email: string, password: string) => boolean;
   logout: () => void;
+  setCurrentUser: (user: User | null) => void;
   
   // User management
   addUser: (user: Omit<User, 'id' | 'createdAt'>) => void;
@@ -92,6 +94,8 @@ export const useUserStore = create<UserState>()(
       ],
       currentUser: null,
       isAuthenticated: false,
+      
+      setCurrentUser: (user) => set({ currentUser: user, isAuthenticated: !!user }),
       
       login: (email, password) => {
         const user = get().users.find(

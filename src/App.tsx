@@ -41,6 +41,7 @@ const ProtectedRoute = ({
           name: data.session.user.user_metadata?.name || '',
           role: data.session.user.user_metadata?.role || 'student',
           department: data.session.user.user_metadata?.department,
+          avatar: data.session.user.user_metadata?.avatar,
         });
       }
       
