@@ -1,110 +1,166 @@
 
-import { Bell, Menu, Settings, LogOut, User } from "lucide-react";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { MenuIcon, Search, LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger, 
+} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { motion } from "framer-motion";
 import { useUserStore } from "@/store/userStore";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NavbarProps {
-  toggleSidebar: () => void;
-  sidebarOpen?: boolean;
+  isOpen: boolean;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
-export const Navbar = ({
-  toggleSidebar,
-  sidebarOpen
-}: NavbarProps) => {
-  const { currentUser, logout } = useUserStore();
+export const Navbar = ({ isOpen, setIsOpen }: NavbarProps) => {
+  const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { currentUser } = useUserStore();
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Logout realizado com sucesso");
-    navigate("/login");
+  const pageTitles: Record<string, string> = {
+    "/": "Dashboard",
+    "/courses": "Cursos",
+    "/courses/new": "Novo Curso",
+    "/dynamics": "Banco de Dinâmicas",
+    "/edu": "Edu",
+    "/admin": "Administração",
+  };
+
+  const getTitle = () => {
+    if (pathname.startsWith("/courses/") && pathname !== "/courses/new") {
+      return "Detalhes do Curso";
+    }
+    return pageTitles[pathname] || "Learning Designer";
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      // Implementar busca
+      console.log("Searching for:", searchQuery);
+      // Redirecionar para resultados da busca
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success("Logout realizado com sucesso");
+      navigate("/login");
+    } catch (error) {
+      toast.error("Erro ao fazer logout: " + error.message);
+    }
   };
 
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map(part => part[0])
+      .map((n) => n[0])
       .join('')
       .toUpperCase()
       .substring(0, 2);
   };
 
   return (
-    <motion.header 
-      initial={{
-        y: -20,
-        opacity: 0
-      }} 
-      animate={{
-        y: 0,
-        opacity: 1
-      }} 
-      className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6"
-    >
-      <div className="flex items-center gap-3">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="relative"
-          aria-label={sidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
-        >
-          <Menu className="h-5 w-5" />
-          {!sidebarOpen && (
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-            </span>
-          )}
-        </Button>
-        
-        <h1 className="text-xl font-semibold text-primary md:hidden">
-          LD
-        </h1>
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <MenuIcon className="h-6 w-6" />
+        <span className="sr-only">Toggle Menu</span>
+      </Button>
+      
+      <div className="flex-1">
+        <h1 className="text-xl font-semibold">{getTitle()}</h1>
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src="" alt={currentUser?.name || "Usuário"} />
-                <AvatarFallback>{currentUser ? getInitials(currentUser.name) : "US"}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel>
-              <div>
-                <p className="font-medium">{currentUser?.name || "Usuário"}</p>
-                <p className="text-xs text-muted-foreground">{currentUser?.email || ""}</p>
+
+      <form 
+        onSubmit={handleSearch}
+        className={cn(
+          "relative hidden md:flex w-full max-w-sm items-center transition-opacity",
+          pathname === "/login" && "opacity-0 pointer-events-none"
+        )}
+      >
+        <Search className="absolute left-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search..."
+          className="pl-8 bg-background"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </form>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="rounded-full border overflow-hidden"
+            aria-label="User menu"
+          >
+            <Avatar>
+              <AvatarImage 
+                src={currentUser?.avatar || undefined} 
+                alt={currentUser?.name || "User"} 
+              />
+              <AvatarFallback>
+                {currentUser?.name ? getInitials(currentUser.name) : "U"}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>
+            <div className="flex flex-col">
+              <span>{currentUser?.name}</span>
+              <span className="text-xs text-muted-foreground">{currentUser?.email}</span>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium">Função</span>
+              <span className="text-sm">
+                {currentUser?.role === 'admin' ? 'Administrador' : 
+                 currentUser?.role === 'manager' ? 'Gerente' : 
+                 currentUser?.role === 'instructor' ? 'Instrutor' : 'Aluno'}
+              </span>
+            </div>
+          </DropdownMenuItem>
+          {currentUser?.department && (
+            <DropdownMenuItem>
+              <div className="flex flex-col">
+                <span className="text-xs font-medium">Departamento</span>
+                <span className="text-sm">{currentUser.department}</span>
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configurações</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </motion.header>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={handleLogout}
+            className="text-destructive focus:text-destructive"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Logout</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
   );
 };

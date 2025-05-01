@@ -27,12 +27,13 @@ const CourseDetail = () => {
   const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalData, setApprovalData] = useState({
-    approverId: "",
+    approverId: "", // Será preenchido automaticamente
     approvalType: "curso_completo" as ApprovalItemType,
     itemId: "",
     comments: ""
   });
   
+  // Obter um gerente para ser o aprovador padrão
   const managers = getAllManagers();
   
   useEffect(() => {
@@ -149,15 +150,18 @@ const CourseDetail = () => {
   };
   
   const handleSubmitForApproval = () => {
-    if (!approvalData.approverId) {
-      toast.error("Selecione um aprovador");
+    // Selecionar o primeiro gerente como aprovador automaticamente
+    const defaultApproverId = managers.length > 0 ? managers[0].id : "";
+    
+    if (!defaultApproverId) {
+      toast.error("Não foi possível encontrar um aprovador");
       return;
     }
     
     submitForApproval(
       course.id,
       currentUser!.id,
-      approvalData.approverId,
+      defaultApproverId,
       approvalData.approvalType,
       approvalData.approvalType !== 'curso_completo' ? approvalData.itemId : undefined,
       approvalData.comments

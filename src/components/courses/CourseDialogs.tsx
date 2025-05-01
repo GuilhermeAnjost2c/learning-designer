@@ -27,11 +27,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { UserRound, Trash } from "lucide-react";
+import { UserRound, Trash, Check, ChevronsUpDown, X, Loader2 } from "lucide-react";
+import { useUserManagement } from "@/hooks/useUserManagement";
+import { cn } from "@/lib/utils";
 
 interface CourseDialogsProps {
   course: Course;
@@ -82,6 +97,28 @@ export const CourseDialogs = ({
   setIsApprovalDialogOpen,
   handleSubmitForApproval
 }: CourseDialogsProps) => {
+  const { searchUsers, isLoading: isSearchingUsers } = useUserManagement();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length >= 2) {
+      const results = await searchUsers(query);
+      setSearchResults(results);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const handleSelectUser = (user: User) => {
+    setSelectedUser(user);
+    setCollaboratorEmail(user.email);
+    setOpen(false);
+  };
+
   return (
     <>
       <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
@@ -94,13 +131,58 @@ export const CourseDialogs = ({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <Label htmlFor="collaborator-email">Email do Colaborador</Label>
-            <Input
-              id="collaborator-email"
-              placeholder="email@exemplo.com"
-              value={collaboratorEmail}
-              onChange={(e) => setCollaboratorEmail(e.target.value)}
-            />
+            <Label>Buscar Colaborador</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {selectedUser ? selectedUser.name : "Selecione um usuário..."}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput 
+                    placeholder="Buscar usuário..." 
+                    value={searchQuery} 
+                    onValueChange={handleSearch} 
+                  />
+                  {isSearchingUsers && (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  )}
+                  <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    <CommandList>
+                      {searchResults.map(user => (
+                        <CommandItem 
+                          key={user.id}
+                          value={user.name}
+                          onSelect={() => handleSelectUser(user)}
+                          className="cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedUser?.id === user.id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <div>
+                            <p>{user.name}</p>
+                            <p className="text-xs text-muted-foreground">{user.email}</p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandList>
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           
           {getCollaborators().length > 0 && (
@@ -151,24 +233,7 @@ export const CourseDialogs = ({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approver">Aprovador</Label>
-              <Select 
-                value={approvalData.approverId} 
-                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
-              >
-                <SelectTrigger id="approver">
-                  <SelectValue placeholder="Selecione o aprovador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map(manager => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Removido o seletor de aprovador, será automático */}
             
             <div>
               <Label htmlFor="approval-type">O que deseja aprovar?</Label>

@@ -14,18 +14,19 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
   const isAdmin = currentUser?.role === 'admin';
+  const isManager = currentUser?.role === 'manager';
   
   const navItems = [
-    { name: "Dashboard", icon: Home, path: "/" },
-    { name: "Cursos", icon: BookOpen, path: "/courses" },
-    { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
-    { name: "Edu", icon: Bot, path: "/edu" },
+    { name: "Dashboard", icon: Home, path: "/", access: ['admin', 'manager', 'instructor', 'student'] },
+    { name: "Cursos", icon: BookOpen, path: "/courses", access: ['admin', 'manager', 'instructor', 'student'] },
+    { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics", access: ['admin', 'manager', 'instructor', 'student'] },
+    { name: "Edu", icon: Bot, path: "/edu", access: ['admin', 'manager', 'instructor', 'student'] },
+    { name: "Administração", icon: UserCog, path: "/admin", access: ['admin', 'manager'] },
   ];
   
-  // Add admin link if user is admin
-  if (isAdmin) {
-    navItems.push({ name: "Administração", icon: UserCog, path: "/admin" });
-  }
+  const filteredNavItems = navItems.filter(item => 
+    currentUser && item.access.includes(currentUser.role)
+  );
 
   const closeSidebar = () => {
     setIsOpen(false);
@@ -44,26 +45,17 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       />
       
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{
-          width: isOpen ? "16rem" : "0rem",
-          opacity: isOpen ? 1 : 0,
-          x: isOpen ? 0 : -40,
-        }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+      <div 
         className={cn(
-          "h-screen bg-white shadow-lg z-40 flex-shrink-0 overflow-hidden",
-          "fixed lg:sticky top-0 left-0",
-          "lg:opacity-100 lg:translate-x-0",
-          !isOpen && "lg:!w-20 lg:!opacity-100 lg:!translate-x-0"
+          "h-screen fixed lg:sticky top-0 left-0 z-40 bg-white shadow-lg flex-shrink-0 transition-all duration-300",
+          isOpen ? "w-64 translate-x-0" : "-translate-x-full lg:translate-x-0 lg:w-20",
         )}
       >
         <div className="flex flex-col h-full">
           <div className="flex justify-between items-center h-16 border-b px-4">
             <h1 className={cn(
-              "text-xl font-bold text-primary transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
+              "text-xl font-bold text-primary transition-opacity duration-300",
+              !isOpen && "lg:hidden"
             )}>
               Learning Designer
             </h1>
@@ -82,7 +74,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           
           <div className="flex-1 py-4 overflow-y-auto">
             <ul className="space-y-2 px-2">
-              {navItems.map((item) => (
+              {filteredNavItems.map((item) => (
                 <li key={item.name}>
                   <NavLink
                     to={item.path}
@@ -98,7 +90,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                     <item.icon className="w-5 h-5" />
                     <span className={cn(
                       "transition-opacity duration-200", 
-                      !isOpen && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
+                      !isOpen && "lg:hidden"
                     )}>
                       {item.name}
                     </span>
@@ -111,13 +103,13 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           <div className="p-4 border-t">
             <div className={cn(
               "text-xs text-muted-foreground text-center transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
+              !isOpen && "lg:hidden"
             )}>
               © 2025 Learning Designer
             </div>
           </div>
         </div>
-      </motion.aside>
+      </div>
     </>
   );
 };
