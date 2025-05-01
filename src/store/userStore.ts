@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
 
 export type UserRole = 'admin' | 'manager' | 'instructor' | 'student';
+export type DepartmentName = 'Tecnologia' | 'Marketing' | 'Vendas' | 'RH' | 'Financeiro' | 'Operações' | string;
 
 export interface User {
   id: string;
@@ -26,6 +27,8 @@ interface UserState {
   
   setUsers: (users: User[]) => void;
   getAllManagers: () => User[];
+  getUsersByDepartment: (department: string) => User[];
+  deleteUser: (userId: string) => Promise<boolean>;
   
   logout: () => Promise<void>;
 }
@@ -67,6 +70,33 @@ export const useUserStore = create<UserState>()(
         return users.filter(
           user => user.role === 'manager' || user.role === 'admin'
         );
+      },
+
+      getUsersByDepartment: (department) => {
+        const { users } = get();
+        return users.filter(user => user.department === department);
+      },
+
+      deleteUser: async (userId) => {
+        try {
+          const { error } = await supabase.functions.invoke('manage-users', {
+            body: {
+              action: 'deleteUser',
+              userId
+            }
+          });
+
+          if (error) throw error;
+
+          set((state) => ({
+            users: state.users.filter(user => user.id !== userId)
+          }));
+
+          return true;
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          return false;
+        }
       },
       
       logout: async () => {

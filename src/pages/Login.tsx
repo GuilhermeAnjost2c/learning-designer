@@ -68,18 +68,21 @@ const Login = () => {
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
+      console.log("Attempting to sign in with:", values.email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
 
       if (error) {
+        console.error("Login error:", error);
         toast.error("Erro ao fazer login: " + error.message);
-        console.error(error);
         return;
       }
 
       if (data && data.user) {
+        console.log("Login successful, user:", data.user);
         const user = data.user;
         
         // Set current user after successful login

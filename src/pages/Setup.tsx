@@ -74,6 +74,8 @@ const Setup = () => {
   const onSubmit = async (values: FormValues) => {
     setIsLoading(true);
     try {
+      console.log("Attempting to sign up with:", values.email);
+      
       // First, create the user account
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
@@ -87,13 +89,13 @@ const Setup = () => {
       });
 
       if (error) {
+        console.error("Signup error:", error);
         toast.error("Erro ao criar conta: " + error.message);
-        console.error(error);
         return;
       }
 
       if (data && data.user) {
-        // Set user
+        console.log("Signup successful, user:", data.user);
         const user = data.user;
         
         // Set current user after successful creation

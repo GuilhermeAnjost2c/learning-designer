@@ -158,6 +158,7 @@ const CourseDetail = () => {
       return;
     }
     
+    // Correctly pass 5 arguments to submitForApproval
     submitForApproval(
       course.id,
       currentUser!.id,
