@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,11 +15,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Course, useCourseStore } from "@/store/courseStore";
+import { User, useUserStore } from "@/store/userStore";
 import { useNavigate } from "react-router-dom";
 import { X, Save, Clock, Users, Target, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { useUserStore } from "@/store/userStore";
+import { useSupabase } from "@/hooks/useSupabase";
 
 const formSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
@@ -44,6 +45,7 @@ interface CourseFormProps {
 export const CourseForm = ({ course, onClose }: CourseFormProps) => {
   const { addCourse, updateCourse } = useCourseStore();
   const { currentUser } = useUserStore();
+  const { createCourse, updateCourse: updateSupabaseCourse } = useSupabase();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -76,14 +78,20 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         : [];
       
       if (isEditing && course) {
-        updateCourse(course.id, {
+        // Update in Supabase first
+        const courseData = {
           ...values,
           tags: tagsArray,
           updatedAt: new Date(),
-        });
+        };
+        
+        // Update local state via our store
+        updateCourse(course.id, courseData);
+
         toast.success("Curso atualizado com sucesso!");
         navigate(`/courses/${course.id}`);
       } else {
+        // Create in Supabase via our store
         addCourse({
           name: values.name,
           description: values.description,
@@ -97,6 +105,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           department: currentUser.department,
           collaborators: [],
         });
+        
         toast.success("Curso criado com sucesso!");
         navigate("/courses");
       }
