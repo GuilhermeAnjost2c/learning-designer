@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const CoursesList = () => {
-  const { courses, getVisibleCoursesForUser } = useCourseStore();
+  const { courses } = useCourseStore();
   const { currentUser } = useUserStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,7 +36,14 @@ const CoursesList = () => {
   const visibleCourses = currentUser 
     ? (showAllCourses && currentUser.role === 'admin'
         ? courses 
-        : getVisibleCoursesForUser(currentUser.id, currentUser.department))
+        : courses.filter(course => 
+            // User is creator
+            course.createdBy === currentUser.id ||
+            // User is collaborator
+            (course.collaborators && course.collaborators.includes(currentUser.id)) ||
+            // Course is in user's department
+            (currentUser.department && course.department === currentUser.department)
+          ))
     : [];
 
   // Get all unique tags across all visible courses

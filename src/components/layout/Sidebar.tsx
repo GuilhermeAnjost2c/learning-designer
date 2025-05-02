@@ -1,5 +1,5 @@
 
-import { Home, BookOpen, Database, Bot, UserCog, X } from "lucide-react";
+import { Home, BookOpen, Database, UserCog, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router-dom";
@@ -13,7 +13,8 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
-  const isAdmin = currentUser?.role === 'admin';
+  // Only display the admin link for admin or manager users
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   
   const navItems = [
     { name: "Dashboard", icon: Home, path: "/" },
@@ -21,7 +22,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
   ];
   
-  // Add admin link if user is admin
+  // Add admin link if user is admin or manager
   if (isAdmin) {
     navItems.push({ name: "Administração", icon: UserCog, path: "/admin" });
   }
