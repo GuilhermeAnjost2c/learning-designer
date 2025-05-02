@@ -13,6 +13,7 @@ export interface Course {
   status: string;
   created_by: string;
   department?: string;
+  format?: "EAD" | "Ao vivo" | "Híbrido";
   modules: Module[];
   collaborators: string[];
   approval_requests?: ApprovalRequest[];

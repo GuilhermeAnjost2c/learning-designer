@@ -19,7 +19,6 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     { name: "Dashboard", icon: Home, path: "/" },
     { name: "Cursos", icon: BookOpen, path: "/courses" },
     { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
-    { name: "Edu", icon: Bot, path: "/edu" },
   ];
   
   // Add admin link if user is admin
@@ -56,19 +55,19 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           "h-screen bg-white shadow-lg z-40 flex-shrink-0 overflow-hidden",
           "fixed lg:sticky top-0 left-0",
           "lg:opacity-100 lg:translate-x-0",
-          !isOpen && "lg:!w-20 lg:!opacity-100 lg:!translate-x-0"
+          !isOpen && "lg:!w-16 lg:!opacity-100 lg:!translate-x-0"
         )}
       >
         <div className="flex flex-col h-full">
           <div className="flex justify-between items-center h-16 border-b px-4">
-            <h1 className={cn(
-              "text-xl font-bold text-primary transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
-            )}>
-              Learning Designer
-            </h1>
-            {!isOpen && (
-              <span className="hidden lg:block text-xl font-bold text-primary">LD</span>
+            {isOpen ? (
+              <h1 className="text-xl font-bold text-primary transition-opacity duration-200">
+                Learning Designer
+              </h1>
+            ) : (
+              <span className="hidden lg:block text-xl font-bold text-primary text-center w-full">
+                LD
+              </span>
             )}
             <Button
               variant="ghost"
@@ -95,13 +94,12 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                       )
                     }
                   >
-                    <item.icon className="w-5 h-5" />
-                    <span className={cn(
-                      "transition-opacity duration-200", 
-                      !isOpen && "lg:opacity-0 lg:w-0 lg:overflow-hidden"
-                    )}>
-                      {item.name}
-                    </span>
+                    <item.icon className="w-5 h-5 min-w-[20px]" />
+                    {isOpen && (
+                      <span className="transition-opacity duration-200 whitespace-nowrap">
+                        {item.name}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}
@@ -109,12 +107,11 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
           </div>
           
           <div className="p-4 border-t">
-            <div className={cn(
-              "text-xs text-muted-foreground text-center transition-opacity duration-200",
-              !isOpen && "lg:opacity-0"
-            )}>
-              © 2025 Learning Designer
-            </div>
+            {isOpen && (
+              <div className="text-xs text-muted-foreground text-center transition-opacity duration-200">
+                © 2025 Learning Designer
+              </div>
+            )}
           </div>
         </div>
       </motion.aside>

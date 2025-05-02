@@ -18,7 +18,8 @@ import {
   Trash2,
   ClipboardCheck,
   BookOpen,
-  Clock
+  Clock,
+  ChevronDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -89,12 +90,40 @@ export const CourseHeader = ({
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        <Badge
-          variant="outline"
-          className={`px-2 py-1 ${getStatusColor(course.status)}`}
-        >
-          {course.status}
-        </Badge>
+        {canEdit ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className={`px-3 py-1 flex items-center gap-1 ${getStatusColor(course.status)}`}
+              >
+                {course.status}
+                <ChevronDown className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => onStatusChange("Rascunho")}>
+                Rascunho
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("Em andamento")}>
+                Em andamento
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("Concluído")}>
+                Concluído
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onStatusChange("Arquivado")}>
+                Arquivado
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Badge
+            variant="outline"
+            className={`px-2 py-1 ${getStatusColor(course.status)}`}
+          >
+            {course.status}
+          </Badge>
+        )}
 
         {canEdit && (
           <>
@@ -128,19 +157,6 @@ export const CourseHeader = ({
                 <DropdownMenuItem onClick={onEdit}>
                   <Edit className="h-4 w-4 mr-2" />
                   <span>Editar</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => onStatusChange("Rascunho")}>
-                  Marcar como Rascunho
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onStatusChange("Em andamento")}>
-                  Marcar como Em andamento
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onStatusChange("Concluído")}>
-                  Marcar como Concluído
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onStatusChange("Arquivado")}>
-                  Marcar como Arquivado
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

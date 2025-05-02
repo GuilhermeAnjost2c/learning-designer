@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useCourseStore, Module, Lesson, LessonStatus, CourseStatus } from "@/store/courseStore";
@@ -135,9 +134,18 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
       title: "Nova Aula",
       description: "Descrição da nova aula",
       duration: 60,
-      activityType: "Exposição"
+      activityType: "Exposição",
+      notes: ""
     });
     toast.success("Aula adicionada com sucesso!");
+  };
+
+  const handleAddDynamic = (moduleId: string) => {
+    // Show a dropdown or dialog to select a dynamic
+    // For simplicity, we'll navigate to the dynamics bank with query params
+    const dynamicsUrl = `/dynamics?courseId=${courseId}&moduleId=${moduleId}&mode=select`;
+    window.open(dynamicsUrl, '_blank');
+    toast.success("Selecione uma dinâmica para adicionar ao módulo");
   };
 
   const handleLessonStatusChange = (moduleId: string, lessonId: string, status: LessonStatus) => {
@@ -462,6 +470,17 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
                                           }}
                                         >
                                           <Plus className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 rounded-full hover:bg-secondary"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleAddDynamic(module.id);
+                                          }}
+                                        >
+                                          <Database className="h-3 w-3" />
                                         </Button>
                                         <Button
                                           variant="ghost"

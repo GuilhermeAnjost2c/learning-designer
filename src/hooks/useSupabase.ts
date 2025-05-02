@@ -26,7 +26,7 @@ export const useSupabase = () => {
 
       if (error) throw error;
       return data;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       return [];
     } finally {
@@ -34,11 +34,12 @@ export const useSupabase = () => {
     }
   };
 
+  // We need to use a type assertion here because the tables aren't properly defined in the Supabase client
   const fetchUserData = async (userId: string) => {
     try {
-      // Try to fetch from 'users' table first, then fall back to 'profiles' if needed
+      // Try to fetch from 'profiles' table first, then fall back to 'users' if needed
       let { data, error } = await supabase
-        .from('profiles')
+        .from('profiles' as any)
         .select('*')
         .eq('id', userId)
         .single();
@@ -47,7 +48,7 @@ export const useSupabase = () => {
         console.log("Failed to fetch from profiles, trying users table instead");
         // If profiles table failed, try users table
         const response = await supabase
-          .from('users')
+          .from('users' as any)
           .select('*')
           .eq('id', userId)
           .single();
@@ -57,7 +58,7 @@ export const useSupabase = () => {
       }
 
       return data;
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       return null;
     }
@@ -67,7 +68,7 @@ export const useSupabase = () => {
     try {
       // Try to search in 'profiles' table first, then fall back to 'users' if needed
       let { data, error } = await supabase
-        .from('profiles')
+        .from('profiles' as any)
         .select('*')
         .ilike('name', `%${query}%`)
         .limit(10);
@@ -76,7 +77,7 @@ export const useSupabase = () => {
         console.log("Failed to search in profiles, trying users table instead");
         // If profiles table failed, try users table
         const response = await supabase
-          .from('users')
+          .from('users' as any)
           .select('*')
           .ilike('name', `%${query}%`)
           .limit(10);
@@ -86,7 +87,7 @@ export const useSupabase = () => {
       }
 
       return data || [];
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
       return [];
     }

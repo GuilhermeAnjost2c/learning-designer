@@ -1,18 +1,5 @@
 
-import { useState, useEffect } from 'react';
-import { Course, ApprovalItemType } from "@/store/courseStore";
-import { User, useUserStore } from "@/store/userStore";
-import { useSupabase } from "@/hooks/useSupabase";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,20 +9,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { UserRound, Trash, Search } from "lucide-react";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Course, ApprovalItemType } from "@/store/courseStore";
+import { User } from "@/store/userStore";
+import { Search, UserRound } from "lucide-react";
+import { useSupabase } from "@/hooks/useSupabase";
+import { toast } from "sonner";
 
 interface CourseDialogsProps {
   course: Course;
@@ -84,195 +82,172 @@ export const CourseDialogs = ({
   setApprovalData,
   isApprovalDialogOpen,
   setIsApprovalDialogOpen,
-  handleSubmitForApproval
+  handleSubmitForApproval,
 }: CourseDialogsProps) => {
   const { searchUsers } = useSupabase();
-  const { getAllManagers } = useUserStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userResults, setUserResults] = useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [open, setOpen] = useState(false);
-  
-  const allManagers = getAllManagers();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
+  // Search users when query changes with debounce
   useEffect(() => {
-    // Auto-select the first manager as approver
-    if (allManagers.length > 0 && !approvalData.approverId) {
-      setApprovalData({
-        ...approvalData,
-        approverId: allManagers[0].id,
-        approvalType: 'curso_completo'
-      });
-    }
-  }, [allManagers, approvalData, setApprovalData]);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (searchQuery.length > 2) {
-        const results = await searchUsers(searchQuery);
-        setUserResults(results as User[]);
+    const timeoutId = setTimeout(async () => {
+      if (searchQuery && searchQuery.length >= 2) {
+        setIsSearching(true);
+        try {
+          const results = await searchUsers(searchQuery);
+          if (Array.isArray(results)) {
+            setSearchResults(results);
+          } else {
+            setSearchResults([]);
+          }
+        } catch (error) {
+          toast.error("Erro ao buscar usuários");
+          console.error(error);
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
       }
-    };
-    
-    fetchUsers();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
   }, [searchQuery, searchUsers]);
-
-  const handleUserSelect = (user: User) => {
-    setSelectedUser(user);
-    setCollaboratorEmail(user.email);
-    setOpen(false);
-  };
-
-  const handleApprovalSubmit = () => {
-    // Always use curso_completo as the type
-    handleSubmitForApproval();
-  };
 
   return (
     <>
-      <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Adicionar Colaborador</DialogTitle>
-            <DialogDescription>
-              Adicione membros da equipe como colaboradores deste curso.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <Label>Buscar Colaborador</Label>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-full justify-between"
-                >
-                  {selectedUser ? selectedUser.name : "Selecione um colaborador..."}
-                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0">
-                <Command>
-                  <CommandInput
-                    placeholder="Buscar por nome..."
-                    className="h-9"
-                    value={searchQuery}
-                    onValueChange={setSearchQuery}
-                  />
-                  <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
-                  <CommandGroup>
-                    {userResults.map((user) => (
-                      <CommandItem
-                        key={user.id}
-                        value={user.id}
-                        onSelect={() => handleUserSelect(user)}
-                      >
-                        <UserRound className="mr-2 h-4 w-4" />
-                        <div className="flex flex-col">
-                          <span>{user.name}</span>
-                          <span className="text-xs text-muted-foreground">{user.email}</span>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
-          
-          {getCollaborators().length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium mb-2">Colaboradores Atuais</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {getCollaborators().map(collaborator => collaborator && (
-                  <div key={collaborator.id} className="flex items-center justify-between border rounded-md p-2">
-                    <div className="flex items-center gap-2">
-                      <UserRound className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{collaborator.name}</p>
-                        <p className="text-xs text-muted-foreground">{collaborator.email}</p>
-                      </div>
-                    </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6"
-                      onClick={() => handleRemoveCollaborator(collaborator.id)}
-                    >
-                      <Trash className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCollaboratorDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddCollaborator}>
-              Adicionar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Enviar para Aprovação</DialogTitle>
-            <DialogDescription>
-              Solicite a aprovação do curso completo.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="comments">Comentários (opcional)</Label>
-              <Textarea
-                id="comments"
-                placeholder="Informe detalhes adicionais se necessário"
-                value={approvalData.comments}
-                onChange={(e) => setApprovalData({...approvalData, comments: e.target.value})}
-                rows={3}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleApprovalSubmit}>
-              Enviar para Aprovação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
+      {/* Delete Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Curso</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita e
-              todos os módulos e aulas serão excluídos.
+              Tem certeza de que deseja excluir este curso? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Collaborator Dialog */}
+      <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Colaborador</DialogTitle>
+            <DialogDescription>
+              Adicione colaboradores para trabalhar neste curso.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Buscar usuário</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Digite um nome para buscar..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10"
+                />
+                <Search className="absolute right-3 top-2.5 h-5 w-5 text-muted-foreground" />
+              </div>
+              
+              {/* Search results */}
+              {isSearching ? (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  Buscando...
+                </div>
+              ) : (
+                searchResults.length > 0 && (
+                  <div className="border rounded-md max-h-60 overflow-y-auto">
+                    <div className="p-2 text-xs text-muted-foreground border-b">
+                      Selecione um usuário
+                    </div>
+                    {searchResults.map((user) => (
+                      <button 
+                        key={user.id} 
+                        className="flex items-center gap-2 p-2 hover:bg-muted w-full text-left"
+                        onClick={() => {
+                          setCollaboratorEmail(user.email);
+                          setSearchQuery("");
+                          setSearchResults([]);
+                        }}
+                      >
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <UserRound className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{user.name}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
+              )}
+              
+              {searchResults.length === 0 && searchQuery.length >= 2 && !isSearching && (
+                <div className="p-2 text-center text-sm text-muted-foreground">
+                  Nenhum usuário encontrado. Tente outro termo de busca.
+                </div>
+              )}
+              
+              <div className="mt-2">
+                <Label htmlFor="email">Email do colaborador selecionado</Label>
+                <Input
+                  id="email"
+                  value={collaboratorEmail}
+                  onChange={(e) => setCollaboratorEmail(e.target.value)}
+                  placeholder="Digite o email do colaborador"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsCollaboratorDialogOpen(false)} variant="outline">
+              Cancelar
+            </Button>
+            <Button onClick={handleAddCollaborator}>Adicionar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog open={isApprovalDialogOpen} onOpenChange={setIsApprovalDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Solicitar Aprovação</DialogTitle>
+            <DialogDescription>
+              Envie este curso para aprovação.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="comments">Comentários (opcional)</Label>
+              <Textarea
+                id="comments"
+                placeholder="Adicione comentários ou instruções para o aprovador"
+                value={approvalData.comments}
+                onChange={(e) =>
+                  setApprovalData({ ...approvalData, comments: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsApprovalDialogOpen(false)} variant="outline">
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitForApproval}>Enviar para Aprovação</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

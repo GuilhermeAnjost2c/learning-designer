@@ -52,6 +52,7 @@ interface DynamicsState {
   deleteDynamic: (id: string) => void;
   getDynamicsByCategory: (category: DynamicCategory) => Dynamic[];
   searchDynamics: (term: string) => Dynamic[];
+  addDynamicToModule: (courseId: string, moduleId: string, dynamicId: string) => void;
 }
 
 // Generate a unique ID
@@ -103,10 +104,50 @@ const sampleActivities = [
   }
 ];
 
+// Sample dynamics data
+const sampleDynamics = [
+  {
+    id: generateId(),
+    name: 'Círculo de Apresentação',
+    category: 'Quebra-gelo',
+    objective: 'Promover a integração do grupo e conhecimento mútuo',
+    materials: 'Nenhum material necessário',
+    description: 'Os participantes ficam em círculo e cada um se apresenta dizendo nome, função e uma curiosidade pessoal.',
+    duration: 20,
+    minimumParticipants: 5,
+    maximumParticipants: 20,
+    createdAt: new Date()
+  },
+  {
+    id: generateId(),
+    name: 'Desafio dos Marshmallows',
+    category: 'Trabalho em equipe',
+    objective: 'Desenvolver trabalho em equipe e pensamento criativo',
+    materials: 'Marshmallows, espaguete cru, fita adesiva, barbante',
+    description: 'Em grupos, os participantes devem construir a estrutura mais alta possível usando apenas os materiais fornecidos.',
+    duration: 30,
+    minimumParticipants: 8,
+    maximumParticipants: 24,
+    createdAt: new Date()
+  },
+  {
+    id: generateId(),
+    name: 'Feedback em Post-its',
+    category: 'Feedback',
+    objective: 'Promover a cultura de feedback construtivo',
+    materials: 'Post-its de três cores diferentes, canetas',
+    description: 'Cada participante escreve em post-its diferentes aspectos positivos, pontos a melhorar e sugestões para os colegas.',
+    duration: 25,
+    minimumParticipants: 4,
+    maximumParticipants: 15,
+    createdAt: new Date()
+  }
+];
+
 export const useDynamicsStore = create<DynamicsState>()(
   persist(
     (set, get) => ({
-      dynamics: [],
+      dynamics: sampleDynamics,
       dynamicsActivities: sampleActivities,
       dynamicsCategories: sampleCategories,
       
@@ -151,6 +192,26 @@ export const useDynamicsStore = create<DynamicsState>()(
           dynamic.objective.toLowerCase().includes(lowerCaseTerm)
         );
       },
+
+      // New method to add a dynamic to a module as a lesson
+      addDynamicToModule: (courseId, moduleId, dynamicId) => {
+        const { dynamics } = get();
+        const dynamic = dynamics.find(d => d.id === dynamicId);
+        
+        if (!dynamic) return;
+
+        // We need to import the course store and add a lesson
+        // This is a simple implementation - you would integrate with the courseStore
+        const courseStore = require('./courseStore').useCourseStore.getState();
+        
+        courseStore.addLesson(courseId, moduleId, {
+          title: `Dinâmica: ${dynamic.name}`,
+          description: `**Objetivo:** ${dynamic.objective}\n\n**Descrição:** ${dynamic.description}\n\n**Materiais:** ${dynamic.materials}\n\n**Participantes:** ${dynamic.minimumParticipants} a ${dynamic.maximumParticipants}`,
+          duration: dynamic.duration,
+          activityType: "Dinâmica",
+          notes: `Dinâmica importada do Banco de Dinâmicas: ${dynamic.name} (${dynamic.category})`
+        });
+      }
     }),
     {
       name: 'dynamics-storage',

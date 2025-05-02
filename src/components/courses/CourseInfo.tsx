@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/card";
 import { Course, Module, Lesson } from "@/store/courseStore";
 import { User, useUserStore } from "@/store/userStore";
-import { Clock, Calendar, Tag, UserRound, Edit2, Users, BookOpen } from "lucide-react";
+import { Clock, Calendar, Tag, UserRound, Edit2, Users, BookOpen, FileDown } from "lucide-react";
+import { toast } from "sonner";
 
 interface CourseInfoProps {
   course: Course;
@@ -43,6 +44,10 @@ export const CourseInfo = ({
   const formatCourseDate = (dateString: string | Date) => {
     const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return format(date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  };
+
+  const exportToPDF = () => {
+    toast.success("Exportação em PDF será implementada em breve!");
   };
 
   return (
@@ -113,6 +118,37 @@ export const CourseInfo = ({
             </div>
           </div>
           
+          {/* Course Structure Summary */}
+          <div className="mt-2">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium">Estrutura do Curso</h3>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={exportToPDF}
+                className="flex items-center gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                Exportar PDF
+              </Button>
+            </div>
+            <div className="text-sm text-muted-foreground space-y-2 border rounded-md p-3">
+              {course.modules.map((module, moduleIndex) => (
+                <div key={module.id} className="mb-2">
+                  <p className="font-medium">Módulo {moduleIndex + 1}: {module.title}</p>
+                  <ul className="pl-5 mt-1 list-disc">
+                    {module.lessons.map((lesson, lessonIndex) => (
+                      <li key={lesson.id} className="text-xs">
+                        {moduleIndex + 1}.{lessonIndex + 1} - {lesson.title} 
+                        <span className="text-muted-foreground ml-1">({lesson.duration} min)</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           {course.tags && course.tags.length > 0 && (
             <div className="mt-2 space-y-1.5">
               <span className="text-xs text-muted-foreground">Tags</span>
@@ -137,79 +173,103 @@ export const CourseInfo = ({
         )}
       </Card>
 
-      {/* Collaborators card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Colaboradores</span>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenCollaboratorDialog}
-                className="h-8 px-2 text-xs"
-              >
-                Adicionar
-              </Button>
-            )}
-          </CardTitle>
-          <CardDescription>
-            Equipe com acesso a este curso
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="space-y-3">
-            {collaborators.length > 0 ? (
-              collaborators.map((collaborator) => (
-                collaborator && (
-                  <div key={collaborator.id} className="flex items-start justify-between">
-                    <div className="flex items-center">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center mr-2">
-                        <UserRound className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium line-clamp-1">
-                          {collaborator.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {collaborator.role}
-                        </p>
-                      </div>
-                    </div>
-                    {canEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
-                        onClick={() => onRemoveCollaborator(collaborator.id)}
-                      >
-                        Remover
-                      </Button>
-                    )}
-                  </div>
-                )
-              ))
+      {/* Course Image and Collaborators card */}
+      <div className="flex flex-col gap-6">
+        {/* Course Image Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Imagem do Curso</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center p-4">
+            {course.thumbnail ? (
+              <img 
+                src={course.thumbnail} 
+                alt={course.name} 
+                className="w-full rounded-md object-cover"
+                style={{ maxHeight: "160px" }}
+              />
             ) : (
-              <div className="flex flex-col items-center justify-center py-6">
-                <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground text-center">
-                  Nenhum colaborador adicionado
-                </p>
-                {canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={onOpenCollaboratorDialog}
-                  >
-                    Adicionar Colaborador
-                  </Button>
-                )}
+              <div className="w-full h-32 bg-muted rounded-md flex items-center justify-center">
+                <p className="text-muted-foreground text-sm">Sem imagem</p>
               </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        
+        {/* Collaborators card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Colaboradores</span>
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenCollaboratorDialog}
+                  className="h-8 px-2 text-xs"
+                >
+                  Adicionar
+                </Button>
+              )}
+            </CardTitle>
+            <CardDescription>
+              Equipe com acesso a este curso
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="space-y-3">
+              {collaborators.length > 0 ? (
+                collaborators.map((collaborator) => (
+                  collaborator && (
+                    <div key={collaborator.id} className="flex items-start justify-between">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center mr-2">
+                          <UserRound className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium line-clamp-1">
+                            {collaborator.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {collaborator.role}
+                          </p>
+                        </div>
+                      </div>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive"
+                          onClick={() => onRemoveCollaborator(collaborator.id)}
+                        >
+                          Remover
+                        </Button>
+                      )}
+                    </div>
+                  )
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6">
+                  <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground text-center">
+                    Nenhum colaborador adicionado
+                  </p>
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                      onClick={onOpenCollaboratorDialog}
+                    >
+                      Adicionar Colaborador
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
