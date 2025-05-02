@@ -50,10 +50,27 @@ export const useSupabase = () => {
     }
   };
 
+  const searchUsers = async (query: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .ilike('name', `%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      setError(err.message);
+      return [];
+    }
+  };
+
   return {
     isLoading,
     error,
     fetchCourses,
     fetchUserData,
+    searchUsers,
   };
 };

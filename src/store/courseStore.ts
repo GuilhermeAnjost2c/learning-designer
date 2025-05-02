@@ -1,34 +1,24 @@
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { User } from './userStore';
+import { create } from "zustand";
+import { sampleCourses } from "@/utils/sampleData";
+import { devtools } from "zustand/middleware";
+import { nanoid } from "nanoid";
 
-export type ActivityType = 'Exposição' | 'Dinâmica' | 'Prática' | 'Avaliação';
-export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
-export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Em aprovação' | 'Aprovado' | 'Revisão solicitada';
-export type ApprovalItemType = 'curso_completo' | 'estrutura' | 'modulo' | 'aula';
-
-export interface ApprovalRequest {
-  id: string;
-  courseId: string;
-  requestDate: Date;
-  requestedBy: string; // user ID
-  approverId: string; // user ID
-  approvalType: ApprovalItemType;
-  itemId?: string; // moduleId or lessonId if applicable
-  status: 'pendente' | 'aprovado' | 'rejeitado';
-  comments?: string;
-  reviewDate?: Date;
-}
+export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
+export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
+export type ActivityType = "Exposição" | "Dinâmica" | "Debate" | "Avaliação";
+export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
+export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
+export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
 
 export interface Lesson {
   id: string;
   title: string;
   description: string;
-  duration: number; // in minutes
+  duration: number;
   activityType: ActivityType;
-  notes?: string;
   status: LessonStatus;
+  notes: string;
 }
 
 export interface Module {
@@ -38,494 +28,412 @@ export interface Module {
   lessons: Lesson[];
 }
 
+export interface ApprovalRequest {
+  id: string;
+  courseId: string;
+  requestedBy: string;
+  approverId: string;
+  requestDate: Date;
+  approvalType: ApprovalItemType;
+  itemId?: string;
+  status: ApprovalStatus;
+  comments?: string;
+  reviewDate?: Date;
+}
+
 export interface Course {
   id: string;
   name: string;
   description: string;
   objectives: string;
   targetAudience: string;
-  estimatedDuration: number; // in minutes
+  estimatedDuration: number;
   thumbnail?: string;
-  modules: Module[];
   createdAt: Date;
   updatedAt: Date;
-  tags: string[];
+  tags?: string[];
   status: CourseStatus;
-  createdBy: string; // user ID
-  department?: string; // department name
-  collaborators: string[]; // array of user IDs
-  approvalRequests?: string[]; // array of approval request IDs
+  createdBy: string;
+  department?: string;
+  modules: Module[];
+  collaborators: string[];
+  approvalRequests?: ApprovalRequest[];
+  format?: CourseFormat;
 }
 
 interface CourseStore {
   courses: Course[];
-  approvalRequests: ApprovalRequest[];
-  
-  addCourse: (course: Omit<Course, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'collaborators'> & { collaborators?: string[] }) => void;
-  updateCourse: (id: string, course: Partial<Course>) => void;
+  addCourse: (course: Omit<Course, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  updateCourse: (id: string, updates: Partial<Course>) => void;
   deleteCourse: (id: string) => void;
-  
-  addModule: (courseId: string, module: Omit<Module, 'id' | 'lessons'>) => void;
-  updateModule: (courseId: string, moduleId: string, module: Partial<Module>) => void;
+  addModule: (courseId: string, module: Omit<Module, "id" | "lessons">) => void;
+  updateModule: (courseId: string, moduleId: string, updates: Partial<Module>) => void;
   deleteModule: (courseId: string, moduleId: string) => void;
-  
-  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, 'id' | 'status'>) => void;
-  updateLesson: (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => void;
+  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, "id" | "status">) => void;
+  updateLesson: (courseId: string, moduleId: string, lessonId: string, updates: Partial<Lesson>) => void;
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
-  
-  reorderModule: (courseId: string, sourceIndex: number, destinationIndex: number) => void;
-  reorderLesson: (courseId: string, moduleId: string, sourceIndex: number, destinationIndex: number) => void;
-  
-  addTagToCourse: (courseId: string, tag: string) => void;
-  removeTagFromCourse: (courseId: string, tag: string) => void;
-  
-  updateCourseStatus: (courseId: string, status: CourseStatus) => void;
   updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => void;
-  
+  updateCourseStatus: (courseId: string, status: CourseStatus) => void;
   addCollaborator: (courseId: string, userId: string) => void;
   removeCollaborator: (courseId: string, userId: string) => void;
-  
-  submitForApproval: (courseId: string, requestedById: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
-  respondToApprovalRequest: (approvalRequestId: string, isApproved: boolean, comments?: string) => void;
-  
-  getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
-  getCourseById: (courseId: string) => Course | undefined;
-  getPendingApprovals: (approverId: string) => ApprovalRequest[];
+  submitForApproval: (
+    courseId: string,
+    requestedBy: string,
+    approverId: string,
+    approvalType: ApprovalItemType,
+    itemId?: string,
+    comments?: string
+  ) => void;
+  updateApprovalStatus: (
+    courseId: string,
+    approvalId: string,
+    status: ApprovalStatus,
+    comments?: string
+  ) => void;
+  reorderModule: (courseId: string, oldIndex: number, newIndex: number) => void;
+  reorderLesson: (courseId: string, moduleId: string, oldIndex: number, newIndex: number) => void;
 }
 
-// Generate a unique ID
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-// Calculate total duration of all lessons in a course
-const calculateCourseDuration = (modules: Module[]): number => {
-  return modules.reduce((totalDuration, module) => {
-    return totalDuration + module.lessons.reduce((moduleDuration, lesson) => {
-      return moduleDuration + (lesson.duration || 0);
-    }, 0);
-  }, 0);
-};
-
 export const useCourseStore = create<CourseStore>()(
-  persist(
-    (set, get) => ({
-      courses: [],
-      approvalRequests: [],
-      
-      addCourse: (courseData) => set((state) => {
-        const now = new Date();
-        const newCourse: Course = {
-          ...courseData,
-          id: generateId(),
-          modules: [],
-          createdAt: now,
-          updatedAt: now,
-          tags: courseData.tags || [],
-          status: 'Rascunho', // Default status
-          collaborators: courseData.collaborators || [],
-          estimatedDuration: courseData.estimatedDuration || 0
-        };
-        return { courses: [...state.courses, newCourse] };
-      }),
-      
-      updateCourse: (id, courseData) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === id 
-            ? { ...course, ...courseData, updatedAt: new Date() } 
-            : course
-        );
-        
-        return { courses: updatedCourses };
-      }),
-      
-      deleteCourse: (id) => set((state) => ({
-        courses: state.courses.filter((course) => course.id !== id),
-        approvalRequests: state.approvalRequests.filter((request) => request.courseId !== id)
-      })),
-      
-      addModule: (courseId, moduleData) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: [...course.modules, { id: generateId(), ...moduleData, lessons: [] }],
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
+  devtools(
+    (set) => ({
+      courses: [...sampleCourses],
+
+      addCourse: (course) => {
+        set((state) => ({
+          courses: [
+            ...state.courses,
+            {
+              ...course,
+              id: nanoid(7),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              status: "Rascunho",
+              modules: course.modules || [],
+              collaborators: course.collaborators || [],
+              format: course.format || "EAD",
+            },
+          ],
+        }));
+      },
+
+      updateCourse: (id, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === id
+              ? { ...course, ...updates, updatedAt: new Date() }
               : course
-          )
-        };
-      }),
-      
-      updateModule: (courseId, moduleId, moduleData) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map((module) => 
-                  module.id === moduleId 
-                    ? { ...module, ...moduleData } 
-                    : module
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
-              : course
-          )
-        };
-      }),
-      
-      deleteModule: (courseId, moduleId) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.filter((module) => module.id !== moduleId),
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
-              : course
-          )
-        };
-      }),
-      
-      addLesson: (courseId, moduleId, lessonData) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map((module) => 
-                  module.id === moduleId 
-                    ? { 
-                        ...module, 
-                        lessons: [...module.lessons, { id: generateId(), ...lessonData, status: 'Fazer' as LessonStatus }] 
-                      } 
-                    : module
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
-              : course
-          )
-        };
-      }),
-      
-      updateLesson: (courseId, moduleId, lessonId, lessonData) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map((module) => 
-                  module.id === moduleId 
-                    ? { 
-                        ...module, 
-                        lessons: module.lessons.map((lesson) => 
-                          lesson.id === lessonId 
-                            ? { ...lesson, ...lessonData } 
-                            : lesson
-                        ) 
-                      } 
-                    : module
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
-              : course
-          )
-        };
-      }),
-      
-      deleteLesson: (courseId, moduleId, lessonId) => set((state) => {
-        const updatedCourses = state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map((module) => 
-                  module.id === moduleId 
-                    ? { 
-                        ...module, 
-                        lessons: module.lessons.filter((lesson) => lesson.id !== lessonId) 
-                      } 
-                    : module
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        );
-        
-        // Recalculate course duration
-        return { 
-          courses: updatedCourses.map(course => 
-            course.id === courseId 
-              ? { ...course, estimatedDuration: calculateCourseDuration(course.modules) } 
-              : course
-          )
-        };
-      }),
-      
-      reorderModule: (courseId, sourceIndex, destinationIndex) => set((state) => {
-        const course = state.courses.find((c) => c.id === courseId);
-        if (!course) return state;
-        
-        const newModules = [...course.modules];
-        const [movedModule] = newModules.splice(sourceIndex, 1);
-        newModules.splice(destinationIndex, 0, movedModule);
-        
-        return {
-          courses: state.courses.map((c) => 
-            c.id === courseId 
-              ? { ...c, modules: newModules, updatedAt: new Date() } 
-              : c
           ),
-        };
-      }),
-      
-      reorderLesson: (courseId, moduleId, sourceIndex, destinationIndex) => set((state) => {
-        const course = state.courses.find((c) => c.id === courseId);
-        if (!course) return state;
-        
-        const module = course.modules.find((m) => m.id === moduleId);
-        if (!module) return state;
-        
-        const newLessons = [...module.lessons];
-        const [movedLesson] = newLessons.splice(sourceIndex, 1);
-        newLessons.splice(destinationIndex, 0, movedLesson);
-        
-        return {
-          courses: state.courses.map((c) => 
-            c.id === courseId 
-              ? { 
-                  ...c, 
-                  modules: c.modules.map((m) => 
-                    m.id === moduleId 
-                      ? { ...m, lessons: newLessons } 
-                      : m
+        }));
+      },
+
+      deleteCourse: (id) => {
+        set((state) => ({
+          courses: state.courses.filter((course) => course.id !== id),
+        }));
+      },
+
+      addModule: (courseId, module) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: [
+                    ...course.modules,
+                    { ...module, id: nanoid(7), lessons: [] },
+                  ],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateModule: (courseId, moduleId, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? { ...module, ...updates }
+                      : module
                   ),
                   updatedAt: new Date(),
-                } 
-              : c
+                }
+              : course
           ),
-        };
-      }),
-      
-      addTagToCourse: (courseId, tag) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                tags: course.tags ? 
-                  (course.tags.includes(tag) ? course.tags : [...course.tags, tag]) 
-                  : [tag],
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
-      
-      removeTagFromCourse: (courseId, tag) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                tags: course.tags ? course.tags.filter(t => t !== tag) : [],
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
+        }));
+      },
 
-      updateCourseStatus: (courseId, status) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                status,
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
+      deleteModule: (courseId, moduleId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.filter(
+                    (module) => module.id !== moduleId
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-      updateLessonStatus: (courseId, moduleId, lessonId, status) => set((state) => ({
-        courses: state.courses.map((course) => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map((module) => 
-                  module.id === moduleId 
-                    ? { 
-                        ...module, 
-                        lessons: module.lessons.map((lesson) => 
-                          lesson.id === lessonId 
-                            ? { ...lesson, status } 
-                            : lesson
-                        ) 
-                      } 
-                    : module
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        ),
-      })),
-      
-      // Add a collaborator to a course
-      addCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                collaborators: course.collaborators.includes(userId) 
-                  ? course.collaborators 
-                  : [...course.collaborators, userId],
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
-      
-      // Remove a collaborator from a course
-      removeCollaborator: (courseId, userId) => set((state) => ({
-        courses: state.courses.map((course) =>
-          course.id === courseId
-            ? {
-                ...course,
-                collaborators: course.collaborators.filter(id => id !== userId),
-                updatedAt: new Date(),
-              }
-            : course
-        ),
-      })),
-      
-      // Submit a course for approval
-      submitForApproval: (courseId, requestedById, approverId, approvalType, itemId, comments) => set((state) => {
-        const newApprovalRequest: ApprovalRequest = {
-          id: generateId(),
+      addLesson: (courseId, moduleId, lesson) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: [
+                            ...module.lessons,
+                            {
+                              ...lesson,
+                              id: nanoid(7),
+                              status: "Fazer",
+                              notes: lesson.notes || "",
+                            },
+                          ],
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateLesson: (courseId, moduleId, lessonId, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.map((lesson) =>
+                            lesson.id === lessonId
+                              ? { ...lesson, ...updates }
+                              : lesson
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      deleteLesson: (courseId, moduleId, lessonId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.filter(
+                            (lesson) => lesson.id !== lessonId
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateLessonStatus: (courseId, moduleId, lessonId, status) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.map((lesson) =>
+                            lesson.id === lessonId
+                              ? { ...lesson, status }
+                              : lesson
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateCourseStatus: (courseId, status) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? { ...course, status, updatedAt: new Date() }
+              : course
+          ),
+        }));
+      },
+
+      addCollaborator: (courseId, userId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  collaborators: course.collaborators
+                    ? [...course.collaborators, userId]
+                    : [userId],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      removeCollaborator: (courseId, userId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  collaborators: course.collaborators
+                    ? course.collaborators.filter((id) => id !== userId)
+                    : [],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      submitForApproval: (
+        courseId,
+        requestedBy,
+        approverId,
+        approvalType,
+        itemId,
+        comments
+      ) => {
+        const newApproval: ApprovalRequest = {
+          id: nanoid(7),
           courseId,
-          requestDate: new Date(),
-          requestedBy: requestedById,
+          requestedBy,
           approverId,
+          requestDate: new Date(),
           approvalType,
           itemId,
-          status: 'pendente',
-          comments
+          status: "Pendente",
+          comments,
         };
-        
-        // Update course status to 'Em aprovação'
-        const updatedCourses = state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                status: 'Em aprovação' as CourseStatus,
-                approvalRequests: course.approvalRequests 
-                  ? [...course.approvalRequests, newApprovalRequest.id]
-                  : [newApprovalRequest.id],
-                updatedAt: new Date() 
-              } 
-            : course
-        );
-        
-        return {
-          courses: updatedCourses,
-          approvalRequests: [...state.approvalRequests, newApprovalRequest]
-        };
-      }),
-      
-      // Respond to an approval request
-      respondToApprovalRequest: (approvalRequestId, isApproved, comments) => set((state) => {
-        const approvalRequest = state.approvalRequests.find(request => request.id === approvalRequestId);
-        
-        if (!approvalRequest) return state;
-        
-        const updatedApprovalRequests = state.approvalRequests.map(request => 
-          request.id === approvalRequestId
-            ? { 
-                ...request, 
-                status: isApproved ? 'aprovado' as const : 'rejeitado' as const,
-                comments: comments || request.comments,
-                reviewDate: new Date()
-              }
-            : request
-        );
-        
-        // Update course status based on approval result
-        const updatedCourses = state.courses.map(course => 
-          course.id === approvalRequest.courseId
-            ? { 
-                ...course, 
-                status: isApproved ? 'Aprovado' as CourseStatus : 'Revisão solicitada' as CourseStatus,
-                updatedAt: new Date() 
-              } 
-            : course
-        );
-        
-        return {
-          approvalRequests: updatedApprovalRequests,
-          courses: updatedCourses
-        };
-      }),
-      
-      // Get courses visible to a specific user (created by them, in their department, or where they're a collaborator)
-      getVisibleCoursesForUser: (userId, userDepartment) => {
-        const { courses } = get();
-        return courses.filter(course => 
-          course.createdBy === userId || 
-          (userDepartment && course.department === userDepartment) ||
-          (course.collaborators && course.collaborators.includes(userId))
-        );
+
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  approvalRequests: course.approvalRequests
+                    ? [...course.approvalRequests, newApproval]
+                    : [newApproval],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateApprovalStatus: (courseId, approvalId, status, comments) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  approvalRequests: course.approvalRequests
+                    ? course.approvalRequests.map((approval) =>
+                        approval.id === approvalId
+                          ? {
+                              ...approval,
+                              status,
+                              comments:
+                                comments !== undefined
+                                  ? comments
+                                  : approval.comments,
+                              reviewDate: new Date(),
+                            }
+                          : approval
+                      )
+                    : [],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
       },
       
-      // Get a specific course by ID
-      getCourseById: (courseId) => {
-        const { courses } = get();
-        return courses.find(course => course.id === courseId);
+      reorderModule: (courseId, oldIndex, newIndex) => {
+        set((state) => {
+          const course = state.courses.find(c => c.id === courseId);
+          if (!course) return state;
+          
+          const modules = [...course.modules];
+          const [movedModule] = modules.splice(oldIndex, 1);
+          modules.splice(newIndex, 0, movedModule);
+          
+          return {
+            courses: state.courses.map((c) =>
+              c.id === courseId ? { ...c, modules, updatedAt: new Date() } : c
+            ),
+          };
+        });
       },
       
-      // Get pending approval requests for a specific approver
-      getPendingApprovals: (approverId) => {
-        const { approvalRequests } = get();
-        return approvalRequests.filter(request => 
-          request.approverId === approverId && 
-          request.status === 'pendente'
-        );
+      reorderLesson: (courseId, moduleId, oldIndex, newIndex) => {
+        set((state) => {
+          const course = state.courses.find(c => c.id === courseId);
+          if (!course) return state;
+          
+          const moduleIndex = course.modules.findIndex(m => m.id === moduleId);
+          if (moduleIndex === -1) return state;
+          
+          const lessons = [...course.modules[moduleIndex].lessons];
+          const [movedLesson] = lessons.splice(oldIndex, 1);
+          lessons.splice(newIndex, 0, movedLesson);
+          
+          const updatedModules = [...course.modules];
+          updatedModules[moduleIndex] = {
+            ...updatedModules[moduleIndex],
+            lessons
+          };
+          
+          return {
+            courses: state.courses.map((c) =>
+              c.id === courseId ? { ...c, modules: updatedModules, updatedAt: new Date() } : c
+            ),
+          };
+        });
       }
     }),
-    {
-      name: 'course-storage',
-    }
+    { name: "course-store" }
   )
 );

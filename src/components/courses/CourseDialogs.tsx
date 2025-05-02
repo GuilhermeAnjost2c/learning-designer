@@ -1,7 +1,8 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Course, ApprovalItemType } from "@/store/courseStore";
-import { User } from "@/store/userStore";
+import { User, useUserStore } from "@/store/userStore";
+import { useSupabase } from "@/hooks/useSupabase";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +32,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { UserRound, Trash } from "lucide-react";
+import { UserRound, Trash, Search } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface CourseDialogsProps {
   course: Course;
@@ -82,6 +86,48 @@ export const CourseDialogs = ({
   setIsApprovalDialogOpen,
   handleSubmitForApproval
 }: CourseDialogsProps) => {
+  const { searchUsers } = useSupabase();
+  const { getAllManagers } = useUserStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userResults, setUserResults] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
+  
+  const allManagers = getAllManagers();
+
+  useEffect(() => {
+    // Auto-select the first manager as approver
+    if (allManagers.length > 0 && !approvalData.approverId) {
+      setApprovalData({
+        ...approvalData,
+        approverId: allManagers[0].id,
+        approvalType: 'curso_completo'
+      });
+    }
+  }, [allManagers, approvalData, setApprovalData]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (searchQuery.length > 2) {
+        const results = await searchUsers(searchQuery);
+        setUserResults(results as User[]);
+      }
+    };
+    
+    fetchUsers();
+  }, [searchQuery, searchUsers]);
+
+  const handleUserSelect = (user: User) => {
+    setSelectedUser(user);
+    setCollaboratorEmail(user.email);
+    setOpen(false);
+  };
+
+  const handleApprovalSubmit = () => {
+    // Always use curso_completo as the type
+    handleSubmitForApproval();
+  };
+
   return (
     <>
       <Dialog open={isCollaboratorDialogOpen} onOpenChange={setIsCollaboratorDialogOpen}>
@@ -94,13 +140,46 @@ export const CourseDialogs = ({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <Label htmlFor="collaborator-email">Email do Colaborador</Label>
-            <Input
-              id="collaborator-email"
-              placeholder="email@exemplo.com"
-              value={collaboratorEmail}
-              onChange={(e) => setCollaboratorEmail(e.target.value)}
-            />
+            <Label>Buscar Colaborador</Label>
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  {selectedUser ? selectedUser.name : "Selecione um colaborador..."}
+                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0">
+                <Command>
+                  <CommandInput
+                    placeholder="Buscar por nome..."
+                    className="h-9"
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                  />
+                  <CommandEmpty>Nenhum usuário encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {userResults.map((user) => (
+                      <CommandItem
+                        key={user.id}
+                        value={user.id}
+                        onSelect={() => handleUserSelect(user)}
+                      >
+                        <UserRound className="mr-2 h-4 w-4" />
+                        <div className="flex flex-col">
+                          <span>{user.name}</span>
+                          <span className="text-xs text-muted-foreground">{user.email}</span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
           
           {getCollaborators().length > 0 && (
@@ -146,80 +225,11 @@ export const CourseDialogs = ({
           <DialogHeader>
             <DialogTitle>Enviar para Aprovação</DialogTitle>
             <DialogDescription>
-              Solicite a aprovação do curso ou de elementos específicos.
+              Solicite a aprovação do curso completo.
             </DialogDescription>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approver">Aprovador</Label>
-              <Select 
-                value={approvalData.approverId} 
-                onValueChange={(value) => setApprovalData({...approvalData, approverId: value})}
-              >
-                <SelectTrigger id="approver">
-                  <SelectValue placeholder="Selecione o aprovador" />
-                </SelectTrigger>
-                <SelectContent>
-                  {managers.map(manager => (
-                    <SelectItem key={manager.id} value={manager.id}>
-                      {manager.name} ({manager.department})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="approval-type">O que deseja aprovar?</Label>
-              <Select 
-                value={approvalData.approvalType}
-                onValueChange={(value) => setApprovalData({...approvalData, approvalType: value as ApprovalItemType})}
-              >
-                <SelectTrigger id="approval-type">
-                  <SelectValue placeholder="Selecione o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="curso_completo">Curso Completo</SelectItem>
-                  <SelectItem value="estrutura">Estrutura do Curso</SelectItem>
-                  <SelectItem value="modulo">Módulo Específico</SelectItem>
-                  <SelectItem value="aula">Aula Específica</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {(approvalData.approvalType === 'modulo' || approvalData.approvalType === 'aula') && (
-              <div>
-                <Label htmlFor="item-id">
-                  {approvalData.approvalType === 'modulo' ? 'Selecione o Módulo' : 'Selecione a Aula'}
-                </Label>
-                <Select 
-                  value={approvalData.itemId}
-                  onValueChange={(value) => setApprovalData({...approvalData, itemId: value})}
-                >
-                  <SelectTrigger id="item-id">
-                    <SelectValue placeholder="Selecione o item" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {approvalData.approvalType === 'modulo' 
-                      ? course.modules.map(module => (
-                          <SelectItem key={module.id} value={module.id}>
-                            {module.title}
-                          </SelectItem>
-                        ))
-                      : course.modules.flatMap(module => 
-                          module.lessons.map(lesson => (
-                            <SelectItem key={lesson.id} value={lesson.id}>
-                              {module.title} - {lesson.title}
-                            </SelectItem>
-                          ))
-                        )
-                    }
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
             <div>
               <Label htmlFor="comments">Comentários (opcional)</Label>
               <Textarea
@@ -236,7 +246,7 @@ export const CourseDialogs = ({
             <Button variant="outline" onClick={() => setIsApprovalDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmitForApproval}>
+            <Button onClick={handleApprovalSubmit}>
               Enviar para Aprovação
             </Button>
           </DialogFooter>

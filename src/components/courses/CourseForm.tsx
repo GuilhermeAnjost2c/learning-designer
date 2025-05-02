@@ -11,12 +11,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Course, useCourseStore } from "@/store/courseStore";
 import { useNavigate } from "react-router-dom";
-import { X, Save, Clock, Users, Target, BookOpen } from "lucide-react";
+import { X, Save, Clock, Users, Target, BookOpen, GraduationCap } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useUserStore } from "@/store/userStore";
@@ -32,6 +39,7 @@ const formSchema = z.object({
     .max(10000, "A duração deve ser no máximo 10000 minutos"),
   thumbnail: z.string().optional(),
   tags: z.string().optional(),
+  format: z.enum(["EAD", "Ao vivo", "Híbrido"]).default("EAD"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -59,6 +67,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       estimatedDuration: course?.estimatedDuration || 60,
       thumbnail: course?.thumbnail || "",
       tags: course?.tags?.join(", ") || "",
+      format: course?.format || "EAD",
     },
   });
 
@@ -96,6 +105,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           createdBy: currentUser.id,
           department: currentUser.department,
           collaborators: [],
+          format: values.format,
         });
         toast.success("Curso criado com sucesso!");
         navigate("/courses");
@@ -227,6 +237,34 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
 
                 <FormField
                   control={form.control}
+                  name="format"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Formato do Curso</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <div className="flex items-center space-x-2">
+                            <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o formato do curso" />
+                            </SelectTrigger>
+                          </div>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="EAD">EAD</SelectItem>
+                          <SelectItem value="Ao vivo">Ao vivo</SelectItem>
+                          <SelectItem value="Híbrido">Híbrido</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
                   name="thumbnail"
                   render={({ field }) => (
                     <FormItem>
@@ -242,25 +280,25 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <FormField
-                control={form.control}
-                name="tags"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tags (separadas por vírgula)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="design, inovação, gestão, etc" 
-                        {...field} 
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="tags"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tags (separadas por vírgula)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="design, inovação, gestão, etc" 
+                          {...field} 
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </form>
           </Form>
         </div>

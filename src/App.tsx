@@ -9,7 +9,6 @@ import CreateCourse from "./pages/CreateCourse";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import DynamicsBank from "./pages/DynamicsBank";
-import EduAI from "./pages/EduAI";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import { useUserStore, UserRole } from "./store/userStore";
@@ -60,7 +59,6 @@ function App() {
                 <DynamicsBank />
               </ProtectedRoute>
             } />
-            <Route path="edu" element={<EduAI />} />
             <Route path="admin" element={
               <ProtectedRoute allowedRoles={['admin', 'manager']}>
                 <Admin />

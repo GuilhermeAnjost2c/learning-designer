@@ -12,6 +12,9 @@ import { CourseHeader } from "@/components/courses/CourseHeader";
 import { CourseInfo } from "@/components/courses/CourseInfo";
 import { CourseContent } from "@/components/courses/CourseContent";
 import { CourseDialogs } from "@/components/courses/CourseDialogs";
+import { Card, CardContent } from "@/components/ui/card";
+import { FileText, FileDown } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -32,6 +35,7 @@ const CourseDetail = () => {
     itemId: "",
     comments: ""
   });
+  const [showStructure, setShowStructure] = useState(false);
   
   const managers = getAllManagers();
   
@@ -77,24 +81,6 @@ const CourseDetail = () => {
     (acc, module) => acc + module.lessons.length, 
     0
   );
-  
-  const lessonStatusStats = course.modules.reduce((acc, module) => {
-    module.lessons.forEach(lesson => {
-      acc[lesson.status] = (acc[lesson.status] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const getStatusPercentage = (status: string) => {
-    if (totalLessons === 0) return 0;
-    return Math.round((lessonStatusStats[status] || 0) / totalLessons * 100);
-  };
-  
-  const getTotalCompletionPercentage = () => {
-    if (totalLessons === 0) return 0;
-    const finalizandoCount = lessonStatusStats['Finalizando'] || 0;
-    return Math.round((finalizandoCount / totalLessons) * 100);
-  };
 
   const handleDelete = () => {
     deleteCourse(course.id);
@@ -167,6 +153,15 @@ const CourseDetail = () => {
     setIsApprovalDialogOpen(false);
   };
 
+  const toggleShowStructure = () => {
+    setShowStructure(!showStructure);
+  };
+
+  const exportStructurePDF = () => {
+    // This is just a placeholder for now - we'll implement PDF export in a future update
+    toast.success("Funcionalidade de exportação PDF será implementada em breve!");
+  };
+
   return (
     <div className="container mx-auto py-6">
       <CourseHeader 
@@ -183,14 +178,72 @@ const CourseDetail = () => {
         course={course}
         totalModules={totalModules}
         totalLessons={totalLessons}
-        lessonStatusStats={lessonStatusStats}
-        getStatusPercentage={getStatusPercentage}
-        getTotalCompletionPercentage={getTotalCompletionPercentage}
         collaborators={getCollaborators()}
         onOpenEditor={openEditor}
         onRemoveCollaborator={handleRemoveCollaborator}
         onOpenCollaboratorDialog={() => setIsCollaboratorDialogOpen(true)}
       />
+
+      {/* Course Structure Summary */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium">Estrutura do Curso</h3>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={toggleShowStructure}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              {showStructure ? "Ocultar Estrutura" : "Ver Estrutura"}
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={exportStructurePDF}
+              className="flex items-center gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          </div>
+        </div>
+        
+        {showStructure && (
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-4">
+                  {course.modules.map((module, moduleIndex) => (
+                    <div key={module.id} className="border-b pb-3">
+                      <h4 className="text-md font-medium mb-2">
+                        Módulo {moduleIndex + 1}: {module.title}
+                      </h4>
+                      {module.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{module.description}</p>
+                      )}
+                      <div className="pl-4 space-y-2">
+                        {module.lessons.map((lesson, lessonIndex) => (
+                          <div key={lesson.id} className="border-l-2 pl-3 py-1">
+                            <div className="flex justify-between">
+                              <h5 className="text-sm font-medium">{moduleIndex + 1}.{lessonIndex + 1} - {lesson.title}</h5>
+                              <span className="text-xs text-muted-foreground">{lesson.duration} min</span>
+                            </div>
+                            {lesson.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{lesson.description.substring(0, 100)}{lesson.description.length > 100 ? "..." : ""}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       <CourseContent 
         course={course}
