@@ -36,14 +36,26 @@ export const useSupabase = () => {
 
   const fetchUserData = async (userId: string) => {
     try {
-      // Use the correct table name or ensure 'profiles' exists in your Supabase instance
-      const { data, error } = await supabase
-        .from('users') // Changed from 'profiles' to 'users'
+      // Try to fetch from 'users' table first, then fall back to 'profiles' if needed
+      let { data, error } = await supabase
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.log("Failed to fetch from profiles, trying users table instead");
+        // If profiles table failed, try users table
+        const response = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (response.error) throw response.error;
+        data = response.data;
+      }
+
       return data;
     } catch (err) {
       setError(err.message);
@@ -53,14 +65,26 @@ export const useSupabase = () => {
 
   const searchUsers = async (query: string) => {
     try {
-      // Use the correct table name or ensure 'profiles' exists in your Supabase instance
-      const { data, error } = await supabase
-        .from('users') // Changed from 'profiles' to 'users'
+      // Try to search in 'profiles' table first, then fall back to 'users' if needed
+      let { data, error } = await supabase
+        .from('profiles')
         .select('*')
         .ilike('name', `%${query}%`)
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.log("Failed to search in profiles, trying users table instead");
+        // If profiles table failed, try users table
+        const response = await supabase
+          .from('users')
+          .select('*')
+          .ilike('name', `%${query}%`)
+          .limit(10);
+          
+        if (response.error) throw response.error;
+        data = response.data;
+      }
+
       return data || [];
     } catch (err) {
       setError(err.message);

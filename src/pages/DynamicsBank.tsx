@@ -26,7 +26,7 @@ import { Clock, Search, Users, Target, Plus, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 const DynamicsBank = () => {
-  const { dynamics, dynamicsCategories } = useDynamicsStore();
+  const { dynamicsActivities, dynamicsCategories } = useDynamicsStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedDuration, setSelectedDuration] = useState<string>("all");
@@ -34,7 +34,7 @@ const DynamicsBank = () => {
   const [hoveredDynamic, setHoveredDynamic] = useState<string | null>(null);
 
   // Filtered dynamics based on search term and filters
-  const filteredDynamics = dynamics.filter((dynamic) => {
+  const filteredDynamics = dynamicsActivities.filter((dynamic) => {
     const matchesSearch =
       searchTerm === "" ||
       dynamic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -147,7 +147,7 @@ const DynamicsBank = () => {
             <CardContent className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Total de dinâmicas:</span>
-                <span className="font-medium">{dynamics.length}</span>
+                <span className="font-medium">{dynamicsActivities.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Categorias:</span>
