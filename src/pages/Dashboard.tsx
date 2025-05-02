@@ -144,9 +144,7 @@ const Dashboard = () => {
     'Rascunho': '#8E9196',
     'Em andamento': '#9b87f5',
     'Concluído': '#33C3F0',
-    'Em aprovação': '#f59b37',
-    'Aprovado': '#33f56f',
-    'Revisão solicitada': '#f53737'
+    'Arquivado': '#f59b37'
   };
   
   const LESSON_STATUS_COLORS: Record<LessonStatus, string> = {

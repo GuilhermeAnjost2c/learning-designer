@@ -92,11 +92,13 @@ interface CourseStore {
   ) => void;
   reorderModule: (courseId: string, oldIndex: number, newIndex: number) => void;
   reorderLesson: (courseId: string, moduleId: string, oldIndex: number, newIndex: number) => void;
+  // Add the missing function
+  getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
 }
 
 export const useCourseStore = create<CourseStore>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       courses: [...sampleCourses],
 
       addCourse: (course) => {
@@ -431,6 +433,23 @@ export const useCourseStore = create<CourseStore>()(
               c.id === courseId ? { ...c, modules: updatedModules, updatedAt: new Date() } : c
             ),
           };
+        });
+      },
+      
+      // Implementation of the getVisibleCoursesForUser function
+      getVisibleCoursesForUser: (userId, userDepartment) => {
+        const state = get();
+        return state.courses.filter(course => {
+          // User is creator
+          if (course.createdBy === userId) return true;
+          
+          // User is collaborator
+          if (course.collaborators && course.collaborators.includes(userId)) return true;
+          
+          // Course is in user's department
+          if (userDepartment && course.department === userDepartment) return true;
+          
+          return false;
         });
       }
     }),

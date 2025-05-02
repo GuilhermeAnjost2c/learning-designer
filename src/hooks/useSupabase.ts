@@ -36,8 +36,9 @@ export const useSupabase = () => {
 
   const fetchUserData = async (userId: string) => {
     try {
+      // Use the correct table name or ensure 'profiles' exists in your Supabase instance
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users') // Changed from 'profiles' to 'users'
         .select('*')
         .eq('id', userId)
         .single();
@@ -52,8 +53,9 @@ export const useSupabase = () => {
 
   const searchUsers = async (query: string) => {
     try {
+      // Use the correct table name or ensure 'profiles' exists in your Supabase instance
       const { data, error } = await supabase
-        .from('profiles')
+        .from('users') // Changed from 'profiles' to 'users'
         .select('*')
         .ilike('name', `%${query}%`)
         .limit(10);
