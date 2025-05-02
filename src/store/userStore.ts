@@ -40,10 +40,13 @@ export const useUserStore = create<UserState>()(
       currentUser: null,
       isAuthenticated: false,
 
-      setCurrentUser: (user) => set({ 
-        currentUser: user,
-        isAuthenticated: !!user
-      }),
+      setCurrentUser: (user) => {
+        set({ 
+          currentUser: user,
+          isAuthenticated: !!user
+        });
+        console.log("Current user set:", user);
+      },
       
       addUser: (user) => set((state) => ({
         users: [...state.users, user]
@@ -100,8 +103,12 @@ export const useUserStore = create<UserState>()(
       },
       
       logout: async () => {
-        await supabase.auth.signOut();
-        set({ currentUser: null, isAuthenticated: false });
+        try {
+          await supabase.auth.signOut();
+          set({ currentUser: null, isAuthenticated: false });
+        } catch (error) {
+          console.error("Error during logout:", error);
+        }
       }
     }),
     {

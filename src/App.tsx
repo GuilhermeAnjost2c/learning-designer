@@ -1,7 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "./components/ui/toaster";
+import { Toaster } from "sonner";
 import { Layout } from "./components/layout/Layout";
 import CourseDetail from "./pages/CourseDetail";
 import CoursesList from "./pages/CoursesList";
@@ -31,21 +31,26 @@ const ProtectedRoute = ({
   
   useEffect(() => {
     const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      if (data.session?.user) {
-        // Atualizar o usuário atual com os dados da sessão
-        setCurrentUser({
-          id: data.session.user.id,
-          email: data.session.user.email || '',
-          name: data.session.user.user_metadata?.name || '',
-          role: data.session.user.user_metadata?.role || 'student',
-          department: data.session.user.user_metadata?.department,
-          avatar: data.session.user.user_metadata?.avatar,
-        });
+      try {
+        const { data } = await supabase.auth.getSession();
+        
+        if (data.session?.user) {
+          const user = data.session.user;
+          // Atualizar o usuário atual com os dados da sessão
+          setCurrentUser({
+            id: user.id,
+            email: user.email || '',
+            name: user.user_metadata?.name || '',
+            role: user.user_metadata?.role || 'student',
+            department: user.user_metadata?.department,
+            avatar: user.user_metadata?.avatar,
+          });
+        }
+      } catch (error) {
+        console.error("Error checking auth:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     checkAuth();

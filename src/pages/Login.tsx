@@ -47,15 +47,32 @@ const Login = () => {
     
     // Check session
     const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (data && data.session) {
-        navigate("/");
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (data && data.session) {
+          // Get user metadata
+          const user = data.session.user;
+          
+          if (user) {
+            setCurrentUser({
+              id: user.id,
+              email: user.email || '',
+              name: user.user_metadata?.name || '',
+              role: user.user_metadata?.role || 'student',
+              department: user.user_metadata?.department,
+              avatar: user.user_metadata?.avatar,
+            });
+            
+            navigate("/");
+          }
+        }
+      } catch (err) {
+        console.error("Error checking session:", err);
       }
     };
     
     checkSession();
-    
-  }, [navigate, isAuthenticated]);
+  }, [navigate, isAuthenticated, setCurrentUser]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -89,16 +106,16 @@ const Login = () => {
         setCurrentUser({
           id: user.id,
           email: user.email || '',
-          name: user.user_metadata.name || '',
-          role: user.user_metadata.role || 'student',
-          department: user.user_metadata.department,
-          avatar: user.user_metadata.avatar,
+          name: user.user_metadata?.name || '',
+          role: user.user_metadata?.role || 'student',
+          department: user.user_metadata?.department,
+          avatar: user.user_metadata?.avatar,
         });
         
         toast.success("Login realizado com sucesso!");
         navigate("/");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error during login:", error);
       toast.error("Erro ao fazer login. Tente novamente.");
     } finally {
