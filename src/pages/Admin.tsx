@@ -1,44 +1,18 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { useUserStore } from "@/store/userStore";
+import { useCourseStore } from "@/store/courseStore";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useUserStore, User, UserRole, DepartmentName } from "@/store/userStore";
-import { useUserManagement } from "@/hooks/useUserManagement";
-import { useSupabase } from "@/hooks/useSupabase";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
-import { useCourseStore } from "@/store/courseStore";
-import { Check, Search, UserPlus, X, Trash } from "lucide-react";
-import { useDebounce } from "@/hooks/useDebounce";
 import {
   Table,
   TableBody,
@@ -48,386 +22,536 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
 
-const createUserSchema = z.object({
-  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
-  email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-  role: z.enum(["admin", "manager", "instructor", "student"]),
-  department: z.string().optional(),
-});
+import { UserRole, DepartmentName } from "@/store/userStore";
 
-type CreateUserFormValues = z.infer<typeof createUserSchema>;
+interface ApprovalRequestWithDetails {
+  id: string;
+  courseId: string;
+  requestDate: Date;
+  requestedBy: string;
+  approverId: string;
+  approvalType: string;
+  itemId?: string;
+  status: string;
+  comments?: string;
+  reviewDate?: Date;
+}
 
-const UserForm = ({ onUserCreated }: { onUserCreated: () => void }) => {
-  const { createUser } = useUserManagement();
+const Admin = () => {
+  const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
+  const { courses, updateCourseStatus } = useCourseStore();
+  const [selectedTab, setSelectedTab] = useState("users");
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
+  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [userFormData, setUserFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "student" as UserRole,
+    department: undefined as DepartmentName | undefined,
+  });
+  const [courseFormData, setCourseFormData] = useState({
+    status: "Rascunho",
+  });
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [departmentFilter, setDepartmentFilter] = useState<DepartmentName | "all">("all");
+  const [filteredUsers, setFilteredUsers] = useState(users);
 
-  const form = useForm<CreateUserFormValues>({
-    resolver: zodResolver(createUserSchema),
-    defaultValues: {
+  useEffect(() => {
+    if (departmentFilter === "all") {
+      setFilteredUsers(users);
+    } else {
+      setFilteredUsers(getUsersByDepartment(departmentFilter));
+    }
+  }, [users, departmentFilter, getUsersByDepartment]);
+
+  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setUserFormData({
+      ...userFormData,
+      [name]: value,
+    });
+  };
+
+  const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setCourseFormData({
+      ...courseFormData,
+      [name]: value,
+    });
+  };
+
+  const handleCreateUser = () => {
+    addUser({
+      name: userFormData.name,
+      email: userFormData.email,
+      password: userFormData.password,
+      role: userFormData.role,
+      department: userFormData.department,
+    });
+    closeUserDialog();
+  };
+
+  const handleUpdateUser = () => {
+    if (selectedUser) {
+      updateUser(selectedUser.id, {
+        name: userFormData.name,
+        email: userFormData.email,
+        role: userFormData.role,
+        department: userFormData.department,
+      });
+      closeUserDialog();
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    setUserToDelete(userId);
+    setDeleteConfirmationOpen(true);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      deleteUser(userToDelete);
+      setDeleteConfirmationOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const cancelDeleteUser = () => {
+    setDeleteConfirmationOpen(false);
+    setUserToDelete(null);
+  };
+
+  const handleUpdateCourseStatus = () => {
+    if (selectedCourse) {
+      updateCourseStatus(selectedCourse.id, courseFormData.status as any);
+      closeCourseDialog();
+    }
+  };
+
+  const openUserDialog = (user = null) => {
+    setSelectedUser(user);
+    if (user) {
+      setUserFormData({
+        name: user.name,
+        email: user.email,
+        password: "", // Don't pre-fill password
+        role: user.role,
+        department: user.department,
+      });
+    } else {
+      setUserFormData({
+        name: "",
+        email: "",
+        password: "",
+        role: "student",
+        department: undefined,
+      });
+    }
+    setIsUserDialogOpen(true);
+  };
+
+  const closeUserDialog = () => {
+    setIsUserDialogOpen(false);
+    setSelectedUser(null);
+    setUserFormData({
       name: "",
       email: "",
       password: "",
       role: "student",
-      department: "",
-    },
-  });
-
-  const onSubmit = async (values: CreateUserFormValues) => {
-    const result = await createUser(values.email, values.password, {
-      name: values.name,
-      role: values.role,
-      department: values.department,
+      department: undefined,
     });
+  };
 
-    if (result) {
-      toast.success("Usuário criado com sucesso!");
-      form.reset();
-      onUserCreated();
+  const openCourseDialog = (course) => {
+    setSelectedCourse(course);
+    setCourseFormData({
+      status: course.status,
+    });
+    setIsCourseDialogOpen(true);
+  };
+
+  const closeCourseDialog = () => {
+    setIsCourseDialogOpen(false);
+    setSelectedCourse(null);
+    setCourseFormData({
+      status: "Rascunho",
+    });
+  };
+
+  const getRequestStatusBadge = (status: string) => {
+    if (status === "pendente") {
+      return <Badge variant="outline">Pendente</Badge>;
+    } else if (status === "aprovado") {
+      return <Badge variant="default">Aprovado</Badge>;
+    } else {
+      return <Badge variant="destructive">Rejeitado</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pendente':
+        return <Badge variant="outline">Pendente</Badge>;
+      case 'aprovado':
+        return <Badge variant="default">Aprovado</Badge>;
+      case 'rejeitado':
+        return <Badge variant="destructive">Rejeitado</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome</FormLabel>
-              <FormControl>
-                <Input placeholder="Nome completo do usuário" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>E-mail</FormLabel>
-              <FormControl>
-                <Input placeholder="Email do usuário" type="email" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Senha</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Senha temporária"
-                  type="password"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="role"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Função</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a função" />
-                    </SelectTrigger>
-                  </FormControl>
+    <div className="container mx-auto py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl">Painel de Administração</CardTitle>
+          <CardDescription>Gerencie usuários, cursos e outras configurações do sistema.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue={selectedTab} className="space-y-4" onValueChange={setSelectedTab}>
+            <TabsList>
+              <TabsTrigger value="users" className="focus:outline-none">Usuários</TabsTrigger>
+              <TabsTrigger value="courses" className="focus:outline-none">Cursos</TabsTrigger>
+              <TabsTrigger value="approvals" className="focus:outline-none">Aprovações</TabsTrigger>
+            </TabsList>
+            <TabsContent value="users" className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
+                <Button onClick={() => openUserDialog()} className="focus:outline-none">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Adicionar Usuário
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Label htmlFor="department-filter">Filtrar por Departamento:</Label>
+                <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentName | "all")}>
+                  <SelectTrigger id="department-filter">
+                    <SelectValue placeholder="Todos os Departamentos" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                    <SelectItem value="manager">Gerente</SelectItem>
-                    <SelectItem value="instructor">Instrutor</SelectItem>
-                    <SelectItem value="student">Aluno</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="department"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Departamento</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o departamento" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Tecnologia">Tecnologia</SelectItem>
+                    <SelectItem value="all">Todos os Departamentos</SelectItem>
                     <SelectItem value="Marketing">Marketing</SelectItem>
                     <SelectItem value="Vendas">Vendas</SelectItem>
                     <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="Financeiro">Financeiro</SelectItem>
+                    <SelectItem value="TI">TI</SelectItem>
                     <SelectItem value="Operações">Operações</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+              </div>
+              <Table>
+                <TableCaption>Lista de usuários cadastrados no sistema.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Departamento</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.role}</TableCell>
+                      <TableCell>{user.department || "-"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openUserDialog(user)}
+                          className="focus:outline-none"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="focus:outline-none"
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          Excluir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="courses" className="space-y-4">
+              <h2 className="text-xl font-semibold">Gerenciar Cursos</h2>
+              <Table>
+                <TableCaption>Lista de cursos cadastrados no sistema.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Criador</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.map((course) => (
+                    <TableRow key={course.id}>
+                      <TableCell>{course.name}</TableCell>
+                      <TableCell>
+                        {getStatusBadge(course.status)}
+                      </TableCell>
+                      <TableCell>{users.find(user => user.id === course.createdBy)?.name || "N/A"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openCourseDialog(course)}
+                          className="focus:outline-none"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar Status
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="approvals" className="space-y-4">
+              <h2 className="text-xl font-semibold">Gerenciar Solicitações de Aprovação</h2>
+              <Table>
+                <TableCaption>Lista de solicitações de aprovação pendentes.</TableCaption>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Curso</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Solicitante</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {courses.flatMap(course => 
+                    course.approvalRequests?.map(requestId => {
+                      const request = (courses.flatMap(c => 
+                        c.approvalRequests?.map(req => {
+                          if (typeof req === 'string') return null;
+                          return req;
+                        })
+                      ).filter(Boolean).find(req => req?.id === requestId)) as ApprovalRequestWithDetails | undefined;
+                      
+                      const requestedBy = users.find(user => user.id === request?.requestedBy);
 
-        <Button type="submit" className="w-full">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Criar Usuário
-        </Button>
-      </form>
-    </Form>
-  );
-};
+                      return request ? (
+                        <TableRow key={request.id}>
+                          <TableCell>{course.name}</TableCell>
+                          <TableCell>{request.approvalType}</TableCell>
+                          <TableCell>{requestedBy?.name || "N/A"}</TableCell>
+                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" className="focus:outline-none">
+                              <Eye className="mr-2 h-4 w-4" />
+                              Visualizar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ) : null;
+                    }) || []
+                  )}
+                </TableBody>
+              </Table>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
-const UserManagement = () => {
-  const { users, setUsers } = useUserStore();
-  const { listUsers } = useUserManagement();
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebounce(searchQuery, 300);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refresh, setRefresh] = useState(0);
+      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{selectedUser ? "Editar Usuário" : "Criar Usuário"}</DialogTitle>
+            <DialogDescription>
+              {selectedUser
+                ? "Atualize as informações do usuário."
+                : "Crie um novo usuário para o sistema."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Nome
+              </Label>
+              <Input
+                type="text"
+                id="name"
+                name="name"
+                value={userFormData.name}
+                onChange={handleUserInputChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="email" className="text-right">
+                Email
+              </Label>
+              <Input
+                type="email"
+                id="email"
+                name="email"
+                value={userFormData.email}
+                onChange={handleUserInputChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="password" className="text-right">
+                Senha
+              </Label>
+              <Input
+                type="password"
+                id="password"
+                name="password"
+                value={userFormData.password}
+                onChange={handleUserInputChange}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="role" className="text-right">
+                Role
+              </Label>
+              <Select value={userFormData.role} onValueChange={(value) => handleUserInputChange({ target: { name: 'role', value } } as any)}>
+                <SelectTrigger id="role" className="col-span-3">
+                  <SelectValue placeholder="Selecione um role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="instructor">Instrutor</SelectItem>
+                  <SelectItem value="student">Estudante</SelectItem>
+                  <SelectItem value="manager">Gerente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="department" className="text-right">
+                Departamento
+              </Label>
+              <Select 
+                value={userFormData.department || "none"} 
+                onValueChange={(value) => handleUserInputChange({ 
+                  target: { 
+                    name: 'department', 
+                    value: value === "none" ? undefined : value 
+                  } 
+                } as any)}
+              >
+                <SelectTrigger id="department" className="col-span-3">
+                  <SelectValue placeholder="Selecione um departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Vendas">Vendas</SelectItem>
+                  <SelectItem value="RH">RH</SelectItem>
+                  <SelectItem value="TI">TI</SelectItem>
+                  <SelectItem value="Operações">Operações</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={closeUserDialog}>
+              Cancelar
+            </Button>
+            <Button type="submit" onClick={selectedUser ? handleUpdateUser : handleCreateUser}>
+              {selectedUser ? "Atualizar" : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-  // Dummy function to make TypeScript happy
-  const deleteUser = async (userId: string) => {
-    return false;
-  };
+      <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Status do Curso</DialogTitle>
+            <DialogDescription>
+              Atualize o status do curso selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select value={courseFormData.status} onValueChange={(value) => handleCourseInputChange({ target: { name: 'status', value } } as any)}>
+                <SelectTrigger id="status" className="col-span-3">
+                  <SelectValue placeholder="Selecione um status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Rascunho">Rascunho</SelectItem>
+                  <SelectItem value="Em andamento">Em andamento</SelectItem>
+                  <SelectItem value="Concluído">Concluído</SelectItem>
+                  <SelectItem value="Em aprovação">Em aprovação</SelectItem>
+                  <SelectItem value="Aprovado">Aprovado</SelectItem>
+                  <SelectItem value="Revisão solicitada">Revisão solicitada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={closeCourseDialog}>
+              Cancelar
+            </Button>
+            <Button type="submit" onClick={handleUpdateCourseStatus}>
+              Atualizar Status
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-  const getUsersByDepartment = (dept: string) => {
-    return users.filter(user => user.department === dept);
-  };
-
-  const loadUsers = async () => {
-    setIsLoading(true);
-    const allUsers = await listUsers();
-    setUsers(allUsers);
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, [refresh]);
-
-  useEffect(() => {
-    if (debouncedSearch.trim() === "") {
-      setFilteredUsers(users);
-    } else {
-      setFilteredUsers(
-        users.filter(
-          (user) =>
-            user.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            user.email.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            user.department?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-            user.role.toLowerCase().includes(debouncedSearch.toLowerCase())
-        )
-      );
-    }
-  }, [debouncedSearch, users]);
-
-  const handleRefresh = () => {
-    setRefresh((prev) => prev + 1);
-  };
-
-  const roleDisplay: Record<string, string> = {
-    admin: "Administrador",
-    manager: "Gerente",
-    instructor: "Instrutor",
-    student: "Aluno",
-  };
-
-  const getRoleStyles = (role: string) => {
-    switch (role) {
-      case "admin":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "manager":
-        return "bg-purple-100 text-purple-800 border-purple-200";
-      case "instructor":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "student":
-        return "bg-green-100 text-green-800 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const handleDeleteUser = async (user: User) => {
-    if (!confirm(`Tem certeza que deseja excluir o usuário ${user.name}?`)) {
-      return;
-    }
-
-    try {
-      const result = await deleteUser(user.id);
-      if (result) {
-        toast.success(`Usuário ${user.name} excluído com sucesso!`);
-        handleRefresh();
-      } else {
-        toast.error("Erro ao excluir usuário");
-      }
-    } catch (error) {
-      toast.error("Erro ao excluir usuário");
-    }
-  };
-
-  return (
-    <>
-      <div className="flex items-center space-x-2 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar usuários..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <Button onClick={handleRefresh}>Atualizar</Button>
-      </div>
-
-      <Table>
-        <TableCaption>
-          Lista de todos os usuários do sistema
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[300px]">Usuário</TableHead>
-            <TableHead>Função</TableHead>
-            <TableHead>Departamento</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading ? (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center">
-                Carregando...
-              </TableCell>
-            </TableRow>
-          ) : filteredUsers.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center">
-                Nenhum usuário encontrado
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src={user.avatar || ""} />
-                      <AvatarFallback>
-                        {user.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .substring(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {user.email}
-                      </div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={getRoleStyles(user.role)}
-                  >
-                    {roleDisplay[user.role] || user.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {user.department || <span className="text-muted-foreground">Não definido</span>}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteUser(user)}
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </>
-  );
-};
-
-const Admin = () => {
-  return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold tracking-tight mb-2">Administração</h1>
-      <p className="text-muted-foreground mb-6">
-        Gerencie usuários e configure o sistema
-      </p>
-
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-          <TabsTrigger value="create">Criar Usuário</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestão de Usuários</CardTitle>
-              <CardDescription>
-                Visualize, edite e exclua usuários do sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="create">
-          <Card>
-            <CardHeader>
-              <CardTitle>Criar Novo Usuário</CardTitle>
-              <CardDescription>
-                Adicione um novo usuário ao sistema
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserForm onUserCreated={() => {}} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação irá excluir o usuário permanentemente. Tem certeza que deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteUser}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteUser}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

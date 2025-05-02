@@ -1,144 +1,110 @@
 
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Bell, Menu, User, LogOut } from "lucide-react";
+import { Bell, Menu, Settings, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { motion } from "framer-motion";
 import { useUserStore } from "@/store/userStore";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface NavbarProps {
-  onToggleSidebar: () => void;
-  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+  sidebarOpen?: boolean;
 }
 
-export const Navbar = ({ onToggleSidebar, sidebarOpen }: NavbarProps) => {
-  const navigate = useNavigate();
+export const Navbar = ({
+  toggleSidebar,
+  sidebarOpen
+}: NavbarProps) => {
   const { currentUser, logout } = useUserStore();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await supabase.auth.signOut();
-      logout();
-      navigate("/login");
-    } catch (error) {
-      console.error("Erro ao fazer logout:", error);
-    } finally {
-      setIsLoggingOut(false);
-    }
+  const handleLogout = () => {
+    logout();
+    toast.success("Logout realizado com sucesso");
+    navigate("/login");
   };
 
   const getInitials = (name: string) => {
     return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
+      .split(' ')
+      .map(part => part[0])
+      .join('')
       .toUpperCase()
       .substring(0, 2);
   };
 
   return (
-    <header className="h-16 border-b px-4 flex items-center justify-between bg-background">
-      <div className="flex items-center">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="lg:hidden"
-          onClick={onToggleSidebar}
-          aria-label={sidebarOpen ? "Fechar menu" : "Abrir menu"}
+    <motion.header 
+      initial={{
+        y: -20,
+        opacity: 0
+      }} 
+      animate={{
+        y: 0,
+        opacity: 1
+      }} 
+      className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6"
+    >
+      <div className="flex items-center gap-3">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={toggleSidebar}
+          className="relative"
+          aria-label={sidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
         >
           <Menu className="h-5 w-5" />
+          {!sidebarOpen && (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+            </span>
+          )}
         </Button>
+        
+        <h1 className="text-xl font-semibold text-primary md:hidden">
+          LD
+        </h1>
       </div>
-
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon">
+          <Bell className="h-5 w-5" />
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative"
-              aria-label="Notificações"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary"></span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuLabel>Notificações</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="max-h-80 overflow-y-auto">
-              <div className="p-3 text-sm text-muted-foreground">
-                Nenhuma notificação no momento.
-              </div>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="flex items-center gap-2 pl-2"
-              aria-label="Perfil"
-            >
-              <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src={currentUser?.avatar || ""}
-                  alt={currentUser?.name || ""}
-                />
-                <AvatarFallback>
-                  {currentUser?.name ? getInitials(currentUser.name) : "U"}
-                </AvatarFallback>
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src="" alt={currentUser?.name || "Usuário"} />
+                <AvatarFallback>{currentUser ? getInitials(currentUser.name) : "US"}</AvatarFallback>
               </Avatar>
-              <div className="hidden md:flex md:flex-col md:items-start">
-                <span className="text-sm font-medium">
-                  {currentUser?.name || "Usuário"}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {currentUser?.role === "admin"
-                    ? "Administrador"
-                    : currentUser?.role === "instructor"
-                    ? "Instrutor"
-                    : currentUser?.role === "manager"
-                    ? "Gerente"
-                    : "Aluno"}
-                </span>
-              </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel>
+              <div>
+                <p className="font-medium">{currentUser?.name || "Usuário"}</p>
+                <p className="text-xs text-muted-foreground">{currentUser?.email || ""}</p>
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="flex items-center gap-2"
-              onClick={() => navigate("/profile")}
-            >
-              <User className="h-4 w-4" />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
               <span>Perfil</span>
             </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Configurações</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="flex items-center gap-2 text-red-500 focus:text-red-500"
-              disabled={isLoggingOut}
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              <span>{isLoggingOut ? "Saindo..." : "Sair"}</span>
+            <DropdownMenuItem onClick={handleLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sair</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+    </motion.header>
   );
 };

@@ -1,7 +1,7 @@
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "sonner";
+import { Toaster } from "./components/ui/toaster";
 import { Layout } from "./components/layout/Layout";
 import CourseDetail from "./pages/CourseDetail";
 import CoursesList from "./pages/CoursesList";
@@ -11,12 +11,8 @@ import NotFound from "./pages/NotFound";
 import DynamicsBank from "./pages/DynamicsBank";
 import EduAI from "./pages/EduAI";
 import Login from "./pages/Login";
-import Setup from "./pages/Setup";
 import Admin from "./pages/Admin";
 import { useUserStore, UserRole } from "./store/userStore";
-import { useEffect, useState } from "react";
-import { supabase } from "./integrations/supabase/client";
-import { Loader2 } from "lucide-react";
 
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
@@ -26,43 +22,7 @@ const ProtectedRoute = ({
   children: JSX.Element, 
   allowedRoles?: UserRole[] 
 }) => {
-  const { isAuthenticated, currentUser, setCurrentUser } = useUserStore();
-  const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        
-        if (data.session?.user) {
-          const user = data.session.user;
-          // Atualizar o usuário atual com os dados da sessão
-          setCurrentUser({
-            id: user.id,
-            email: user.email || '',
-            name: user.user_metadata?.name || '',
-            role: user.user_metadata?.role || 'student',
-            department: user.user_metadata?.department,
-            avatar: user.user_metadata?.avatar,
-          });
-        }
-      } catch (error) {
-        console.error("Error checking auth:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    checkAuth();
-  }, [setCurrentUser]);
-  
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
+  const { isAuthenticated, currentUser } = useUserStore();
   
   if (!isAuthenticated) {
     return <Navigate to="/login" />;
@@ -81,7 +41,6 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/setup" element={<Setup />} />
           
           <Route path="/" element={
             <ProtectedRoute>
