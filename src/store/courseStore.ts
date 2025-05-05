@@ -1,15 +1,12 @@
-
 import { create } from "zustand";
-import { sampleCourses } from "@/utils/sampleData";
 import { devtools } from "zustand/middleware";
-import { nanoid } from "nanoid";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Course, Module, Lesson, ActivityType, CourseFormat } from "@/types/course";
+import { sampleCourses } from "@/utils/sampleData";
 
-export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
-export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
-export type ActivityType = "Exposição" | "Dinâmica" | "Avaliação" | "Prática" | "Debate";
-export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
+export type CourseStatus = "Rascunho" | "Revisão" | "Publicado";
+export type LessonStatus = "Fazer" | "Em Progresso" | "Concluído";
 export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
 export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
 
@@ -68,13 +65,13 @@ interface CourseStore {
   loadingCourses: boolean;
   initialized: boolean;
   initializeCourses: (userId: string) => Promise<void>;
-  addCourse: (course: Omit<Course, "id" | "createdAt" | "updatedAt" | "status" | "modules" | "collaborators">) => Promise<string>;
+  addCourse: (course: Partial<Course>) => Promise<string>;
   updateCourse: (id: string, updates: Partial<Course>) => Promise<void>;
   deleteCourse: (id: string) => Promise<void>;
-  addModule: (courseId: string, module: Omit<Module, "id" | "lessons">) => Promise<void>;
+  addModule: (courseId: string, module: Partial<Module>) => Promise<void>;
   updateModule: (courseId: string, moduleId: string, updates: Partial<Module>) => Promise<void>;
   deleteModule: (courseId: string, moduleId: string) => Promise<void>;
-  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, "id" | "status">) => Promise<void>;
+  addLesson: (courseId: string, moduleId: string, lesson: Partial<Lesson>) => Promise<void>;
   updateLesson: (courseId: string, moduleId: string, lessonId: string, updates: Partial<Lesson>) => Promise<void>;
   deleteLesson: (courseId: string, moduleId: string, lessonId: string) => Promise<void>;
   updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => Promise<void>;

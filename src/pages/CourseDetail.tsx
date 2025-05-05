@@ -14,7 +14,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { CourseHeader } from "@/components/courses/CourseHeader";
@@ -24,30 +23,34 @@ import { CourseForm } from "@/components/courses/CourseForm";
 import { CourseEditor } from "@/components/courses/CourseEditor";
 import { useAuth } from "@/hooks/useAuth";
 import { useCourseStore } from "@/store/courseStore";
-import { supabase } from "@/integrations/supabase/client";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { 
-    fetchCourse, 
-    course, 
+    courses, 
+    loading, 
+    initialized,
+    initializeCourses,
     updateCourse,
     deleteCourse,
-    loading, 
-    error,
-    requestCourseApproval
+    addCollaborator,
+    submitForApproval,
   } = useCourseStore();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("content");
+  
+  // Get the current course
+  const course = courses.find(c => c.id === courseId);
+  const error = initialized && !loading && !course ? "Curso não encontrado" : null;
 
   useEffect(() => {
-    if (courseId && user) {
-      fetchCourse(courseId);
+    if (courseId && user && !initialized) {
+      initializeCourses(user.id);
     }
-  }, [courseId, user, fetchCourse]);
+  }, [courseId, user, initializeCourses, initialized]);
 
   const handleDelete = async () => {
     if (courseId) {
@@ -58,12 +61,15 @@ const CourseDetail = () => {
   };
 
   const handleSubmitForApproval = async () => {
-    if (courseId && course) {
+    if (courseId && course && user) {
       try {
-        await requestCourseApproval(courseId);
+        await submitForApproval(
+          courseId,
+          user.id,
+          "", // Leave approver empty for now
+          "curso_completo"
+        );
         toast.success("Curso enviado para aprovação com sucesso!");
-        // Refresh course data
-        fetchCourse(courseId);
       } catch (error) {
         console.error("Error submitting course for approval:", error);
         toast.error("Erro ao enviar curso para aprovação");
@@ -116,7 +122,6 @@ const CourseDetail = () => {
         course={course}
         onEdit={() => setIsEditOpen(true)}
         onDelete={() => setDeleteDialogOpen(true)}
-        onSubmitForApproval={handleSubmitForApproval}
         isOwner={isOwner}
         canEdit={canEdit}
       />
@@ -134,15 +139,17 @@ const CourseDetail = () => {
         </TabsList>
 
         <TabsContent value="content" className="mt-0">
-          <CourseContent 
-            course={course} 
-            canEdit={canEdit}
-            onCourseUpdated={() => fetchCourse(courseId || '')}
-          />
+          <CourseContent course={course} />
         </TabsContent>
 
         <TabsContent value="info" className="mt-0">
-          <CourseInfo course={course} />
+          <CourseInfo 
+            course={course}
+            totalModules={course.modules.length}
+            totalLessons={course.modules.reduce((acc, module) => acc + module.lessons.length, 0)}
+            collaborators={course.collaborators || []}
+            onOpenEditor={() => setActiveTab("editor")}
+          />
         </TabsContent>
 
         <TabsContent value="editor" className="mt-0">

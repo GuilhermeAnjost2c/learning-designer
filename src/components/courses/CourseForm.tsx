@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Course } from "@/types/course";
+import { Course, CourseFormat } from "@/types/course";
 import { useCourseStore } from "@/store/courseStore";
 
 // Define the props type for the component
@@ -35,7 +35,7 @@ const courseSchema = z.object({
     .number()
     .min(1, "Duração deve ser pelo menos 1 hora"),
   department: z.string().optional(),
-  format: z.string().optional(),
+  format: z.enum(['EAD', 'Presencial', 'Híbrido']).optional(),
   tags: z.string().optional(),
 });
 
@@ -44,7 +44,7 @@ export const CourseForm = ({
   userId,
   initialValues,
 }: CourseFormProps) => {
-  const { createCourse, updateCourse } = useCourseStore();
+  const { addCourse, updateCourse } = useCourseStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Create form
@@ -80,6 +80,8 @@ export const CourseForm = ({
         ? data.tags.split(",").map((tag) => tag.trim())
         : [];
 
+      const format = data.format as CourseFormat;
+
       if (initialValues) {
         // Update existing course
         await updateCourse(initialValues.id, {
@@ -89,13 +91,13 @@ export const CourseForm = ({
           targetAudience: data.targetAudience,
           estimatedDuration: data.estimatedDuration,
           department: data.department,
-          format: data.format,
+          format,
           tags,
         });
         toast.success("Curso atualizado com sucesso!");
       } else {
         // Create new course
-        await createCourse({
+        await addCourse({
           name: data.name,
           description: data.description,
           objectives: data.objectives,
@@ -104,7 +106,7 @@ export const CourseForm = ({
           tags,
           createdBy: userId,
           department: data.department,
-          format: data.format,
+          format,
         });
         toast.success("Curso criado com sucesso!");
       }

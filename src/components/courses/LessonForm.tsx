@@ -21,10 +21,11 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Lesson, ActivityType, useCourseStore } from "@/store/courseStore";
-import { X, Save, Clock, BookOpen, LayoutList } from "lucide-react";
+import { useCourseStore } from "@/store/courseStore";
+import { X, Save, Clock, BookOpen } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { ActivityType } from "@/types/course";
 
 const formSchema = z.object({
   title: z.string().min(3, "O título deve ter pelo menos 3 caracteres"),
@@ -33,7 +34,7 @@ const formSchema = z.object({
     .number()
     .min(1, "A duração deve ser pelo menos 1 minuto")
     .max(480, "A duração deve ser no máximo 480 minutos (8 horas)"),
-  activityType: z.enum(["Exposição", "Dinâmica", "Prática", "Avaliação"] as const),
+  activityType: z.enum(['Exposição', 'Dinâmica', 'Prática', 'Avaliação', 'Debate']),
   notes: z.string().optional(),
 });
 
@@ -42,7 +43,7 @@ type FormValues = z.infer<typeof formSchema>;
 interface LessonFormProps {
   courseId: string;
   moduleId: string;
-  lesson?: Lesson;
+  lesson?: any;
   onClose: () => void;
 }
 
@@ -68,14 +69,20 @@ export const LessonForm = ({ courseId, moduleId, lesson, onClose }: LessonFormPr
     
     try {
       if (isEditing && lesson) {
-        updateLesson(courseId, moduleId, lesson.id, values);
+        updateLesson(courseId, moduleId, lesson.id, {
+          title: values.title,
+          description: values.description || "",
+          duration: values.duration,
+          activityType: values.activityType as ActivityType,
+          notes: values.notes
+        });
         toast.success("Aula atualizada com sucesso!");
       } else {
         addLesson(courseId, moduleId, {
           title: values.title,
           description: values.description || "",
           duration: values.duration,
-          activityType: values.activityType,
+          activityType: values.activityType as ActivityType,
           notes: values.notes
         });
         toast.success("Aula criada com sucesso!");
