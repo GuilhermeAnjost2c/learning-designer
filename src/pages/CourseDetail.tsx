@@ -1,218 +1,199 @@
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
-import { useUserStore } from "@/store/userStore";
-import { CourseForm } from "@/components/courses/CourseForm";
-import { ModuleForm } from "@/components/courses/ModuleForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { CourseEditor } from "@/components/courses/CourseEditor";
 import { CourseHeader } from "@/components/courses/CourseHeader";
-import { CourseInfo } from "@/components/courses/CourseInfo";
 import { CourseContent } from "@/components/courses/CourseContent";
-import { CourseDialogs } from "@/components/courses/CourseDialogs";
+import { CourseInfo } from "@/components/courses/CourseInfo";
+import { CourseForm } from "@/components/courses/CourseForm";
+import { CourseEditor } from "@/components/courses/CourseEditor";
+import { useAuth } from "@/hooks/useAuth";
+import { useCourseStore } from "@/store/courseStore";
+import { supabase } from "@/integrations/supabase/client";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
-  const { users, currentUser, getAllManagers } = useUserStore();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isAddingModule, setIsAddingModule] = useState(false);
+  const { user } = useAuth();
+  const { 
+    fetchCourse, 
+    course, 
+    updateCourse,
+    deleteCourse,
+    loading, 
+    error,
+    requestCourseApproval
+  } = useCourseStore();
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [collaboratorEmail, setCollaboratorEmail] = useState("");
-  const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
-  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
-  const [approvalData, setApprovalData] = useState({
-    approverId: "",
-    approvalType: "curso_completo" as ApprovalItemType,
-    itemId: "",
-    comments: ""
-  });
-  
-  const managers = getAllManagers();
-  
+  const [activeTab, setActiveTab] = useState("content");
+
   useEffect(() => {
-    if (courseId) {
-      const foundCourse = courses.find(c => c.id === courseId);
-      setCourse(foundCourse || null);
+    if (courseId && user) {
+      fetchCourse(courseId);
     }
-  }, [courseId, courses]);
-  
-  const canViewCourse = () => {
-    if (!currentUser || !course) return false;
-    
-    return (
-      currentUser.role === 'admin' ||
-      course.createdBy === currentUser.id ||
-      (currentUser.department && course.department === currentUser.department) ||
-      (course.collaborators && course.collaborators.includes(currentUser.id))
-    );
+  }, [courseId, user, fetchCourse]);
+
+  const handleDelete = async () => {
+    if (courseId) {
+      await deleteCourse(courseId);
+      toast.success("Curso excluído com sucesso!");
+      navigate("/courses");
+    }
   };
+
+  const handleSubmitForApproval = async () => {
+    if (courseId && course) {
+      try {
+        await requestCourseApproval(courseId);
+        toast.success("Curso enviado para aprovação com sucesso!");
+        // Refresh course data
+        fetchCourse(courseId);
+      } catch (error) {
+        console.error("Error submitting course for approval:", error);
+        toast.error("Erro ao enviar curso para aprovação");
+      }
+    }
+  };
+
+  const handleEditClose = () => {
+    setIsEditOpen(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-10">
+        <h2 className="text-2xl font-bold text-red-500">Erro ao carregar curso</h2>
+        <p className="text-gray-600 mt-2">{error}</p>
+        <Button onClick={() => navigate("/courses")} className="mt-4">
+          Voltar para lista de cursos
+        </Button>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
-      <div className="container mx-auto py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Curso não encontrado</h1>
-        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
-      </div>
-    );
-  }
-  
-  if (!canViewCourse()) {
-    return (
-      <div className="container mx-auto py-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Você não tem permissão para visualizar este curso</h1>
-        <p className="mb-4 text-muted-foreground">Este curso está em outro departamento ou você não é um colaborador.</p>
-        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
+      <div className="text-center py-10">
+        <h2 className="text-2xl font-bold">Curso não encontrado</h2>
+        <Button onClick={() => navigate("/courses")} className="mt-4">
+          Voltar para lista de cursos
+        </Button>
       </div>
     );
   }
 
-  const totalModules = course.modules.length;
-  const totalLessons = course.modules.reduce(
-    (acc, module) => acc + module.lessons.length, 
-    0
-  );
-
-  const handleDelete = () => {
-    deleteCourse(course.id);
-    toast.success("Curso excluído com sucesso");
-    navigate("/courses");
-  };
-
-  const handleStatusChange = (status: CourseStatus) => {
-    updateCourseStatus(course.id, status);
-    toast.success(`Status do curso atualizado para "${status}"`);
-  };
-
-  const openEditor = () => {
-    setEditorOpen(true);
-  };
-  
-  const handleAddCollaborator = () => {
-    if (!collaboratorEmail) {
-      toast.error("Informe o email do colaborador");
-      return;
-    }
-    
-    const collaborator = users.find(user => user.email === collaboratorEmail);
-    if (!collaborator) {
-      toast.error("Usuário não encontrado");
-      return;
-    }
-    
-    if (course.collaborators && course.collaborators.includes(collaborator.id)) {
-      toast.error("Este usuário já é um colaborador");
-      return;
-    }
-    
-    addCollaborator(course.id, collaborator.id);
-    toast.success(`${collaborator.name} adicionado como colaborador`);
-    setCollaboratorEmail("");
-    setIsCollaboratorDialogOpen(false);
-  };
-  
-  const handleRemoveCollaborator = (userId: string) => {
-    removeCollaborator(course.id, userId);
-    toast.success("Colaborador removido com sucesso");
-  };
-  
-  const getCollaborators = () => {
-    // Make sure course.collaborators exists before trying to map over it
-    return course.collaborators && Array.isArray(course.collaborators) 
-      ? course.collaborators
-          .map(userId => users.find(user => user.id === userId))
-          .filter(Boolean)
-      : [];
-  };
-  
-  const handleSubmitForApproval = () => {
-    // Changed to just submit without requiring an approver
-    submitForApproval(
-      course.id,
-      currentUser!.id,
-      "", // No specific approver
-      "curso_completo",
-      undefined,
-      approvalData.comments
-    );
-    
-    toast.success("Curso enviado para aprovação");
-    setIsApprovalDialogOpen(false);
-  };
+  const isOwner = user && course.createdBy === user.id;
+  const isCollaborator = user && course.collaborators && course.collaborators.includes(user.id);
+  const canEdit = isOwner || isCollaborator;
 
   return (
-    <div className="container mx-auto py-6">
-      <CourseHeader 
+    <div className="container mx-auto max-w-7xl">
+      <CourseHeader
         course={course}
-        onDelete={handleDelete}
-        onEdit={() => setIsEditing(true)}
-        onStatusChange={handleStatusChange}
-        onAddCollaborators={() => setIsCollaboratorDialogOpen(true)}
-        onApprovalRequest={() => setIsApprovalDialogOpen(true)}
-        handleDeleteDialogOpen={() => setDeleteDialogOpen(true)}
+        onEdit={() => setIsEditOpen(true)}
+        onDelete={() => setDeleteDialogOpen(true)}
+        onSubmitForApproval={handleSubmitForApproval}
+        isOwner={isOwner}
+        canEdit={canEdit}
       />
 
-      <CourseInfo 
-        course={course}
-        totalModules={totalModules}
-        totalLessons={totalLessons}
-        collaborators={getCollaborators()}
-        onOpenEditor={openEditor}
-        onRemoveCollaborator={handleRemoveCollaborator}
-        onOpenCollaboratorDialog={() => setIsCollaboratorDialogOpen(true)}
-      />
+      <Tabs
+        defaultValue="content"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="mt-6"
+      >
+        <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsTrigger value="content">Conteúdo</TabsTrigger>
+          <TabsTrigger value="info">Informações</TabsTrigger>
+          <TabsTrigger value="editor">Editor</TabsTrigger>
+        </TabsList>
 
-      <CourseContent 
-        course={course}
-        onOpenEditor={openEditor}
-        onAddModule={() => setIsAddingModule(true)}
-      />
+        <TabsContent value="content" className="mt-0">
+          <CourseContent 
+            course={course} 
+            canEdit={canEdit}
+            onCourseUpdated={() => fetchCourse(courseId || '')}
+          />
+        </TabsContent>
 
-      {isEditing && (
-        <CourseForm
-          course={course}
-          onClose={() => setIsEditing(false)}
-        />
+        <TabsContent value="info" className="mt-0">
+          <CourseInfo course={course} />
+        </TabsContent>
+
+        <TabsContent value="editor" className="mt-0">
+          <CourseEditor 
+            course={course}
+            onSave={(updatedCourse) => {
+              updateCourse(courseId || '', updatedCourse);
+              toast.success("Curso atualizado com sucesso!");
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Course Dialog */}
+      {isEditOpen && (
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Editar Curso</DialogTitle>
+              <DialogDescription>
+                Edite as informações do curso. Clique em salvar quando terminar.
+              </DialogDescription>
+            </DialogHeader>
+            <CourseForm 
+              onClose={handleEditClose} 
+              userId={user?.id || ''}
+              initialValues={course}
+            />
+          </DialogContent>
+        </Dialog>
       )}
 
-      {isAddingModule && (
-        <ModuleForm
-          courseId={course.id}
-          onClose={() => setIsAddingModule(false)}
-        />
-      )}
-
-      {editorOpen && (
-        <CourseEditor 
-          courseId={course.id} 
-          onClose={() => setEditorOpen(false)} 
-        />
-      )}
-
-      <CourseDialogs 
-        course={course}
-        managers={managers}
-        deleteDialogOpen={deleteDialogOpen}
-        setDeleteDialogOpen={setDeleteDialogOpen}
-        handleDelete={handleDelete}
-        collaboratorEmail={collaboratorEmail}
-        setCollaboratorEmail={setCollaboratorEmail}
-        isCollaboratorDialogOpen={isCollaboratorDialogOpen}
-        setIsCollaboratorDialogOpen={setIsCollaboratorDialogOpen}
-        handleAddCollaborator={handleAddCollaborator}
-        handleRemoveCollaborator={handleRemoveCollaborator}
-        getCollaborators={getCollaborators}
-        approvalData={approvalData}
-        setApprovalData={setApprovalData}
-        isApprovalDialogOpen={isApprovalDialogOpen}
-        setIsApprovalDialogOpen={setIsApprovalDialogOpen}
-        handleSubmitForApproval={handleSubmitForApproval}
-      />
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Exclusão</DialogTitle>
+            <DialogDescription>
+              Você tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Excluir
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

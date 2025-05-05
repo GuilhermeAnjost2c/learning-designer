@@ -1,557 +1,388 @@
+
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserStore } from "@/store/userStore";
-import { useCourseStore } from "@/store/courseStore";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
+import { useUserStore } from "@/store/userStore";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
 
-import { UserRole, DepartmentName } from "@/store/userStore";
-
-interface ApprovalRequestWithDetails {
+type User = {
   id: string;
-  courseId: string;
-  requestDate: Date;
-  requestedBy: string;
-  approverId: string;
-  approvalType: string;
-  itemId?: string;
+  email: string;
+  name: string;
+  role: string;
+  department: string;
+  createdAt: string;
+};
+
+type ApprovalRequest = {
+  id: string;
+  course_id: string;
+  course_name?: string;
+  request_date: string;
+  requested_by: string;
+  requester_name?: string;
+  approver_id: string | null;
+  approval_type: string;
+  item_id: string | null;
   status: string;
-  comments?: string;
-  reviewDate?: Date;
-}
+  comments: string | null;
+  review_date: string | null;
+};
 
 const Admin = () => {
-  const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
-  const { courses, updateCourseStatus } = useCourseStore();
-  const [selectedTab, setSelectedTab] = useState("users");
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [userFormData, setUserFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "student" as UserRole,
-    department: undefined as DepartmentName | undefined,
-  });
-  const [courseFormData, setCourseFormData] = useState({
-    status: "Rascunho",
-  });
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [departmentFilter, setDepartmentFilter] = useState<DepartmentName | "all">("all");
-  const [filteredUsers, setFilteredUsers] = useState(users);
+  const [users, setUsers] = useState<User[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { currentUser } = useUserStore();
+  const [selectedTab, setSelectedTab] = useState<'users' | 'approvals'>('users');
 
   useEffect(() => {
-    if (departmentFilter === "all") {
-      setFilteredUsers(users);
-    } else {
-      setFilteredUsers(getUsersByDepartment(departmentFilter));
+    if (currentUser?.role === 'admin' || currentUser?.role === 'manager') {
+      fetchUsers();
+      fetchApprovals();
     }
-  }, [users, departmentFilter, getUsersByDepartment]);
+  }, [currentUser]);
 
-  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setUserFormData({
-      ...userFormData,
-      [name]: value,
-    });
-  };
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setCourseFormData({
-      ...courseFormData,
-      [name]: value,
-    });
-  };
-
-  const handleCreateUser = () => {
-    addUser({
-      name: userFormData.name,
-      email: userFormData.email,
-      password: userFormData.password,
-      role: userFormData.role,
-      department: userFormData.department,
-    });
-    closeUserDialog();
-  };
-
-  const handleUpdateUser = () => {
-    if (selectedUser) {
-      updateUser(selectedUser.id, {
-        name: userFormData.name,
-        email: userFormData.email,
-        role: userFormData.role,
-        department: userFormData.department,
-      });
-      closeUserDialog();
+      if (error) throw error;
+      
+      setUsers(data.map(user => ({
+        id: user.id,
+        email: user.email || '',
+        name: user.name || '',
+        role: user.role || 'user',
+        department: user.department || '',
+        createdAt: new Date(user.created_at).toLocaleDateString(),
+      })));
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteUser = (userId: string) => {
-    setUserToDelete(userId);
-    setDeleteConfirmationOpen(true);
-  };
+  const fetchApprovals = async () => {
+    try {
+      setLoading(true);
+      
+      // Get all approval requests
+      const { data: approvalsData, error: approvalsError } = await supabase
+        .from('approval_requests')
+        .select('*')
+        .order('request_date', { ascending: false });
 
-  const confirmDeleteUser = () => {
-    if (userToDelete) {
-      deleteUser(userToDelete);
-      setDeleteConfirmationOpen(false);
-      setUserToDelete(null);
+      if (approvalsError) throw approvalsError;
+
+      // Get all courses for names
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('courses')
+        .select('id, name');
+
+      if (coursesError) throw coursesError;
+
+      // Get all user profiles for names
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name');
+
+      if (profilesError) throw profilesError;
+
+      // Create lookup tables
+      const coursesMap = new Map(coursesData.map(course => [course.id, course.name]));
+      const profilesMap = new Map(profilesData.map(profile => [profile.id, profile.name]));
+
+      // Add course and requester names to approval requests
+      const enhancedApprovals = approvalsData.map((approval: Tables<'approval_requests'>) => ({
+        id: approval.id,
+        course_id: approval.course_id,
+        course_name: coursesMap.get(approval.course_id) || 'Unknown Course',
+        request_date: new Date(approval.request_date).toLocaleString(),
+        requested_by: approval.requested_by,
+        requester_name: profilesMap.get(approval.requested_by) || 'Unknown User',
+        approver_id: approval.approver_id,
+        approval_type: approval.approval_type,
+        item_id: approval.item_id,
+        status: approval.status,
+        comments: approval.comments,
+        review_date: approval.review_date ? new Date(approval.review_date).toLocaleString() : null
+      }));
+
+      setApprovals(enhancedApprovals);
+    } catch (error) {
+      console.error('Error fetching approval requests:', error);
+      toast.error('Failed to load approval requests');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const cancelDeleteUser = () => {
-    setDeleteConfirmationOpen(false);
-    setUserToDelete(null);
-  };
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', userId);
 
-  const handleUpdateCourseStatus = () => {
-    if (selectedCourse) {
-      updateCourseStatus(selectedCourse.id, courseFormData.status as any);
-      closeCourseDialog();
+      if (error) throw error;
+      
+      setUsers(users.map(user => 
+        user.id === userId ? { ...user, role: newRole } : user
+      ));
+      
+      toast.success('User role updated successfully');
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast.error('Failed to update user role');
     }
   };
 
-  const openUserDialog = (user = null) => {
-    setSelectedUser(user);
-    if (user) {
-      setUserFormData({
-        name: user.name,
-        email: user.email,
-        password: "", // Don't pre-fill password
-        role: user.role,
-        department: user.department,
-      });
-    } else {
-      setUserFormData({
-        name: "",
-        email: "",
-        password: "",
-        role: "student",
-        department: undefined,
-      });
-    }
-    setIsUserDialogOpen(true);
-  };
+  const approveRequest = async (requestId: string, approved: boolean) => {
+    try {
+      const updateData = {
+        status: approved ? 'Aprovado' : 'Rejeitado',
+        approver_id: currentUser?.id,
+        review_date: new Date().toISOString()
+      };
 
-  const closeUserDialog = () => {
-    setIsUserDialogOpen(false);
-    setSelectedUser(null);
-    setUserFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "student",
-      department: undefined,
-    });
-  };
+      const { error } = await supabase
+        .from('approval_requests')
+        .update(updateData)
+        .eq('id', requestId);
 
-  const openCourseDialog = (course) => {
-    setSelectedCourse(course);
-    setCourseFormData({
-      status: course.status,
-    });
-    setIsCourseDialogOpen(true);
-  };
+      if (error) throw error;
 
-  const closeCourseDialog = () => {
-    setIsCourseDialogOpen(false);
-    setSelectedCourse(null);
-    setCourseFormData({
-      status: "Rascunho",
-    });
-  };
-
-  const getRequestStatusBadge = (status: string) => {
-    if (status === "pendente") {
-      return <Badge variant="outline">Pendente</Badge>;
-    } else if (status === "aprovado") {
-      return <Badge variant="default">Aprovado</Badge>;
-    } else {
-      return <Badge variant="destructive">Rejeitado</Badge>;
+      // If approval is for a course status change, update the course
+      const requestToUpdate = approvals.find(req => req.id === requestId);
+      
+      if (requestToUpdate && requestToUpdate.approval_type === 'course_status' && approved) {
+        const { error: courseError } = await supabase
+          .from('courses')
+          .update({ status: 'Publicado' })
+          .eq('id', requestToUpdate.course_id);
+        
+        if (courseError) throw courseError;
+      }
+      
+      setApprovals(approvals.map(req => 
+        req.id === requestId ? { ...req, status: updateData.status, review_date: updateData.review_date } : req
+      ));
+      
+      toast.success(`Request ${approved ? 'approved' : 'rejected'} successfully`);
+    } catch (error) {
+      console.error('Error processing approval request:', error);
+      toast.error('Failed to process approval request');
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovado':
-        return <Badge variant="default">Aprovado</Badge>;
-      case 'rejeitado':
-        return <Badge variant="destructive">Rejeitado</Badge>;
+      case 'Aprovado':
+        return 'bg-green-100 text-green-800';
+      case 'Rejeitado':
+        return 'bg-red-100 text-red-800';
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return 'bg-yellow-100 text-yellow-800';
     }
   };
+
+  if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'manager')) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Acesso Restrito</h1>
+          <p>Você não tem permissão para acessar esta página.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Painel de Administração</CardTitle>
-          <CardDescription>Gerencie usuários, cursos e outras configurações do sistema.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={selectedTab} className="space-y-4" onValueChange={setSelectedTab}>
-            <TabsList>
-              <TabsTrigger value="users" className="focus:outline-none">Usuários</TabsTrigger>
-              <TabsTrigger value="courses" className="focus:outline-none">Cursos</TabsTrigger>
-              <TabsTrigger value="approvals" className="focus:outline-none">Aprovações</TabsTrigger>
-            </TabsList>
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
-                <Button onClick={() => openUserDialog()} className="focus:outline-none">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Adicionar Usuário
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Label htmlFor="department-filter">Filtrar por Departamento:</Label>
-                <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentName | "all")}>
-                  <SelectTrigger id="department-filter">
-                    <SelectValue placeholder="Todos os Departamentos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os Departamentos</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Vendas">Vendas</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="TI">TI</SelectItem>
-                    <SelectItem value="Operações">Operações</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Table>
-                <TableCaption>Lista de usuários cadastrados no sistema.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Departamento</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.department || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openUserDialog(user)}
-                          className="focus:outline-none"
+    <div className="container mx-auto py-6">
+      <h1 className="text-2xl font-bold mb-6">Administração do Sistema</h1>
+      
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex" aria-label="Tabs">
+            <button
+              onClick={() => setSelectedTab('users')}
+              className={`w-1/4 py-4 px-1 text-center border-b-2 font-medium text-sm ${
+                selectedTab === 'users'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Usuários
+            </button>
+            <button
+              onClick={() => setSelectedTab('approvals')}
+              className={`w-1/4 py-4 px-1 text-center border-b-2 font-medium text-sm ${
+                selectedTab === 'approvals'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Aprovações
+            </button>
+          </nav>
+        </div>
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      ) : selectedTab === 'users' ? (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nome
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Departamento
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Função
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Data de Cadastro
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{user.name || 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{user.email}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{user.department || 'N/A'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <select
+                      value={user.role}
+                      onChange={(e) => updateUserRole(user.id, e.target.value)}
+                      className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md"
+                    >
+                      <option value="user">Usuário</option>
+                      <option value="instructor">Instrutor</option>
+                      <option value="manager">Gerente</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{user.createdAt}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button className="text-primary hover:text-primary-focus">
+                      Detalhes
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Curso
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Solicitante
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Tipo
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Data
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {approvals.map((request) => (
+                <tr key={request.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{request.course_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{request.requester_name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">
+                      {request.approval_type === 'course_status' ? 'Publicação de Curso' : request.approval_type}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-500">{request.request_date}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(request.status)}`}>
+                      {request.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    {request.status === 'Pendente' ? (
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => approveRequest(request.id, true)}
+                          className="text-green-600 hover:text-green-900"
                         >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="focus:outline-none"
+                          Aprovar
+                        </button>
+                        <button 
+                          onClick={() => approveRequest(request.id, false)}
+                          className="text-red-600 hover:text-red-900"
                         >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Excluir
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="courses" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Cursos</h2>
-              <Table>
-                <TableCaption>Lista de cursos cadastrados no sistema.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Criador</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.map((course) => (
-                    <TableRow key={course.id}>
-                      <TableCell>{course.name}</TableCell>
-                      <TableCell>
-                        {getStatusBadge(course.status)}
-                      </TableCell>
-                      <TableCell>{users.find(user => user.id === course.createdBy)?.name || "N/A"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openCourseDialog(course)}
-                          className="focus:outline-none"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar Status
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="approvals" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Solicitações de Aprovação</h2>
-              <Table>
-                <TableCaption>Lista de solicitações de aprovação pendentes.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Curso</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Solicitante</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.flatMap(course => 
-                    course.approvalRequests?.map(requestId => {
-                      const request = (courses.flatMap(c => 
-                        c.approvalRequests?.map(req => {
-                          if (typeof req === 'string') return null;
-                          return req;
-                        })
-                      ).filter(Boolean).find(req => req?.id === requestId)) as ApprovalRequestWithDetails | undefined;
-                      
-                      const requestedBy = users.find(user => user.id === request?.requestedBy);
-
-                      return request ? (
-                        <TableRow key={request.id}>
-                          <TableCell>{course.name}</TableCell>
-                          <TableCell>{request.approvalType}</TableCell>
-                          <TableCell>{requestedBy?.name || "N/A"}</TableCell>
-                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="focus:outline-none">
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ) : null;
-                    }) || []
-                  )}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedUser ? "Editar Usuário" : "Criar Usuário"}</DialogTitle>
-            <DialogDescription>
-              {selectedUser
-                ? "Atualize as informações do usuário."
-                : "Crie um novo usuário para o sistema."}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nome
-              </Label>
-              <Input
-                type="text"
-                id="name"
-                name="name"
-                value={userFormData.name}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                type="email"
-                id="email"
-                name="email"
-                value={userFormData.email}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">
-                Senha
-              </Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                value={userFormData.password}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <Select value={userFormData.role} onValueChange={(value) => handleUserInputChange({ target: { name: 'role', value } } as any)}>
-                <SelectTrigger id="role" className="col-span-3">
-                  <SelectValue placeholder="Selecione um role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="instructor">Instrutor</SelectItem>
-                  <SelectItem value="student">Estudante</SelectItem>
-                  <SelectItem value="manager">Gerente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Departamento
-              </Label>
-              <Select 
-                value={userFormData.department || "none"} 
-                onValueChange={(value) => handleUserInputChange({ 
-                  target: { 
-                    name: 'department', 
-                    value: value === "none" ? undefined : value 
-                  } 
-                } as any)}
-              >
-                <SelectTrigger id="department" className="col-span-3">
-                  <SelectValue placeholder="Selecione um departamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
-                  <SelectItem value="Marketing">Marketing</SelectItem>
-                  <SelectItem value="Vendas">Vendas</SelectItem>
-                  <SelectItem value="RH">RH</SelectItem>
-                  <SelectItem value="TI">TI</SelectItem>
-                  <SelectItem value="Operações">Operações</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeUserDialog}>
-              Cancelar
-            </Button>
-            <Button type="submit" onClick={selectedUser ? handleUpdateUser : handleCreateUser}>
-              {selectedUser ? "Atualizar" : "Criar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Editar Status do Curso</DialogTitle>
-            <DialogDescription>
-              Atualize o status do curso selecionado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <Select value={courseFormData.status} onValueChange={(value) => handleCourseInputChange({ target: { name: 'status', value } } as any)}>
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Selecione um status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Rascunho">Rascunho</SelectItem>
-                  <SelectItem value="Em andamento">Em andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Em aprovação">Em aprovação</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Revisão solicitada">Revisão solicitada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeCourseDialog}>
-              Cancelar
-            </Button>
-            <Button type="submit" onClick={handleUpdateCourseStatus}>
-              Atualizar Status
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação irá excluir o usuário permanentemente. Tem certeza que deseja continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDeleteUser}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteUser}>Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                          Rejeitar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">
+                        {request.review_date ? `Revisado em ${request.review_date}` : ''}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {approvals.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                    Nenhuma solicitação de aprovação encontrada
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

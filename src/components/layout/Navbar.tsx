@@ -1,3 +1,4 @@
+
 import {
   Sun,
   Moon,
@@ -5,7 +6,7 @@ import {
   User,
   BookOpen,
 } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { useTheme } from "@/hooks/use-theme";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,13 +18,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-
 import { useAuth } from "@/hooks/useAuth";
+import { NavbarProps } from "./types";
 
-export const Navbar = () => {
+export const Navbar = ({ toggleSidebar, sidebarOpen }: NavbarProps) => {
   const { pathname } = useLocation();
-  const theme = useTheme();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -63,6 +63,24 @@ export const Navbar = () => {
 
   return (
     <nav className="border-b bg-background flex h-14 items-center px-4 gap-4">
+      <div className="flex items-center lg:hidden">
+        <Button variant="ghost" size="icon" onClick={toggleSidebar}>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={1.5}
+            stroke="currentColor"
+            className="w-5 h-5"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+            />
+          </svg>
+        </Button>
+      </div>
       <Link to="/" className="flex items-center gap-2 font-semibold mr-4">
         <BookOpen className="h-5 w-5 text-primary" />
         <span>Learning Designer</span>

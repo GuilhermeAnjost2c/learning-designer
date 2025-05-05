@@ -11,7 +11,7 @@ import NotFound from "./pages/NotFound";
 import DynamicsBank from "./pages/DynamicsBank";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
-import { AuthProvider } from "./hooks/useAuth";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
 
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 

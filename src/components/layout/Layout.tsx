@@ -6,6 +6,11 @@ import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { useUserStore } from "@/store/userStore";
 
+interface NavbarProps {
+  toggleSidebar: () => void;
+  sidebarOpen: boolean;
+}
+
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const { isAuthenticated } = useUserStore();
