@@ -1,110 +1,113 @@
-
-import { Bell, Menu, Settings, LogOut, User } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  LogOut,
+  User,
+  BookOpen,
+} from "lucide-react";
+import { useTheme } from "@/components/theme-provider";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { motion } from "framer-motion";
-import { useUserStore } from "@/store/userStore";
-import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
-interface NavbarProps {
-  toggleSidebar: () => void;
-  sidebarOpen?: boolean;
-}
+import { useAuth } from "@/hooks/useAuth";
 
-export const Navbar = ({
-  toggleSidebar,
-  sidebarOpen
-}: NavbarProps) => {
-  const { currentUser, logout } = useUserStore();
+export const Navbar = () => {
+  const { pathname } = useLocation();
+  const theme = useTheme();
+  const { toggleTheme } = useTheme();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Logout realizado com sucesso");
-    navigate("/login");
+  const handleLogout = async () => {
+    await signOut();
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
+  const renderUserMenu = () => {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={profile?.avatar_url || ''} alt={profile?.name || "Usuário"} />
+              <AvatarFallback>{(profile?.name?.charAt(0) || "U").toUpperCase()}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Minha conta</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem 
+            onClick={() => navigate('/profile')} 
+            className="cursor-pointer"
+          >
+            <User className="mr-2 h-4 w-4" />
+            <span>Perfil</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Sair</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
   };
 
   return (
-    <motion.header 
-      initial={{
-        y: -20,
-        opacity: 0
-      }} 
-      animate={{
-        y: 0,
-        opacity: 1
-      }} 
-      className="border-b bg-white/70 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6"
-    >
-      <div className="flex items-center gap-3">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={toggleSidebar}
-          className="relative"
-          aria-label={sidebarOpen ? "Fechar menu lateral" : "Abrir menu lateral"}
+    <nav className="border-b bg-background flex h-14 items-center px-4 gap-4">
+      <Link to="/" className="flex items-center gap-2 font-semibold mr-4">
+        <BookOpen className="h-5 w-5 text-primary" />
+        <span>Learning Designer</span>
+      </Link>
+
+      {pathname !== "/" && (
+        <Link to="/" className="hover:underline">
+          Dashboard
+        </Link>
+      )}
+      {pathname !== "/courses" && (
+        <Link to="/courses" className="hover:underline">
+          Cursos
+        </Link>
+      )}
+      {pathname !== "/dynamics" && (
+        <Link to="/dynamics" className="hover:underline">
+          Dinâmicas
+        </Link>
+      )}
+      {profile?.role === 'admin' && pathname !== "/admin" && (
+        <Link to="/admin" className="hover:underline">
+          Admin
+        </Link>
+      )}
+
+      <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={toggleTheme}
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9"
         >
-          <Menu className="h-5 w-5" />
-          {!sidebarOpen && (
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-            </span>
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
           )}
-        </Button>
-        
-        <h1 className="text-xl font-semibold text-primary md:hidden">
-          LD
-        </h1>
+          <span className="sr-only">Alternar tema</span>
+        </button>
+
+        {user ? renderUserMenu() : (
+          <Button variant="outline" onClick={() => navigate('/auth')}>
+            Entrar
+          </Button>
+        )}
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon">
-          <Bell className="h-5 w-5" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src="" alt={currentUser?.name || "Usuário"} />
-                <AvatarFallback>{currentUser ? getInitials(currentUser.name) : "US"}</AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end" forceMount>
-            <DropdownMenuLabel>
-              <div>
-                <p className="font-medium">{currentUser?.name || "Usuário"}</p>
-                <p className="text-xs text-muted-foreground">{currentUser?.email || ""}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configurações</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Sair</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </motion.header>
+    </nav>
   );
 };

@@ -9,25 +9,49 @@ import CreateCourse from "./pages/CreateCourse";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import DynamicsBank from "./pages/DynamicsBank";
-import Login from "./pages/Login";
+import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
-import { useUserStore, UserRole } from "./store/userStore";
+import { AuthProvider } from "./hooks/useAuth";
 
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
   children, 
-  allowedRoles = ['admin', 'manager', 'instructor', 'student']  
+  allowedRoles = ['admin', 'manager', 'instructor', 'user', 'student']  
 }: { 
   children: JSX.Element, 
-  allowedRoles?: UserRole[] 
+  allowedRoles?: string[] 
 }) => {
-  const { isAuthenticated, currentUser } = useUserStore();
+  return <AuthProvider>
+    <AuthCheck allowedRoles={allowedRoles}>
+      {children}
+    </AuthCheck>
+  </AuthProvider>;
+};
+
+// Check authentication and role
+const AuthCheck = ({ 
+  children, 
+  allowedRoles 
+}: { 
+  children: JSX.Element, 
+  allowedRoles: string[] 
+}) => {
+  // We'll access useAuth inside this component which is wrapped by AuthProvider
+  const { user, profile, loading } = useAuth();
   
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+    </div>;
   }
   
-  if (currentUser && !allowedRoles.includes(currentUser.role)) {
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
+  
+  const userRole = profile?.role || 'user';
+  
+  if (!allowedRoles.includes(userRole)) {
     return <Navigate to="/" />;
   }
   
@@ -38,35 +62,37 @@ function App() {
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<Dashboard />} />
-            <Route path="courses" element={<CoursesList />} />
-            <Route path="courses/new" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
-                <CreateCourse />
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
               </ProtectedRoute>
-            } />
-            <Route path="courses/:courseId" element={<CourseDetail />} />
-            <Route path="dynamics" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
-                <DynamicsBank />
-              </ProtectedRoute>
-            } />
-            <Route path="admin" element={
-              <ProtectedRoute allowedRoles={['admin', 'manager']}>
-                <Admin />
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="courses" element={<CoursesList />} />
+              <Route path="courses/new" element={
+                <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+                  <CreateCourse />
+                </ProtectedRoute>
+              } />
+              <Route path="courses/:courseId" element={<CourseDetail />} />
+              <Route path="dynamics" element={
+                <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+                  <DynamicsBank />
+                </ProtectedRoute>
+              } />
+              <Route path="admin" element={
+                <ProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Admin />
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </Router>
       <Toaster />
     </ThemeProvider>
