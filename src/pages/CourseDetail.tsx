@@ -30,7 +30,7 @@ const CourseDetail = () => {
   const { user } = useAuth();
   const { 
     courses, 
-    loading, 
+    loadingCourses: loading,
     initialized,
     initializeCourses,
     updateCourse,

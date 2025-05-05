@@ -2,9 +2,10 @@
 import { Home, BookOpen, Database, UserCog, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
 import { motion } from "framer-motion";
+import { useEffect } from "react";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
+  const location = useLocation();
   // Only display the admin link for admin or manager users
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   
@@ -30,6 +32,13 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const closeSidebar = () => {
     setIsOpen(false);
   };
+
+  // On mobile, close sidebar when route changes
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      closeSidebar();
+    }
+  }, [location.pathname]);
 
   return (
     <>
@@ -86,6 +95,7 @@ export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
                 <li key={item.name}>
                   <NavLink
                     to={item.path}
+                    end={item.path === "/"}
                     className={({ isActive }) =>
                       cn(
                         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",

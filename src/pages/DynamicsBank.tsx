@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,7 +100,7 @@ const DynamicsBank = () => {
       </div>
 
       <DynamicsSelector
-        open={isSelectorOpen}
+        isOpen={isSelectorOpen}
         onClose={() => setIsSelectorOpen(false)}
       />
     </div>
