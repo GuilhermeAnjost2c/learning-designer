@@ -1,5 +1,6 @@
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Avaliação' | 'Prática' | 'Debate';
+export type CourseFormat = 'EAD' | 'Presencial' | 'Híbrido';
 
 export interface Lesson {
   id: string;
@@ -37,5 +38,5 @@ export interface Course {
   createdBy: string;
   collaborators?: string[];
   department?: string;
-  format?: string;
+  format?: CourseFormat;
 }

@@ -86,27 +86,6 @@ export const Navbar = ({ toggleSidebar, sidebarOpen }: NavbarProps) => {
         <span>Learning Designer</span>
       </Link>
 
-      {pathname !== "/" && (
-        <Link to="/" className="hover:underline">
-          Dashboard
-        </Link>
-      )}
-      {pathname !== "/courses" && (
-        <Link to="/courses" className="hover:underline">
-          Cursos
-        </Link>
-      )}
-      {pathname !== "/dynamics" && (
-        <Link to="/dynamics" className="hover:underline">
-          Dinâmicas
-        </Link>
-      )}
-      {profile?.role === 'admin' && pathname !== "/admin" && (
-        <Link to="/admin" className="hover:underline">
-          Admin
-        </Link>
-      )}
-
       <div className="ml-auto flex items-center gap-2">
         <button
           onClick={toggleTheme}
