@@ -1,120 +1,88 @@
 
 import { create } from "zustand";
-import { devtools } from "zustand/middleware";
-import { nanoid } from "nanoid";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { sampleDynamics } from "@/utils/sampleDynamics";
 
-// Types for the dynamics
-export type DynamicActivityType = 'Energizer' | 'IceBreaker' | 'TeamBuilding' | 'Reflection' | 'Problem Solving';
-export type DynamicCategory = 'Comunicação' | 'Liderança' | 'Criatividade' | 'Colaboração' | 'Inovação';
-
-export interface DynamicActivity {
+export type DynamicCategory = string;
+export type DynamicActivity = {
   id: string;
   name: string;
-  category: DynamicCategory;
-  objective: string;
-  materials: string;
   description: string;
+  category: DynamicCategory;
   duration: number;
-  minimumParticipants: number;
-  maximumParticipants: number;
-  steps: string[];
-  tags: string[];
-  createdBy: string;
-  createdAt: Date;
-}
+  materials?: string[];
+  instructions?: string;
+  objectives?: string[];
+  targetAudience?: string[];
+};
 
-export interface DynamicsState {
+interface DynamicsState {
   activities: DynamicActivity[];
   categories: DynamicCategory[];
-  loading: boolean;
-  initialized: boolean;
-  initializeDynamics: (userId: string) => Promise<void>;
-  addActivity: (activity: Omit<DynamicActivity, 'id' | 'createdAt'>) => void;
-  updateActivity: (id: string, updates: Partial<DynamicActivity>) => void;
-  deleteActivity: (id: string) => void;
-  filterByCategory: (category: DynamicCategory | null) => DynamicActivity[];
-  searchActivities: (query: string) => DynamicActivity[];
+  initializeDynamics: (userId: string) => void;
+  addDynamic: (dynamic: DynamicActivity) => void;
+  filterByCategory: (category: DynamicCategory) => DynamicActivity[];
+  searchActivities: (term: string) => DynamicActivity[];
 }
 
-export const useDynamicsStore = create<DynamicsState>()(
-  devtools(
-    (set, get) => ({
-      activities: [],
-      categories: ['Comunicação', 'Liderança', 'Criatividade', 'Colaboração', 'Inovação'],
-      loading: true,
-      initialized: false,
+export const useDynamicsStore = create<DynamicsState>((set, get) => ({
+  activities: [
+    {
+      id: "1",
+      name: "Brainstorming",
+      description: "Uma técnica para gerar ideias em grupo.",
+      category: "Criatividade",
+      duration: 30,
+    },
+    {
+      id: "2",
+      name: "Mapa Mental",
+      description: "Técnica para organizar pensamentos e ideias visualmente.",
+      category: "Organização",
+      duration: 45,
+    },
+    {
+      id: "3",
+      name: "Design Thinking",
+      description: "Abordagem focada em soluções com empatia pelo usuário.",
+      category: "Metodologia",
+      duration: 90,
+    },
+    {
+      id: "4",
+      name: "World Café",
+      description: "Método para criar conversas em grupo sobre temas específicos.",
+      category: "Colaboração",
+      duration: 60,
+    },
+  ],
+  categories: ["Criatividade", "Organização", "Metodologia", "Colaboração"],
 
-      initializeDynamics: async (userId: string) => {
-        set({ loading: true });
+  initializeDynamics: (userId: string) => {
+    // In a real app, this would fetch from an API or database
+    console.log("Initializing dynamics for user:", userId);
+    // For now, we'll use the default data
+  },
 
-        try {
-          // This should be updated when we have an actual dynamics table in the database
-          // For now it's using sampleDynamics from utils
-          const dynamicsData = sampleDynamics.map((dynamic) => ({
-            ...dynamic,
-            createdBy: userId,
-            createdAt: new Date(),
-          }));
+  addDynamic: (dynamic: DynamicActivity) => {
+    set((state) => ({
+      activities: [...state.activities, dynamic],
+      categories: state.categories.includes(dynamic.category)
+        ? state.categories
+        : [...state.categories, dynamic.category],
+    }));
+  },
 
-          set({
-            activities: dynamicsData,
-            loading: false,
-            initialized: true,
-          });
-        } catch (error: any) {
-          console.error("Error initializing dynamics:", error.message);
-          toast.error(`Erro ao carregar dinâmicas: ${error.message}`);
-          set({ loading: false, initialized: true });
-        }
-      },
+  filterByCategory: (category: DynamicCategory) => {
+    const state = get();
+    return state.activities.filter((activity) => activity.category === category);
+  },
 
-      addActivity: (activity) => {
-        const newActivity = {
-          ...activity,
-          id: nanoid(),
-          createdAt: new Date(),
-        };
-
-        set((state) => ({
-          activities: [newActivity, ...state.activities],
-        }));
-      },
-
-      updateActivity: (id, updates) => {
-        set((state) => ({
-          activities: state.activities.map((activity) =>
-            activity.id === id ? { ...activity, ...updates } : activity
-          ),
-        }));
-      },
-
-      deleteActivity: (id) => {
-        set((state) => ({
-          activities: state.activities.filter((activity) => activity.id !== id),
-        }));
-      },
-
-      filterByCategory: (category) => {
-        const { activities } = get();
-        if (!category) return activities;
-        return activities.filter((activity) => activity.category === category);
-      },
-
-      searchActivities: (query) => {
-        const { activities } = get();
-        const lowercaseQuery = query.toLowerCase();
-        
-        return activities.filter(
-          (activity) =>
-            activity.name.toLowerCase().includes(lowercaseQuery) ||
-            activity.description.toLowerCase().includes(lowercaseQuery) ||
-            activity.tags.some((tag) => tag.toLowerCase().includes(lowercaseQuery))
-        );
-      },
-    }),
-    { name: "dynamics-store" }
-  )
-);
+  searchActivities: (term: string) => {
+    const state = get();
+    const lowerTerm = term.toLowerCase();
+    return state.activities.filter(
+      (activity) =>
+        activity.name.toLowerCase().includes(lowerTerm) ||
+        activity.description.toLowerCase().includes(lowerTerm)
+    );
+  },
+}));

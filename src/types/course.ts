@@ -1,24 +1,23 @@
 
 export type ActivityType = 'Exposição' | 'Dinâmica' | 'Avaliação' | 'Prática' | 'Debate';
 export type CourseFormat = 'EAD' | 'Presencial' | 'Híbrido';
+export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Arquivado';
+export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
 
 export interface Lesson {
   id: string;
-  moduleId: string;
   title: string;
   description: string;
   duration: number;
   activityType: ActivityType;
   notes?: string;
-  status: 'Fazer' | 'Em Progresso' | 'Concluído';
-  position: number;
+  status: LessonStatus;
 }
 
 export interface Module {
   id: string;
   title: string;
   description?: string;
-  position: number;
   lessons: Lesson[];
 }
 
@@ -30,11 +29,11 @@ export interface Course {
   targetAudience: string;
   estimatedDuration: number;
   thumbnail?: string;
-  status: 'Rascunho' | 'Revisão' | 'Publicado';
+  status: CourseStatus;
   modules: Module[];
   tags: string[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
   createdBy: string;
   collaborators?: string[];
   department?: string;

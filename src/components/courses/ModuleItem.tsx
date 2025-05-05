@@ -14,8 +14,7 @@ import {
   Trash, 
   Plus, 
   GripVertical, 
-  Clock, 
-  ChevronDown
+  Clock
 } from "lucide-react";
 import { LessonItem } from "./LessonItem";
 import { ModuleForm } from "./ModuleForm";
@@ -31,13 +30,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
