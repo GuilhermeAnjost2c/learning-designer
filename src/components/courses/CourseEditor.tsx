@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Plus, X, Save, Book, FileText, Menu, 
   ArrowLeft, MoreHorizontal, CheckCircle2, Circle, Clock, Trash, 
   Edit, GripVertical, Heading1, Heading2, Heading3, Bold, Italic, 
-  List, ListOrdered, Link as LinkIcon, Image
+  List, ListOrdered, Link as LinkIcon, Image, BookOpen
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -480,7 +480,7 @@ export const CourseEditor = ({ courseId, onClose }: CourseEditorProps) => {
                                             handleAddDynamic(module.id);
                                           }}
                                         >
-                                          <Database className="h-3 w-3" />
+                                          <BookOpen className="h-3 w-3" />
                                         </Button>
                                         <Button
                                           variant="ghost"

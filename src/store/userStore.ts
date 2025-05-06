@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
@@ -31,7 +30,14 @@ interface UserState {
   getUserById: (id: string) => User | undefined;
   getUsersByDepartment: (department: DepartmentName) => User[];
   getAllManagers: () => User[];
+  
+  // Additional user management methods
+  addUser: (userData: Omit<User, 'id'>) => Promise<boolean>;
+  updateUser: (id: string, userData: Partial<User>) => Promise<boolean>;
+  deleteUser: (id: string) => Promise<boolean>;
 }
+
+export { DepartmentName };
 
 export const useUserStore = create<UserState>()(
   persist(
@@ -144,6 +150,56 @@ export const useUserStore = create<UserState>()(
       
       getAllManagers: () => {
         return get().users.filter(user => user.role === 'manager' || user.role === 'admin');
+      },
+      
+      // Implement missing methods for user management
+      addUser: async (userData) => {
+        try {
+          // In a real app, we'd call Supabase to create a user
+          // For now, just add to the local store
+          const newUser = {
+            ...userData,
+            id: Math.random().toString(36).substring(2, 9),
+            createdAt: new Date()
+          };
+          
+          set(state => ({
+            users: [...state.users, newUser]
+          }));
+          
+          return true;
+        } catch (error) {
+          console.error('Error adding user:', error);
+          return false;
+        }
+      },
+      
+      updateUser: async (id, userData) => {
+        try {
+          set(state => ({
+            users: state.users.map(user => 
+              user.id === id ? { ...user, ...userData } : user
+            )
+          }));
+          
+          return true;
+        } catch (error) {
+          console.error('Error updating user:', error);
+          return false;
+        }
+      },
+      
+      deleteUser: async (id) => {
+        try {
+          set(state => ({
+            users: state.users.filter(user => user.id !== id)
+          }));
+          
+          return true;
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          return false;
+        }
       },
     }),
     {

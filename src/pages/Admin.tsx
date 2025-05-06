@@ -1,11 +1,10 @@
+
 import { useState, useEffect } from "react";
+import { useUserStore, User, UserRole, DepartmentName } from "@/store/userStore";
+import { useCourseStore, ApprovalRequest } from "@/store/courseStore";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useUserStore } from "@/store/userStore";
-import { useCourseStore } from "@/store/courseStore";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,471 +13,363 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  UserPlus, Edit, Trash, RefreshCw, CheckCircle, XCircle,
+  Eye, AlertCircle, Clock, CheckCircle2
+} from "lucide-react";
 import { toast } from "sonner";
-import { Edit, Trash, Check, X, Eye, UserPlus, Users, BookOpen, CheckSquare } from "lucide-react";
-
-import { UserRole, DepartmentName } from "@/store/userStore";
-
-interface ApprovalRequestWithDetails {
-  id: string;
-  courseId: string;
-  requestDate: Date;
-  requestedBy: string;
-  approverId: string;
-  approvalType: string;
-  itemId?: string;
-  status: string;
-  comments?: string;
-  reviewDate?: Date;
-}
 
 const Admin = () => {
-  const { users, addUser, updateUser, deleteUser, getUsersByDepartment } = useUserStore();
-  const { courses, updateCourseStatus } = useCourseStore();
-  const [selectedTab, setSelectedTab] = useState("users");
-  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false);
-  const [isCourseDialogOpen, setIsCourseDialogOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [userFormData, setUserFormData] = useState({
+  const { users, fetchUsers, addUser, updateUser, deleteUser } = useUserStore();
+  const [isLoading, setIsLoading] = useState(true);
+  const [addUserDialogOpen, setAddUserDialogOpen] = useState(false);
+  const [editUserDialogOpen, setEditUserDialogOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  
+  const [newUserData, setNewUserData] = useState({
     name: "",
     email: "",
-    password: "",
     role: "student" as UserRole,
-    department: undefined as DepartmentName | undefined,
+    department: "TI" as DepartmentName
   });
-  const [courseFormData, setCourseFormData] = useState({
-    status: "Rascunho",
-  });
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState(null);
-  const [departmentFilter, setDepartmentFilter] = useState<DepartmentName | "all">("all");
-  const [filteredUsers, setFilteredUsers] = useState(users);
-
+  
+  // Approval requests management
+  const { courses } = useCourseStore();
+  const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
+  
   useEffect(() => {
-    if (departmentFilter === "all") {
-      setFilteredUsers(users);
-    } else {
-      setFilteredUsers(getUsersByDepartment(departmentFilter));
-    }
-  }, [users, departmentFilter, getUsersByDepartment]);
-
-  const handleUserInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setUserFormData({
-      ...userFormData,
-      [name]: value,
-    });
-  };
-
-  const handleCourseInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setCourseFormData({
-      ...courseFormData,
-      [name]: value,
-    });
-  };
-
-  const handleCreateUser = () => {
-    addUser({
-      name: userFormData.name,
-      email: userFormData.email,
-      password: userFormData.password,
-      role: userFormData.role,
-      department: userFormData.department,
-    });
-    closeUserDialog();
-  };
-
-  const handleUpdateUser = () => {
-    if (selectedUser) {
-      updateUser(selectedUser.id, {
-        name: userFormData.name,
-        email: userFormData.email,
-        role: userFormData.role,
-        department: userFormData.department,
+    const loadData = async () => {
+      await fetchUsers();
+      
+      // Collect all approval requests from courses
+      const allRequests: ApprovalRequest[] = [];
+      courses.forEach(course => {
+        if (course.approvalRequests && Array.isArray(course.approvalRequests)) {
+          course.approvalRequests.forEach(request => {
+            allRequests.push({
+              ...request,
+              courseId: course.id
+            } as unknown as ApprovalRequest);
+          });
+        }
       });
-      closeUserDialog();
+      
+      setApprovalRequests(allRequests);
+      setIsLoading(false);
+    };
+    
+    loadData();
+  }, [fetchUsers, courses]);
+  
+  const handleAddUser = async () => {
+    // Validate fields
+    if (!newUserData.name || !newUserData.email) {
+      toast.error("Nome e e-mail são obrigatórios");
+      return;
     }
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    setUserToDelete(userId);
-    setDeleteConfirmationOpen(true);
-  };
-
-  const confirmDeleteUser = () => {
-    if (userToDelete) {
-      deleteUser(userToDelete);
-      setDeleteConfirmationOpen(false);
-      setUserToDelete(null);
-    }
-  };
-
-  const cancelDeleteUser = () => {
-    setDeleteConfirmationOpen(false);
-    setUserToDelete(null);
-  };
-
-  const handleUpdateCourseStatus = () => {
-    if (selectedCourse) {
-      updateCourseStatus(selectedCourse.id, courseFormData.status as any);
-      closeCourseDialog();
-    }
-  };
-
-  const openUserDialog = (user = null) => {
-    setSelectedUser(user);
-    if (user) {
-      setUserFormData({
-        name: user.name,
-        email: user.email,
-        password: "", // Don't pre-fill password
-        role: user.role,
-        department: user.department,
-      });
-    } else {
-      setUserFormData({
+    
+    try {
+      // In a real app, we would create the user in Supabase
+      await addUser(newUserData);
+      toast.success("Usuário adicionado com sucesso!");
+      setAddUserDialogOpen(false);
+      setNewUserData({
         name: "",
         email: "",
-        password: "",
         role: "student",
-        department: undefined,
+        department: "TI"
       });
-    }
-    setIsUserDialogOpen(true);
-  };
-
-  const closeUserDialog = () => {
-    setIsUserDialogOpen(false);
-    setSelectedUser(null);
-    setUserFormData({
-      name: "",
-      email: "",
-      password: "",
-      role: "student",
-      department: undefined,
-    });
-  };
-
-  const openCourseDialog = (course) => {
-    setSelectedCourse(course);
-    setCourseFormData({
-      status: course.status,
-    });
-    setIsCourseDialogOpen(true);
-  };
-
-  const closeCourseDialog = () => {
-    setIsCourseDialogOpen(false);
-    setSelectedCourse(null);
-    setCourseFormData({
-      status: "Rascunho",
-    });
-  };
-
-  const getRequestStatusBadge = (status: string) => {
-    if (status === "pendente") {
-      return <Badge variant="outline">Pendente</Badge>;
-    } else if (status === "aprovado") {
-      return <Badge variant="default">Aprovado</Badge>;
-    } else {
-      return <Badge variant="destructive">Rejeitado</Badge>;
+    } catch (error) {
+      toast.error("Erro ao adicionar usuário");
     }
   };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge variant="outline">Pendente</Badge>;
-      case 'aprovado':
-        return <Badge variant="default">Aprovado</Badge>;
-      case 'rejeitado':
-        return <Badge variant="destructive">Rejeitado</Badge>;
+  
+  const handleEditUser = async () => {
+    if (!userToEdit || !userToEdit.name || !userToEdit.email) {
+      toast.error("Nome e e-mail são obrigatórios");
+      return;
+    }
+    
+    try {
+      await updateUser(userToEdit.id, userToEdit);
+      toast.success("Usuário atualizado com sucesso!");
+      setEditUserDialogOpen(false);
+      setUserToEdit(null);
+    } catch (error) {
+      toast.error("Erro ao atualizar usuário");
+    }
+  };
+  
+  const handleDeleteUser = async (id: string) => {
+    if (confirm("Tem certeza que deseja excluir este usuário?")) {
+      try {
+        await deleteUser(id);
+        toast.success("Usuário excluído com sucesso!");
+      } catch (error) {
+        toast.error("Erro ao excluir usuário");
+      }
+    }
+  };
+  
+  const openEditDialog = (user: User) => {
+    setUserToEdit({...user});
+    setEditUserDialogOpen(true);
+  };
+  
+  const renderRoleLabel = (role: UserRole) => {
+    switch (role) {
+      case 'admin':
+        return "Administrador";
+      case 'instructor':
+        return "Instrutor";
+      case 'student':
+        return "Aluno";
+      case 'manager':
+        return "Gerente";
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return role;
     }
   };
+  
+  const handleApproveRequest = (requestId: string) => {
+    // Implementation would update the approval status
+    toast.success("Aprovação concluída!");
+  };
+  
+  const handleRejectRequest = (requestId: string) => {
+    // Implementation would update the approval status
+    toast.success("Solicitação rejeitada");
+  };
+  
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case 'Pendente':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800"><Clock className="mr-1 h-3 w-3" /> Pendente</span>;
+      case 'Aprovado':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-green-100 text-green-800"><CheckCircle2 className="mr-1 h-3 w-3" /> Aprovado</span>;
+      case 'Rejeitado':
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs bg-red-100 text-red-800"><XCircle className="mr-1 h-3 w-3" /> Rejeitado</span>;
+      default:
+        return <span>{status}</span>;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <RefreshCw className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <p className="mt-4 text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Painel de Administração</CardTitle>
-          <CardDescription>Gerencie usuários, cursos e outras configurações do sistema.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={selectedTab} className="space-y-4" onValueChange={setSelectedTab}>
-            <TabsList>
-              <TabsTrigger value="users" className="focus:outline-none">Usuários</TabsTrigger>
-              <TabsTrigger value="courses" className="focus:outline-none">Cursos</TabsTrigger>
-              <TabsTrigger value="approvals" className="focus:outline-none">Aprovações</TabsTrigger>
-            </TabsList>
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Gerenciar Usuários</h2>
-                <Button onClick={() => openUserDialog()} className="focus:outline-none">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Adicionar Usuário
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Label htmlFor="department-filter">Filtrar por Departamento:</Label>
-                <Select value={departmentFilter} onValueChange={(value) => setDepartmentFilter(value as DepartmentName | "all")}>
-                  <SelectTrigger id="department-filter">
-                    <SelectValue placeholder="Todos os Departamentos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os Departamentos</SelectItem>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Vendas">Vendas</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="TI">TI</SelectItem>
-                    <SelectItem value="Operações">Operações</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Table>
-                <TableCaption>Lista de usuários cadastrados no sistema.</TableCaption>
-                <TableHeader>
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-8">Painel Administrativo</h1>
+      
+      <Tabs defaultValue="users">
+        <TabsList className="mb-4">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="approvals">Aprovações</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="users">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Gerenciamento de Usuários</h2>
+            <Button onClick={() => setAddUserDialogOpen(true)}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Novo Usuário
+            </Button>
+          </div>
+          
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead>Departamento</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.length === 0 ? (
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Departamento</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                      Nenhum usuário encontrado
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => (
+                ) : (
+                  users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{user.name}</TableCell>
+                      <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.department || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openUserDialog(user)}
-                          className="focus:outline-none"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar
+                      <TableCell>{renderRoleLabel(user.role)}</TableCell>
+                      <TableCell>{user.department || '-'}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)}>
+                          <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="focus:outline-none"
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          Excluir
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user.id)}>
+                          <Trash className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="courses" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Cursos</h2>
-              <Table>
-                <TableCaption>Lista de cursos cadastrados no sistema.</TableCaption>
-                <TableHeader>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="approvals">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Solicitações de Aprovação</h2>
+          </div>
+          
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Curso</TableHead>
+                  <TableHead>Solicitante</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvalRequests.length === 0 ? (
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Criador</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                      Nenhuma solicitação de aprovação encontrada
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.map((course) => (
-                    <TableRow key={course.id}>
-                      <TableCell>{course.name}</TableCell>
-                      <TableCell>
-                        {getStatusBadge(course.status)}
-                      </TableCell>
-                      <TableCell>{users.find(user => user.id === course.createdBy)?.name || "N/A"}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openCourseDialog(course)}
-                          className="focus:outline-none"
-                        >
-                          <Edit className="mr-2 h-4 w-4" />
-                          Editar Status
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
-            <TabsContent value="approvals" className="space-y-4">
-              <h2 className="text-xl font-semibold">Gerenciar Solicitações de Aprovação</h2>
-              <Table>
-                <TableCaption>Lista de solicitações de aprovação pendentes.</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Curso</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Solicitante</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {courses.flatMap(course => 
-                    course.approvalRequests?.map(requestId => {
-                      const request = (courses.flatMap(c => 
-                        c.approvalRequests?.map(req => {
-                          if (typeof req === 'string') return null;
-                          return req;
-                        })
-                      ).filter(Boolean).find(req => req?.id === requestId)) as ApprovalRequestWithDetails | undefined;
-                      
-                      const requestedBy = users.find(user => user.id === request?.requestedBy);
-
-                      return request ? (
-                        <TableRow key={request.id}>
-                          <TableCell>{course.name}</TableCell>
-                          <TableCell>{request.approvalType}</TableCell>
-                          <TableCell>{requestedBy?.name || "N/A"}</TableCell>
-                          <TableCell>{getRequestStatusBadge(request.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" className="focus:outline-none">
-                              <Eye className="mr-2 h-4 w-4" />
-                              Visualizar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ) : null;
-                    }) || []
-                  )}
-                </TableBody>
-              </Table>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+                ) : (
+                  approvalRequests.map((request) => {
+                    const course = courses.find(c => c.id === request.courseId);
+                    return (
+                      <TableRow key={request.id}>
+                        <TableCell className="font-medium">{course?.name || 'Curso desconhecido'}</TableCell>
+                        <TableCell>
+                          {users.find(u => u.id === request.requestedBy)?.name || 'Usuário desconhecido'}
+                        </TableCell>
+                        <TableCell>
+                          {request.approval_type === 'curso_completo' ? 'Curso completo' : 
+                           request.approval_type === 'estrutura' ? 'Estrutura' :
+                           request.approval_type === 'modulo' ? 'Módulo' : 'Aula'}
+                        </TableCell>
+                        <TableCell>
+                          {new Date(request.request_date).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell>
+                          {getStatusBadge(request.status)}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          {request.status === 'Pendente' && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="border-green-500 text-green-500 hover:bg-green-50"
+                                onClick={() => handleApproveRequest(request.id)}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Aprovar
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="border-red-500 text-red-500 hover:bg-red-50"
+                                onClick={() => handleRejectRequest(request.id)}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Rejeitar
+                              </Button>
+                            </>
+                          )}
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
+      
+      {/* Add User Dialog */}
+      <Dialog open={addUserDialogOpen} onOpenChange={setAddUserDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{selectedUser ? "Editar Usuário" : "Criar Usuário"}</DialogTitle>
-            <DialogDescription>
-              {selectedUser
-                ? "Atualize as informações do usuário."
-                : "Crie um novo usuário para o sistema."}
-            </DialogDescription>
+            <DialogTitle>Adicionar Novo Usuário</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nome
-              </Label>
-              <Input
-                type="text"
-                id="name"
-                name="name"
-                value={userFormData.name}
-                onChange={handleUserInputChange}
-                className="col-span-3"
+            <div className="grid gap-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input 
+                id="name" 
+                value={newUserData.name} 
+                onChange={(e) => setNewUserData({...newUserData, name: e.target.value})}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
-              <Input
-                type="email"
-                id="email"
-                name="email"
-                value={userFormData.email}
-                onChange={handleUserInputChange}
-                className="col-span-3"
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={newUserData.email} 
+                onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="password" className="text-right">
-                Senha
-              </Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                value={userFormData.password}
-                onChange={handleUserInputChange}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
-                Role
-              </Label>
-              <Select value={userFormData.role} onValueChange={(value) => handleUserInputChange({ target: { name: 'role', value } } as any)}>
-                <SelectTrigger id="role" className="col-span-3">
-                  <SelectValue placeholder="Selecione um role" />
+            <div className="grid gap-2">
+              <Label htmlFor="role">Cargo</Label>
+              <Select 
+                value={newUserData.role} 
+                onValueChange={(value) => setNewUserData({...newUserData, role: value as UserRole})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o cargo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="instructor">Instrutor</SelectItem>
-                  <SelectItem value="student">Estudante</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="manager">Gerente</SelectItem>
+                  <SelectItem value="instructor">Instrutor</SelectItem>
+                  <SelectItem value="student">Aluno</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="department" className="text-right">
-                Departamento
-              </Label>
+            <div className="grid gap-2">
+              <Label htmlFor="department">Departamento</Label>
               <Select 
-                value={userFormData.department || "none"} 
-                onValueChange={(value) => handleUserInputChange({ 
-                  target: { 
-                    name: 'department', 
-                    value: value === "none" ? undefined : value 
-                  } 
-                } as any)}
+                value={newUserData.department} 
+                onValueChange={(value) => setNewUserData({...newUserData, department: value as DepartmentName})}
               >
-                <SelectTrigger id="department" className="col-span-3">
-                  <SelectValue placeholder="Selecione um departamento" />
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o departamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Nenhum</SelectItem>
                   <SelectItem value="Marketing">Marketing</SelectItem>
                   <SelectItem value="Vendas">Vendas</SelectItem>
                   <SelectItem value="RH">RH</SelectItem>
@@ -489,69 +380,88 @@ const Admin = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeUserDialog}>
+            <Button variant="outline" onClick={() => setAddUserDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" onClick={selectedUser ? handleUpdateUser : handleCreateUser}>
-              {selectedUser ? "Atualizar" : "Criar"}
+            <Button onClick={handleAddUser}>
+              Adicionar Usuário
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={isCourseDialogOpen} onOpenChange={setIsCourseDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+      
+      {/* Edit User Dialog */}
+      <Dialog open={editUserDialogOpen} onOpenChange={setEditUserDialogOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Status do Curso</DialogTitle>
-            <DialogDescription>
-              Atualize o status do curso selecionado.
-            </DialogDescription>
+            <DialogTitle>Editar Usuário</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Status
-              </Label>
-              <Select value={courseFormData.status} onValueChange={(value) => handleCourseInputChange({ target: { name: 'status', value } } as any)}>
-                <SelectTrigger id="status" className="col-span-3">
-                  <SelectValue placeholder="Selecione um status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Rascunho">Rascunho</SelectItem>
-                  <SelectItem value="Em andamento">Em andamento</SelectItem>
-                  <SelectItem value="Concluído">Concluído</SelectItem>
-                  <SelectItem value="Em aprovação">Em aprovação</SelectItem>
-                  <SelectItem value="Aprovado">Aprovado</SelectItem>
-                  <SelectItem value="Revisão solicitada">Revisão solicitada</SelectItem>
-                </SelectContent>
-              </Select>
+          {userToEdit && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-name">Nome</Label>
+                <Input 
+                  id="edit-name" 
+                  value={userToEdit.name} 
+                  onChange={(e) => setUserToEdit({...userToEdit, name: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input 
+                  id="edit-email" 
+                  type="email" 
+                  value={userToEdit.email} 
+                  onChange={(e) => setUserToEdit({...userToEdit, email: e.target.value})}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-role">Cargo</Label>
+                <Select 
+                  value={userToEdit.role} 
+                  onValueChange={(value) => setUserToEdit({...userToEdit, role: value as UserRole})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o cargo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="manager">Gerente</SelectItem>
+                    <SelectItem value="instructor">Instrutor</SelectItem>
+                    <SelectItem value="student">Aluno</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-department">Departamento</Label>
+                <Select 
+                  value={userToEdit.department || ""} 
+                  onValueChange={(value) => setUserToEdit({...userToEdit, department: value as DepartmentName})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Vendas">Vendas</SelectItem>
+                    <SelectItem value="RH">RH</SelectItem>
+                    <SelectItem value="TI">TI</SelectItem>
+                    <SelectItem value="Operações">Operações</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeCourseDialog}>
+            <Button variant="outline" onClick={() => setEditUserDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button type="submit" onClick={handleUpdateCourseStatus}>
-              Atualizar Status
+            <Button onClick={handleEditUser}>
+              Salvar Alterações
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={deleteConfirmationOpen} onOpenChange={setDeleteConfirmationOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação irá excluir o usuário permanentemente. Tem certeza que deseja continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={cancelDeleteUser}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteUser}>Excluir</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

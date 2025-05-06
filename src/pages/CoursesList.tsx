@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { PlusCircle, Search, Filter, Tag, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Course } from "@/types/course";
+import { mapCourseToStoreModel } from "@/utils/courseMappers";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -250,7 +250,7 @@ const CoursesList = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <CourseCard key={course.id} course={mapCourseToStoreModel(course)} />
             ))}
           </div>
         )}

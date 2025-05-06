@@ -33,7 +33,7 @@ const formSchema = z.object({
     .number()
     .min(1, "A duração deve ser pelo menos 1 minuto")
     .max(480, "A duração deve ser no máximo 480 minutos (8 horas)"),
-  activityType: z.enum(["Exposição", "Dinâmica", "Prática", "Avaliação"] as const),
+  activityType: z.enum(["Exposição", "Dinâmica", "Prática", "Avaliação", "Debate"] as const),
   notes: z.string().optional(),
 });
 

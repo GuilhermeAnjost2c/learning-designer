@@ -104,8 +104,8 @@ const sampleActivities = [
   }
 ];
 
-// Sample dynamics data
-const sampleDynamics = [
+// Sample dynamics data with proper typing for category
+const sampleDynamics: Dynamic[] = [
   {
     id: generateId(),
     name: 'Círculo de Apresentação',

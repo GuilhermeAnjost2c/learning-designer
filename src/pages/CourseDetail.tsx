@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { CourseHeader } from "@/components/courses/CourseHeader";
 import { CourseInfo } from "@/components/courses/CourseInfo";
 import { CourseContent } from "@/components/courses/CourseContent";
 import { CourseDialogs } from "@/components/courses/CourseDialogs";
+import { mapStoreToTypeModel } from "@/utils/courseMappers";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -175,7 +175,7 @@ const CourseDetail = () => {
 
       {isEditing && (
         <CourseForm
-          course={course}
+          course={mapStoreToTypeModel(course)}
           onClose={() => setIsEditing(false)}
         />
       )}

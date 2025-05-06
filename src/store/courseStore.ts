@@ -2,10 +2,11 @@ import { create } from "zustand";
 import { sampleCourses } from "@/utils/sampleData";
 import { devtools } from "zustand/middleware";
 import { nanoid } from "nanoid";
+import { ActivityType } from "@/types/course";
 
 export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
 export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
-export type ActivityType = "Exposição" | "Dinâmica" | "Avaliação" | "Prática" | "Debate";
+export { ActivityType };
 export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
 export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
 export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
@@ -75,22 +76,10 @@ interface CourseStore {
   updateCourseStatus: (courseId: string, status: CourseStatus) => void;
   addCollaborator: (courseId: string, userId: string) => void;
   removeCollaborator: (courseId: string, userId: string) => void;
-  submitForApproval: (
-    courseId: string,
-    requestedBy: string,
-    approverId: string,
-    approvalType: ApprovalItemType,
-    itemId?: string,
-    comments?: string
-  ) => void;
-  updateApprovalStatus: (
-    courseId: string,
-    approvalId: string,
-    status: ApprovalStatus,
-    comments?: string
-  ) => void;
-  reorderModule: (courseId: string, oldIndex: number, newIndex: number) => void;
-  reorderLesson: (courseId: string, moduleId: string, oldIndex: number, newIndex: number) => void;
+  submitForApproval: (courseId: string, requestedBy: string, approverId: string, approvalType: ApprovalItemType, itemId?: string, comments?: string) => void;
+  updateApproval: (courseId: string, approvalId: string, status: ApprovalStatus, comments?: string) => void;
+  reorderModule: (courseId: string, fromIndex: number, toIndex: number) => void;
+  reorderLesson: (courseId: string, moduleId: string, fromIndex: number, toIndex: number) => void;
   // Add the missing function
   getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
 }
@@ -364,7 +353,7 @@ export const useCourseStore = create<CourseStore>()(
         }));
       },
 
-      updateApprovalStatus: (courseId, approvalId, status, comments) => {
+      updateApproval: (courseId, approvalId, status, comments) => {
         set((state) => ({
           courses: state.courses.map((course) =>
             course.id === courseId
@@ -392,14 +381,14 @@ export const useCourseStore = create<CourseStore>()(
         }));
       },
       
-      reorderModule: (courseId, oldIndex, newIndex) => {
+      reorderModule: (courseId, fromIndex, toIndex) => {
         set((state) => {
           const course = state.courses.find(c => c.id === courseId);
           if (!course) return state;
           
           const modules = [...course.modules];
-          const [movedModule] = modules.splice(oldIndex, 1);
-          modules.splice(newIndex, 0, movedModule);
+          const [movedModule] = modules.splice(fromIndex, 1);
+          modules.splice(toIndex, 0, movedModule);
           
           return {
             courses: state.courses.map((c) =>
@@ -409,7 +398,7 @@ export const useCourseStore = create<CourseStore>()(
         });
       },
       
-      reorderLesson: (courseId, moduleId, oldIndex, newIndex) => {
+      reorderLesson: (courseId, moduleId, fromIndex, toIndex) => {
         set((state) => {
           const course = state.courses.find(c => c.id === courseId);
           if (!course) return state;
@@ -418,8 +407,8 @@ export const useCourseStore = create<CourseStore>()(
           if (moduleIndex === -1) return state;
           
           const lessons = [...course.modules[moduleIndex].lessons];
-          const [movedLesson] = lessons.splice(oldIndex, 1);
-          lessons.splice(newIndex, 0, movedLesson);
+          const [movedLesson] = lessons.splice(fromIndex, 1);
+          lessons.splice(toIndex, 0, movedLesson);
           
           const updatedModules = [...course.modules];
           updatedModules[moduleIndex] = {
