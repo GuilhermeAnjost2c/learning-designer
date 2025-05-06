@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Navbar } from "./Navbar";
 import { Sidebar } from "./Sidebar";
 import { Toaster } from "@/components/ui/sonner";
@@ -10,12 +10,11 @@ export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 1024);
   const { isAuthenticated } = useUserStore();
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     // If user is not authenticated, redirect to login page
     if (!isAuthenticated) {
-      navigate("/auth");
+      navigate("/login");
     }
 
     // Handle window resize to adjust sidebar on larger screens

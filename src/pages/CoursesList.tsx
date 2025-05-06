@@ -1,11 +1,11 @@
 
 import { useCourseStore } from "@/store/courseStore";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserStore } from "@/store/userStore";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Search, Filter, Tag, X, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AddCourseButton } from "@/components/courses/AddCourseButton";
@@ -19,8 +19,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 const CoursesList = () => {
-  const { courses, initialized, loadingCourses, initializeCourses } = useCourseStore();
-  const { user, profile } = useAuth();
+  const { courses } = useCourseStore();
+  const { currentUser } = useUserStore();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "modules">("date");
@@ -28,28 +28,21 @@ const CoursesList = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAllCourses, setShowAllCourses] = useState(false);
 
-  // Initialize courses when the component mounts
-  useEffect(() => {
-    if (!initialized && user) {
-      initializeCourses(user.id);
-    }
-  }, [initialized, user, initializeCourses]);
-
   const handleAddCourse = () => {
     navigate("/courses/new");
   };
 
   // Get all visible courses for the current user
-  const visibleCourses = user 
-    ? (showAllCourses && profile?.role === 'admin'
+  const visibleCourses = currentUser 
+    ? (showAllCourses && currentUser.role === 'admin'
         ? courses 
         : courses.filter(course => 
             // User is creator
-            course.createdBy === user.id ||
+            course.createdBy === currentUser.id ||
             // User is collaborator
-            (course.collaborators && course.collaborators.includes(user.id)) ||
+            (course.collaborators && course.collaborators.includes(currentUser.id)) ||
             // Course is in user's department
-            (profile?.department && course.department === profile.department)
+            (currentUser.department && course.department === currentUser.department)
           ))
     : [];
 
@@ -94,17 +87,6 @@ const CoursesList = () => {
       : b.modules.length - a.modules.length;
   });
 
-  if (loadingCourses) {
-    return (
-      <div className="flex items-center justify-center h-[80vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando cursos...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="container mx-auto">
@@ -126,7 +108,7 @@ const CoursesList = () => {
         </motion.div>
 
         {/* Visibility toggle for admins */}
-        {profile?.role === 'admin' && (
+        {currentUser?.role === 'admin' && (
           <div className="mb-4 flex items-center justify-end">
             <Button 
               variant={showAllCourses ? "default" : "outline"} 

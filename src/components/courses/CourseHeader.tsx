@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CourseStatus } from "@/store/courseStore";
+import { Course, CourseStatus } from "@/store/courseStore";
 import { useUserStore } from "@/store/userStore";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,15 +25,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface CourseHeaderProps {
-  course: any;
+  course: Course;
   onDelete: () => void;
   onEdit: () => void;
   onStatusChange: (status: CourseStatus) => void;
-  onAddCollaborators?: () => void;
-  onApprovalRequest?: () => void;
+  onAddCollaborators: () => void;
+  onApprovalRequest: () => void;
   handleDeleteDialogOpen: () => void;
-  isOwner?: boolean;
-  canEdit?: boolean;
 }
 
 export const CourseHeader = ({
@@ -44,12 +42,15 @@ export const CourseHeader = ({
   onAddCollaborators,
   onApprovalRequest,
   handleDeleteDialogOpen,
-  isOwner = false,
-  canEdit = false,
 }: CourseHeaderProps) => {
   const { currentUser, users } = useUserStore();
   const creator = users.find((user) => user.id === course.createdBy);
   
+  const canEdit =
+    currentUser?.role === "admin" ||
+    course.createdBy === currentUser?.id ||
+    (Array.isArray(course.collaborators) && course.collaborators.includes(currentUser?.id || ""));
+
   const getStatusColor = (status: CourseStatus) => {
     switch (status) {
       case "Rascunho":
@@ -94,7 +95,7 @@ export const CourseHeader = ({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className={`px-3 py-1 flex items-center gap-1 ${getStatusColor(course.status as CourseStatus)}`}
+                className={`px-3 py-1 flex items-center gap-1 ${getStatusColor(course.status)}`}
               >
                 {course.status}
                 <ChevronDown className="h-3.5 w-3.5 ml-1" />
@@ -118,7 +119,7 @@ export const CourseHeader = ({
         ) : (
           <Badge
             variant="outline"
-            className={`px-2 py-1 ${getStatusColor(course.status as CourseStatus)}`}
+            className={`px-2 py-1 ${getStatusColor(course.status)}`}
           >
             {course.status}
           </Badge>

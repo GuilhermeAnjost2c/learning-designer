@@ -1,206 +1,218 @@
 
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { CourseHeader } from "@/components/courses/CourseHeader";
-import { CourseContent } from "@/components/courses/CourseContent";
-import { CourseInfo } from "@/components/courses/CourseInfo";
+import { useCourseStore, Course, CourseStatus, ApprovalItemType } from "@/store/courseStore";
+import { useUserStore } from "@/store/userStore";
 import { CourseForm } from "@/components/courses/CourseForm";
+import { ModuleForm } from "@/components/courses/ModuleForm";
+import { toast } from "sonner";
 import { CourseEditor } from "@/components/courses/CourseEditor";
-import { useAuth } from "@/hooks/useAuth";
-import { useCourseStore } from "@/store/courseStore";
+import { CourseHeader } from "@/components/courses/CourseHeader";
+import { CourseInfo } from "@/components/courses/CourseInfo";
+import { CourseContent } from "@/components/courses/CourseContent";
+import { CourseDialogs } from "@/components/courses/CourseDialogs";
 
 const CourseDetail = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { 
-    courses, 
-    loadingCourses: loading,
-    initialized,
-    initializeCourses,
-    updateCourse,
-    deleteCourse,
-    addCollaborator,
-    submitForApproval,
-  } = useCourseStore();
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  const { courses, deleteCourse, updateCourseStatus, addCollaborator, removeCollaborator, submitForApproval } = useCourseStore();
+  const { users, currentUser, getAllManagers } = useUserStore();
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAddingModule, setIsAddingModule] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("content");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [collaboratorEmail, setCollaboratorEmail] = useState("");
+  const [isCollaboratorDialogOpen, setIsCollaboratorDialogOpen] = useState(false);
+  const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+  const [approvalData, setApprovalData] = useState({
+    approverId: "",
+    approvalType: "curso_completo" as ApprovalItemType,
+    itemId: "",
+    comments: ""
+  });
   
-  // Get the current course
-  const course = courses.find(c => c.id === courseId);
-  const error = initialized && !loading && !course ? "Curso não encontrado" : null;
-
+  const managers = getAllManagers();
+  
   useEffect(() => {
-    if (courseId && user && !initialized) {
-      initializeCourses(user.id);
-    }
-  }, [courseId, user, initializeCourses, initialized]);
-
-  const handleDelete = async () => {
     if (courseId) {
-      await deleteCourse(courseId);
-      toast.success("Curso excluído com sucesso!");
-      navigate("/courses");
+      const foundCourse = courses.find(c => c.id === courseId);
+      setCourse(foundCourse || null);
     }
-  };
-
-  const handleSubmitForApproval = async () => {
-    if (courseId && course && user) {
-      try {
-        await submitForApproval(
-          courseId,
-          user.id,
-          "", // Leave approver empty for now
-          "curso_completo"
-        );
-        toast.success("Curso enviado para aprovação com sucesso!");
-      } catch (error) {
-        console.error("Error submitting course for approval:", error);
-        toast.error("Erro ao enviar curso para aprovação");
-      }
-    }
-  };
-
-  const handleEditClose = () => {
-    setIsEditOpen(false);
-  };
-
-  if (loading) {
+  }, [courseId, courses]);
+  
+  const canViewCourse = () => {
+    if (!currentUser || !course) return false;
+    
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
+      currentUser.role === 'admin' ||
+      course.createdBy === currentUser.id ||
+      (currentUser.department && course.department === currentUser.department) ||
+      (course.collaborators && course.collaborators.includes(currentUser.id))
     );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-10">
-        <h2 className="text-2xl font-bold text-red-500">Erro ao carregar curso</h2>
-        <p className="text-gray-600 mt-2">{error}</p>
-        <Button onClick={() => navigate("/courses")} className="mt-4">
-          Voltar para lista de cursos
-        </Button>
-      </div>
-    );
-  }
+  };
 
   if (!course) {
     return (
-      <div className="text-center py-10">
-        <h2 className="text-2xl font-bold">Curso não encontrado</h2>
-        <Button onClick={() => navigate("/courses")} className="mt-4">
-          Voltar para lista de cursos
-        </Button>
+      <div className="container mx-auto py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Curso não encontrado</h1>
+        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
+      </div>
+    );
+  }
+  
+  if (!canViewCourse()) {
+    return (
+      <div className="container mx-auto py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Você não tem permissão para visualizar este curso</h1>
+        <p className="mb-4 text-muted-foreground">Este curso está em outro departamento ou você não é um colaborador.</p>
+        <Button onClick={() => navigate("/courses")}>Voltar para Cursos</Button>
       </div>
     );
   }
 
-  const isOwner = user && course.createdBy === user.id;
-  const isCollaborator = user && course.collaborators && course.collaborators.includes(user.id);
-  const canEdit = isOwner || isCollaborator;
+  const totalModules = course.modules.length;
+  const totalLessons = course.modules.reduce(
+    (acc, module) => acc + module.lessons.length, 
+    0
+  );
+
+  const handleDelete = () => {
+    deleteCourse(course.id);
+    toast.success("Curso excluído com sucesso");
+    navigate("/courses");
+  };
+
+  const handleStatusChange = (status: CourseStatus) => {
+    updateCourseStatus(course.id, status);
+    toast.success(`Status do curso atualizado para "${status}"`);
+  };
+
+  const openEditor = () => {
+    setEditorOpen(true);
+  };
+  
+  const handleAddCollaborator = () => {
+    if (!collaboratorEmail) {
+      toast.error("Informe o email do colaborador");
+      return;
+    }
+    
+    const collaborator = users.find(user => user.email === collaboratorEmail);
+    if (!collaborator) {
+      toast.error("Usuário não encontrado");
+      return;
+    }
+    
+    if (course.collaborators && course.collaborators.includes(collaborator.id)) {
+      toast.error("Este usuário já é um colaborador");
+      return;
+    }
+    
+    addCollaborator(course.id, collaborator.id);
+    toast.success(`${collaborator.name} adicionado como colaborador`);
+    setCollaboratorEmail("");
+    setIsCollaboratorDialogOpen(false);
+  };
+  
+  const handleRemoveCollaborator = (userId: string) => {
+    removeCollaborator(course.id, userId);
+    toast.success("Colaborador removido com sucesso");
+  };
+  
+  const getCollaborators = () => {
+    // Make sure course.collaborators exists before trying to map over it
+    return course.collaborators && Array.isArray(course.collaborators) 
+      ? course.collaborators
+          .map(userId => users.find(user => user.id === userId))
+          .filter(Boolean)
+      : [];
+  };
+  
+  const handleSubmitForApproval = () => {
+    // Changed to just submit without requiring an approver
+    submitForApproval(
+      course.id,
+      currentUser!.id,
+      "", // No specific approver
+      "curso_completo",
+      undefined,
+      approvalData.comments
+    );
+    
+    toast.success("Curso enviado para aprovação");
+    setIsApprovalDialogOpen(false);
+  };
 
   return (
-    <div className="container mx-auto max-w-7xl">
-      <CourseHeader
+    <div className="container mx-auto py-6">
+      <CourseHeader 
         course={course}
-        onEdit={() => setIsEditOpen(true)}
-        onDelete={() => setDeleteDialogOpen(true)}
-        isOwner={isOwner}
-        canEdit={canEdit}
+        onDelete={handleDelete}
+        onEdit={() => setIsEditing(true)}
+        onStatusChange={handleStatusChange}
+        onAddCollaborators={() => setIsCollaboratorDialogOpen(true)}
+        onApprovalRequest={() => setIsApprovalDialogOpen(true)}
+        handleDeleteDialogOpen={() => setDeleteDialogOpen(true)}
       />
 
-      <Tabs
-        defaultValue="content"
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="mt-6"
-      >
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="content">Conteúdo</TabsTrigger>
-          <TabsTrigger value="info">Informações</TabsTrigger>
-          <TabsTrigger value="editor">Editor</TabsTrigger>
-        </TabsList>
+      <CourseInfo 
+        course={course}
+        totalModules={totalModules}
+        totalLessons={totalLessons}
+        collaborators={getCollaborators()}
+        onOpenEditor={openEditor}
+        onRemoveCollaborator={handleRemoveCollaborator}
+        onOpenCollaboratorDialog={() => setIsCollaboratorDialogOpen(true)}
+      />
 
-        <TabsContent value="content" className="mt-0">
-          <CourseContent course={course} />
-        </TabsContent>
+      <CourseContent 
+        course={course}
+        onOpenEditor={openEditor}
+        onAddModule={() => setIsAddingModule(true)}
+      />
 
-        <TabsContent value="info" className="mt-0">
-          <CourseInfo 
-            course={course}
-            totalModules={course.modules.length}
-            totalLessons={course.modules.reduce((acc, module) => acc + module.lessons.length, 0)}
-            collaborators={course.collaborators || []}
-            onOpenEditor={() => setActiveTab("editor")}
-          />
-        </TabsContent>
-
-        <TabsContent value="editor" className="mt-0">
-          <CourseEditor 
-            course={course}
-            onSave={(updatedCourse) => {
-              updateCourse(courseId || '', updatedCourse);
-              toast.success("Curso atualizado com sucesso!");
-            }}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {/* Edit Course Dialog */}
-      {isEditOpen && (
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Editar Curso</DialogTitle>
-              <DialogDescription>
-                Edite as informações do curso. Clique em salvar quando terminar.
-              </DialogDescription>
-            </DialogHeader>
-            <CourseForm 
-              onClose={handleEditClose} 
-              userId={user?.id || ''}
-              initialValues={course}
-            />
-          </DialogContent>
-        </Dialog>
+      {isEditing && (
+        <CourseForm
+          course={course}
+          onClose={() => setIsEditing(false)}
+        />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-            <DialogDescription>
-              Você tem certeza que deseja excluir este curso? Esta ação não pode ser desfeita.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {isAddingModule && (
+        <ModuleForm
+          courseId={course.id}
+          onClose={() => setIsAddingModule(false)}
+        />
+      )}
+
+      {editorOpen && (
+        <CourseEditor 
+          courseId={course.id} 
+          onClose={() => setEditorOpen(false)} 
+        />
+      )}
+
+      <CourseDialogs 
+        course={course}
+        managers={managers}
+        deleteDialogOpen={deleteDialogOpen}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+        handleDelete={handleDelete}
+        collaboratorEmail={collaboratorEmail}
+        setCollaboratorEmail={setCollaboratorEmail}
+        isCollaboratorDialogOpen={isCollaboratorDialogOpen}
+        setIsCollaboratorDialogOpen={setIsCollaboratorDialogOpen}
+        handleAddCollaborator={handleAddCollaborator}
+        handleRemoveCollaborator={handleRemoveCollaborator}
+        getCollaborators={getCollaborators}
+        approvalData={approvalData}
+        setApprovalData={setApprovalData}
+        isApprovalDialogOpen={isApprovalDialogOpen}
+        setIsApprovalDialogOpen={setIsApprovalDialogOpen}
+        handleSubmitForApproval={handleSubmitForApproval}
+      />
     </div>
   );
 };

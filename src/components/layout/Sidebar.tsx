@@ -2,100 +2,120 @@
 import { Home, BookOpen, Database, UserCog, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
 
 interface SidebarProps {
   isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
+  setIsOpen: (isOpen: boolean) => void;
 }
 
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
-  const location = useLocation();
-  
   // Only display the admin link for admin or manager users
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   
   const navItems = [
-    { name: "Dashboard", path: "/", icon: <Home className="h-5 w-5" /> },
-    { name: "Cursos", path: "/courses", icon: <BookOpen className="h-5 w-5" /> },
-    { name: "Dinâmicas", path: "/dynamics", icon: <Database className="h-5 w-5" /> },
+    { name: "Dashboard", icon: Home, path: "/" },
+    { name: "Cursos", icon: BookOpen, path: "/courses" },
+    { name: "Banco de Dinâmicas", icon: Database, path: "/dynamics" },
   ];
   
+  // Add admin link if user is admin or manager
   if (isAdmin) {
-    navItems.push({
-      name: "Administração",
-      path: "/admin",
-      icon: <UserCog className="h-5 w-5" />,
-    });
+    navItems.push({ name: "Administração", icon: UserCog, path: "/admin" });
   }
 
   const closeSidebar = () => {
     setIsOpen(false);
   };
 
-  // On mobile, close sidebar when route changes
-  useEffect(() => {
-    if (window.innerWidth < 1024) {
-      closeSidebar();
-    }
-  }, [location.pathname]);
-
   return (
     <>
+      {/* Mobile backdrop */}
       <div
-        className={`fixed top-0 left-0 bottom-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        className={cn(
+          "fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={closeSidebar}
+        aria-hidden="true"
+      />
+      
+      {/* Sidebar */}
+      <motion.aside
+        initial={false}
+        animate={{
+          width: isOpen ? "16rem" : "0rem",
+          opacity: isOpen ? 1 : 0,
+          x: isOpen ? 0 : -40,
+        }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className={cn(
+          "h-screen bg-white shadow-lg z-40 flex-shrink-0 overflow-hidden",
+          "fixed lg:sticky top-0 left-0",
+          "lg:opacity-100 lg:translate-x-0",
+          !isOpen && "lg:!w-16 lg:!opacity-100 lg:!translate-x-0"
+        )}
       >
         <div className="flex flex-col h-full">
-          {/* Mobile close button */}
-          <div className="flex items-center justify-between px-4 py-3 border-b lg:hidden">
-            <span className="font-semibold">Menu</span>
+          <div className="flex justify-between items-center h-16 border-b px-4">
+            {isOpen ? (
+              <h1 className="text-xl font-bold text-primary transition-opacity duration-200">
+                Learning Designer
+              </h1>
+            ) : (
+              <span className="hidden lg:block text-xl font-bold text-primary text-center w-full">
+                LD
+              </span>
+            )}
             <Button
               variant="ghost"
-              size="icon"
-              onClick={closeSidebar}
+              size="sm"
               className="lg:hidden"
+              onClick={closeSidebar}
             >
               <X className="h-5 w-5" />
             </Button>
           </div>
-
-          {/* Sidebar header */}
-          <div className="px-6 py-4 border-b hidden lg:block">
-            <h1 className="text-xl font-bold">Learning Designer</h1>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4">
-            <ul className="space-y-1 px-3">
+          
+          <div className="flex-1 py-4 overflow-y-auto">
+            <ul className="space-y-2 px-2">
               {navItems.map((item) => (
                 <li key={item.name}>
                   <NavLink
                     to={item.path}
-                    end={item.path === "/"}
                     className={({ isActive }) =>
                       cn(
                         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                         isActive
-                          ? "bg-primary text-white"
-                          : "hover:bg-muted text-gray-600 hover:text-gray-900"
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-secondary"
                       )
                     }
                   >
-                    {item.icon}
-                    <span>{item.name}</span>
+                    <item.icon className="w-5 h-5 min-w-[20px]" />
+                    {isOpen && (
+                      <span className="transition-opacity duration-200 whitespace-nowrap">
+                        {item.name}
+                      </span>
+                    )}
                   </NavLink>
                 </li>
               ))}
             </ul>
-          </nav>
+          </div>
+          
+          <div className="p-4 border-t">
+            {isOpen && (
+              <div className="text-xs text-muted-foreground text-center transition-opacity duration-200">
+                © 2025 Learning Designer
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </motion.aside>
     </>
   );
 };

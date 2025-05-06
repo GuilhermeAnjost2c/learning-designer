@@ -1,13 +1,13 @@
-
 import { useEffect, useState } from "react";
 import { PlusCircle, Grid3X3, List, Tag, X, Folder, Users, BookOpen, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CourseCard } from "@/components/courses/CourseCard";
 import { useCourseStore, CourseStatus, LessonStatus } from "@/store/courseStore";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserStore, UserRole } from "@/store/userStore";
 import { motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
+import { sampleCourses } from "@/utils/sampleData";
 import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -26,18 +26,38 @@ import {
 } from "recharts";
 
 const Dashboard = () => {
-  const { courses, initialized, loadingCourses, initializeCourses } = useCourseStore();
-  const { user, profile } = useAuth();
+  const { courses, addCourse } = useCourseStore();
+  const { users, currentUser } = useUserStore();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
-  // Initialize courses when the component mounts
+  // Add sample courses if there are none (for demo purposes)
   useEffect(() => {
-    if (!initialized && user) {
-      initializeCourses(user.id);
+    if (courses.length === 0 && currentUser) {
+      // Adicionar cursos de demonstração com tags padrão
+      sampleCourses.forEach((course, index) => {
+        const defaultTags = [];
+        if (index % 2 === 0) defaultTags.push("Desenvolvimento");
+        if (index % 3 === 0) defaultTags.push("Liderança");
+        if (index % 4 === 0) defaultTags.push("Marketing");
+        
+        addCourse({
+          name: course.name,
+          description: course.description,
+          objectives: course.objectives,
+          targetAudience: course.targetAudience,
+          estimatedDuration: course.estimatedDuration,
+          thumbnail: course.thumbnail,
+          modules: course.modules,
+          tags: defaultTags,
+          createdBy: currentUser.id,
+          department: currentUser.department,
+          collaborators: [],
+        });
+      });
     }
-  }, [initialized, user, initializeCourses]);
+  }, [courses.length, addCourse, currentUser]);
 
   const handleAddCourse = () => {
     navigate("/courses/new");
@@ -86,6 +106,36 @@ const Dashboard = () => {
     value: count,
   }));
 
+  // User statistics
+  const userRoleStats = users.reduce((acc, user) => {
+    acc[user.role] = (acc[user.role] || 0) + 1;
+    return acc;
+  }, {} as Record<UserRole, number>);
+
+  const userRoleData = Object.entries(userRoleStats).map(([role, count]) => ({
+    name: role === 'admin' 
+      ? 'Administrador' 
+      : role === 'instructor' 
+        ? 'Instrutor' 
+        : 'Estudante',
+    value: count,
+  }));
+
+  // Department statistics
+  const departmentStats = users.reduce((acc, user) => {
+    if (user.department) {
+      acc[user.department] = (acc[user.department] || 0) + 1;
+    } else {
+      acc['Sem departamento'] = (acc['Sem departamento'] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const departmentData = Object.entries(departmentStats).map(([dept, count]) => ({
+    name: dept,
+    count: count,
+  }));
+
   // Define chart colors
   const CHART_COLORS = ['#9b87f5', '#7E69AB', '#D6BCFA', '#33C3F0', '#ea384c'];
   
@@ -108,17 +158,7 @@ const Dashboard = () => {
   const totalLessons = courses.reduce((acc, course) => 
     acc + course.modules.reduce((macc, module) => 
       macc + module.lessons.length, 0), 0);
-
-  if (loadingCourses) {
-    return (
-      <div className="flex items-center justify-center h-[80vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Carregando cursos...</p>
-        </div>
-      </div>
-    );
-  }
+  const totalUsers = users.length;
 
   return (
     <>
@@ -179,14 +219,14 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Seu Perfil
+                Total de Usuários
               </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-lg font-medium truncate">{profile?.name || user?.email}</div>
+              <div className="text-2xl font-bold">{totalUsers}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {profile?.role ? profile.role.charAt(0).toUpperCase() + profile.role.slice(1) : 'Usuário'}
+                {userRoleStats['instructor'] || 0} instrutores
               </p>
             </CardContent>
           </Card>
@@ -258,6 +298,56 @@ const Dashboard = () => {
                   <Tooltip />
                   <Legend />
                 </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuários por Função</CardTitle>
+              <CardDescription>
+                Distribuição de usuários por função
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={userRoleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {userRoleData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuários por Departamento</CardTitle>
+              <CardDescription>
+                Distribuição de usuários por departamento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={departmentData}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#9b87f5" name="Usuários" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>

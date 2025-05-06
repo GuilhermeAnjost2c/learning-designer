@@ -1,17 +1,21 @@
-
 import { create } from "zustand";
-import { useSupabase } from "@/hooks/useSupabase";
+import { sampleCourses } from "@/utils/sampleData";
+import { devtools } from "zustand/middleware";
+import { nanoid } from "nanoid";
 
-// Types for the course store
-export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Arquivado';
-export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
+export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
+export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
+export type ActivityType = "Exposição" | "Dinâmica" | "Avaliação" | "Prática" | "Debate";
+export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
+export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
+export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
 
 export interface Lesson {
   id: string;
   title: string;
   description: string;
   duration: number;
-  activityType: string;
+  activityType: ActivityType;
   status: LessonStatus;
   notes: string;
 }
@@ -19,8 +23,21 @@ export interface Lesson {
 export interface Module {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   lessons: Lesson[];
+}
+
+export interface ApprovalRequest {
+  id: string;
+  courseId: string;
+  requestedBy: string;
+  approverId: string;
+  requestDate: Date;
+  approvalType: ApprovalItemType;
+  itemId?: string;
+  status: ApprovalStatus;
+  comments?: string;
+  reviewDate?: Date;
 }
 
 export interface Course {
@@ -33,483 +50,408 @@ export interface Course {
   thumbnail?: string;
   createdAt: Date;
   updatedAt: Date;
-  tags: string[];
+  tags?: string[];
   status: CourseStatus;
   createdBy: string;
   department?: string;
   modules: Module[];
   collaborators: string[];
-  approvalRequests: ApprovalRequest[];
-  format?: string;
+  approvalRequests?: ApprovalRequest[];
+  format?: CourseFormat;
 }
 
-export interface ApprovalRequest {
-  id: string;
-  courseId: string;
-  requestedBy: string;
-  approverId: string;
-  requestDate: Date;
-  reviewDate?: Date;
-  approvalType: string;
-  status: string;
-  comments?: string;
-  itemId?: string;
-}
-
-// Type for the course store
 interface CourseStore {
   courses: Course[];
-  loadingCourses: boolean;
-  initialized: boolean;
-  initializeCourses: (userId: string) => Promise<void>;
-  addCourse: (course: Partial<Course>) => Promise<void>;
-  updateCourse: (id: string, course: Partial<Course>) => Promise<void>;
-  deleteCourse: (id: string) => Promise<void>;
-  addModule: (courseId: string, module: Partial<Module>) => Promise<void>;
-  updateModule: (courseId: string, moduleId: string, module: Partial<Module>) => Promise<void>;
-  deleteModule: (courseId: string, moduleId: string) => Promise<void>;
-  addLesson: (courseId: string, moduleId: string, lesson: Partial<Lesson>) => Promise<void>;
-  updateLesson: (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => Promise<void>;
-  deleteLesson: (courseId: string, moduleId: string, lessonId: string) => Promise<void>;
-  updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => Promise<void>;
-  addCollaborator: (courseId: string, userId: string) => Promise<void>;
-  submitForApproval: (courseId: string, requesterId: string, approverId: string, approvalType: string) => Promise<void>;
+  addCourse: (course: Omit<Course, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  updateCourse: (id: string, updates: Partial<Course>) => void;
+  deleteCourse: (id: string) => void;
+  addModule: (courseId: string, module: Omit<Module, "id" | "lessons">) => void;
+  updateModule: (courseId: string, moduleId: string, updates: Partial<Module>) => void;
+  deleteModule: (courseId: string, moduleId: string) => void;
+  addLesson: (courseId: string, moduleId: string, lesson: Omit<Lesson, "id" | "status">) => void;
+  updateLesson: (courseId: string, moduleId: string, lessonId: string, updates: Partial<Lesson>) => void;
+  deleteLesson: (courseId: string, moduleId: string, lessonId: string) => void;
+  updateLessonStatus: (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => void;
+  updateCourseStatus: (courseId: string, status: CourseStatus) => void;
+  addCollaborator: (courseId: string, userId: string) => void;
+  removeCollaborator: (courseId: string, userId: string) => void;
+  submitForApproval: (
+    courseId: string,
+    requestedBy: string,
+    approverId: string,
+    approvalType: ApprovalItemType,
+    itemId?: string,
+    comments?: string
+  ) => void;
+  updateApprovalStatus: (
+    courseId: string,
+    approvalId: string,
+    status: ApprovalStatus,
+    comments?: string
+  ) => void;
+  reorderModule: (courseId: string, oldIndex: number, newIndex: number) => void;
+  reorderLesson: (courseId: string, moduleId: string, oldIndex: number, newIndex: number) => void;
+  // Add the missing function
+  getVisibleCoursesForUser: (userId: string, userDepartment?: string) => Course[];
 }
 
-// Create the store
-export const useCourseStore = create<CourseStore>((set, get) => ({
-  courses: [],
-  loadingCourses: false,
-  initialized: false,
+export const useCourseStore = create<CourseStore>()(
+  devtools(
+    (set, get) => ({
+      courses: [...sampleCourses],
 
-  // Initialize courses
-  initializeCourses: async (userId: string) => {
-    try {
-      set({ loadingCourses: true });
-      
-      // Use the Supabase hook to fetch data
-      const { fetchCourses } = useSupabase();
-      const courses = await fetchCourses();
-      
-      // Set the courses in the store
-      set({ 
-        courses: courses, 
-        loadingCourses: false,
-        initialized: true
-      });
-      
-    } catch (error) {
-      console.error("Error initializing courses:", error);
-      set({ loadingCourses: false });
-    }
-  },
-
-  // Add a new course
-  addCourse: async (course: Partial<Course>) => {
-    try {
-      const { createCourse } = useSupabase();
-
-      // Format course data for Supabase
-      const courseData = {
-        name: course.name || '',
-        description: course.description || '',
-        objectives: course.objectives || '',
-        target_audience: course.targetAudience || '',
-        estimated_duration: course.estimatedDuration || 0,
-        department: course.department,
-        created_by: course.createdBy || '',
-        tags: course.tags || [],
-        format: course.format || 'EAD',
-      };
-
-      // Create course in Supabase
-      const newCourseId = await createCourse(courseData);
-
-      // Add the new course to the store
-      if (newCourseId) {
-        const newCourse: Course = {
-          id: newCourseId,
-          name: course.name || '',
-          description: course.description || '',
-          objectives: course.objectives || '',
-          targetAudience: course.targetAudience || '',
-          estimatedDuration: course.estimatedDuration || 0,
-          thumbnail: course.thumbnail,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          tags: course.tags || [],
-          status: 'Rascunho',
-          createdBy: course.createdBy || '',
-          department: course.department,
-          modules: [],
-          collaborators: [],
-          approvalRequests: [],
-          format: course.format || 'EAD',
-        };
-
-        set(state => ({
-          courses: [...state.courses, newCourse]
+      addCourse: (course) => {
+        set((state) => ({
+          courses: [
+            ...state.courses,
+            {
+              ...course,
+              id: nanoid(7),
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              status: "Rascunho",
+              modules: course.modules || [],
+              collaborators: course.collaborators || [],
+              format: course.format || "EAD",
+            },
+          ],
         }));
-      }
-    } catch (error) {
-      console.error("Error adding course:", error);
-      throw error;
-    }
-  },
+      },
 
-  // Update a course
-  updateCourse: async (id: string, course: Partial<Course>) => {
-    try {
-      const { updateCourse } = useSupabase();
-
-      // Format course data for Supabase
-      const courseData = {
-        name: course.name,
-        description: course.description,
-        objectives: course.objectives,
-        target_audience: course.targetAudience,
-        estimated_duration: course.estimatedDuration,
-        department: course.department,
-        tags: course.tags,
-        status: course.status,
-        format: course.format,
-        // We don't update created_by from here
-      };
-
-      // Filter out undefined values
-      const filteredData = Object.entries(courseData)
-        .filter(([_, value]) => value !== undefined)
-        .reduce((acc: Record<string, any>, [key, value]) => {
-          acc[key] = value;
-          return acc;
-        }, {});
-
-      // Update course in Supabase
-      await updateCourse(id, filteredData);
-
-      // Update the course in the store
-      set(state => ({
-        courses: state.courses.map(c => 
-          c.id === id 
-            ? { ...c, ...course, updatedAt: new Date() } 
-            : c
-        )
-      }));
-    } catch (error) {
-      console.error("Error updating course:", error);
-      throw error;
-    }
-  },
-
-  // Delete a course
-  deleteCourse: async (id: string) => {
-    try {
-      const { deleteCourse } = useSupabase();
-
-      // Delete course in Supabase
-      await deleteCourse(id);
-
-      // Remove the course from the store
-      set(state => ({
-        courses: state.courses.filter(course => course.id !== id)
-      }));
-    } catch (error) {
-      console.error("Error deleting course:", error);
-      throw error;
-    }
-  },
-
-  // Add a module to a course
-  addModule: async (courseId: string, module: Partial<Module>) => {
-    try {
-      const { createModule } = useSupabase();
-
-      // Format module data for Supabase
-      const moduleData = {
-        course_id: courseId,
-        title: module.title || '',
-        description: module.description || '',
-        position: 0, // Default position at the end
-      };
-
-      // Create module in Supabase
-      const newModuleId = await createModule(moduleData);
-
-      // Add the new module to the store
-      if (newModuleId) {
-        const newModule: Module = {
-          id: newModuleId,
-          title: module.title || '',
-          description: module.description || '',
-          lessons: [],
-        };
-
-        set(state => ({
-          courses: state.courses.map(course => 
-            course.id === courseId 
-              ? { 
-                  ...course, 
-                  modules: [...course.modules, newModule],
-                  updatedAt: new Date(),
-                } 
+      updateCourse: (id, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === id
+              ? { ...course, ...updates, updatedAt: new Date() }
               : course
-          )
+          ),
         }));
-      }
-    } catch (error) {
-      console.error("Error adding module:", error);
-      throw error;
-    }
-  },
+      },
 
-  // Update a module
-  updateModule: async (courseId: string, moduleId: string, module: Partial<Module>) => {
-    try {
-      // Update module in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map(m => 
-                  m.id === moduleId 
-                    ? { ...m, ...module } 
-                    : m
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error updating module:", error);
-      throw error;
-    }
-  },
+      deleteCourse: (id) => {
+        set((state) => ({
+          courses: state.courses.filter((course) => course.id !== id),
+        }));
+      },
 
-  // Delete a module
-  deleteModule: async (courseId: string, moduleId: string) => {
-    try {
-      // Delete module in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.filter(m => m.id !== moduleId),
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error deleting module:", error);
-      throw error;
-    }
-  },
+      addModule: (courseId, module) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: [
+                    ...course.modules,
+                    { ...module, id: nanoid(7), lessons: [] },
+                  ],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-  // Add a lesson to a module
-  addLesson: async (courseId: string, moduleId: string, lesson: Partial<Lesson>) => {
-    try {
-      const { createLesson } = useSupabase();
-
-      // Format lesson data for Supabase
-      const lessonData = {
-        module_id: moduleId,
-        title: lesson.title || '',
-        description: lesson.description || '',
-        duration: lesson.duration || 0,
-        activity_type: lesson.activityType || 'Exposição',
-        notes: lesson.notes || '',
-        status: lesson.status || 'Fazer',
-        position: 0, // Default position at the end
-      };
-
-      // Create lesson in Supabase
-      const newLessonId = await createLesson(lessonData);
-
-      // Add the new lesson to the store
-      if (newLessonId) {
-        const newLesson: Lesson = {
-          id: newLessonId,
-          title: lesson.title || '',
-          description: lesson.description || '',
-          duration: lesson.duration || 0,
-          activityType: lesson.activityType || 'Exposição',
-          notes: lesson.notes || '',
-          status: lesson.status || 'Fazer',
-        };
-
-        set(state => ({
-          courses: state.courses.map(course => 
-            course.id === courseId 
-              ? { 
-                  ...course, 
-                  modules: course.modules.map(m => 
-                    m.id === moduleId 
-                      ? { ...m, lessons: [...m.lessons, newLesson] } 
-                      : m
+      updateModule: (courseId, moduleId, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? { ...module, ...updates }
+                      : module
                   ),
                   updatedAt: new Date(),
-                } 
+                }
               : course
-          )
+          ),
         }));
-      }
-    } catch (error) {
-      console.error("Error adding lesson:", error);
-      throw error;
-    }
-  },
+      },
 
-  // Update a lesson
-  updateLesson: async (courseId: string, moduleId: string, lessonId: string, lesson: Partial<Lesson>) => {
-    try {
-      // Update lesson in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map(m => 
-                  m.id === moduleId 
-                    ? { 
-                        ...m, 
-                        lessons: m.lessons.map(l => 
-                          l.id === lessonId 
-                            ? { ...l, ...lesson } 
-                            : l
-                        ) 
-                      } 
-                    : m
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error updating lesson:", error);
-      throw error;
-    }
-  },
+      deleteModule: (courseId, moduleId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.filter(
+                    (module) => module.id !== moduleId
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-  // Delete a lesson
-  deleteLesson: async (courseId: string, moduleId: string, lessonId: string) => {
-    try {
-      // Delete lesson in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map(m => 
-                  m.id === moduleId 
-                    ? { 
-                        ...m, 
-                        lessons: m.lessons.filter(l => l.id !== lessonId) 
-                      } 
-                    : m
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error deleting lesson:", error);
-      throw error;
-    }
-  },
+      addLesson: (courseId, moduleId, lesson) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: [
+                            ...module.lessons,
+                            {
+                              ...lesson,
+                              id: nanoid(7),
+                              status: "Fazer",
+                              notes: lesson.notes || "",
+                            },
+                          ],
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-  // Update lesson status
-  updateLessonStatus: async (courseId: string, moduleId: string, lessonId: string, status: LessonStatus) => {
-    try {
-      // Update lesson status in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                modules: course.modules.map(m => 
-                  m.id === moduleId 
-                    ? { 
-                        ...m, 
-                        lessons: m.lessons.map(l => 
-                          l.id === lessonId 
-                            ? { ...l, status } 
-                            : l
-                        ) 
-                      } 
-                    : m
-                ),
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error updating lesson status:", error);
-      throw error;
-    }
-  },
+      updateLesson: (courseId, moduleId, lessonId, updates) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.map((lesson) =>
+                            lesson.id === lessonId
+                              ? { ...lesson, ...updates }
+                              : lesson
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-  // Add a collaborator to a course
-  addCollaborator: async (courseId: string, userId: string) => {
-    try {
-      // Add collaborator in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                collaborators: [...course.collaborators, userId],
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error adding collaborator:", error);
-      throw error;
-    }
-  },
+      deleteLesson: (courseId, moduleId, lessonId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.filter(
+                            (lesson) => lesson.id !== lessonId
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
 
-  // Submit a course for approval
-  submitForApproval: async (courseId: string, requesterId: string, approverId: string, approvalType: string) => {
-    try {
-      const newApprovalRequest: ApprovalRequest = {
-        id: Math.random().toString(36).substring(2, 15),
+      updateLessonStatus: (courseId, moduleId, lessonId, status) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  modules: course.modules.map((module) =>
+                    module.id === moduleId
+                      ? {
+                          ...module,
+                          lessons: module.lessons.map((lesson) =>
+                            lesson.id === lessonId
+                              ? { ...lesson, status }
+                              : lesson
+                          ),
+                        }
+                      : module
+                  ),
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateCourseStatus: (courseId, status) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? { ...course, status, updatedAt: new Date() }
+              : course
+          ),
+        }));
+      },
+
+      addCollaborator: (courseId, userId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  collaborators: course.collaborators
+                    ? [...course.collaborators, userId]
+                    : [userId],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      removeCollaborator: (courseId, userId) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  collaborators: course.collaborators
+                    ? course.collaborators.filter((id) => id !== userId)
+                    : [],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      submitForApproval: (
         courseId,
-        requestedBy: requesterId,
+        requestedBy,
         approverId,
-        requestDate: new Date(),
         approvalType,
-        status: 'Pendente',
-      };
+        itemId,
+        comments
+      ) => {
+        const newApproval: ApprovalRequest = {
+          id: nanoid(7),
+          courseId,
+          requestedBy,
+          approverId,
+          requestDate: new Date(),
+          approvalType,
+          itemId,
+          status: "Pendente",
+          comments,
+        };
 
-      // Add approval request in Supabase (to be implemented)
-      // For now, just update the store
-      set(state => ({
-        courses: state.courses.map(course => 
-          course.id === courseId 
-            ? { 
-                ...course, 
-                approvalRequests: [...course.approvalRequests, newApprovalRequest],
-                updatedAt: new Date(),
-              } 
-            : course
-        )
-      }));
-    } catch (error) {
-      console.error("Error submitting for approval:", error);
-      throw error;
-    }
-  },
-}));
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  approvalRequests: course.approvalRequests
+                    ? [...course.approvalRequests, newApproval]
+                    : [newApproval],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+
+      updateApprovalStatus: (courseId, approvalId, status, comments) => {
+        set((state) => ({
+          courses: state.courses.map((course) =>
+            course.id === courseId
+              ? {
+                  ...course,
+                  approvalRequests: course.approvalRequests
+                    ? course.approvalRequests.map((approval) =>
+                        approval.id === approvalId
+                          ? {
+                              ...approval,
+                              status,
+                              comments:
+                                comments !== undefined
+                                  ? comments
+                                  : approval.comments,
+                              reviewDate: new Date(),
+                            }
+                          : approval
+                      )
+                    : [],
+                  updatedAt: new Date(),
+                }
+              : course
+          ),
+        }));
+      },
+      
+      reorderModule: (courseId, oldIndex, newIndex) => {
+        set((state) => {
+          const course = state.courses.find(c => c.id === courseId);
+          if (!course) return state;
+          
+          const modules = [...course.modules];
+          const [movedModule] = modules.splice(oldIndex, 1);
+          modules.splice(newIndex, 0, movedModule);
+          
+          return {
+            courses: state.courses.map((c) =>
+              c.id === courseId ? { ...c, modules, updatedAt: new Date() } : c
+            ),
+          };
+        });
+      },
+      
+      reorderLesson: (courseId, moduleId, oldIndex, newIndex) => {
+        set((state) => {
+          const course = state.courses.find(c => c.id === courseId);
+          if (!course) return state;
+          
+          const moduleIndex = course.modules.findIndex(m => m.id === moduleId);
+          if (moduleIndex === -1) return state;
+          
+          const lessons = [...course.modules[moduleIndex].lessons];
+          const [movedLesson] = lessons.splice(oldIndex, 1);
+          lessons.splice(newIndex, 0, movedLesson);
+          
+          const updatedModules = [...course.modules];
+          updatedModules[moduleIndex] = {
+            ...updatedModules[moduleIndex],
+            lessons
+          };
+          
+          return {
+            courses: state.courses.map((c) =>
+              c.id === courseId ? { ...c, modules: updatedModules, updatedAt: new Date() } : c
+            ),
+          };
+        });
+      },
+      
+      // Implementation of the getVisibleCoursesForUser function
+      getVisibleCoursesForUser: (userId, userDepartment) => {
+        const state = get();
+        return state.courses.filter(course => {
+          // User is creator
+          if (course.createdBy === userId) return true;
+          
+          // User is collaborator
+          if (course.collaborators && course.collaborators.includes(userId)) return true;
+          
+          // Course is in user's department
+          if (userDepartment && course.department === userDepartment) return true;
+          
+          return false;
+        });
+      }
+    }),
+    { name: "course-store" }
+  )
+);

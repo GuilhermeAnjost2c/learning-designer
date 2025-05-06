@@ -1,41 +1,54 @@
 
-export type ActivityType = 'Exposição' | 'Dinâmica' | 'Avaliação' | 'Prática' | 'Debate';
-export type CourseFormat = 'EAD' | 'Presencial' | 'Híbrido';
-export type CourseStatus = 'Rascunho' | 'Em andamento' | 'Concluído' | 'Arquivado';
-export type LessonStatus = 'Fazer' | 'Fazendo' | 'Finalizando';
-
-export interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  duration: number;
-  activityType: ActivityType;
-  notes?: string;
-  status: LessonStatus;
-}
-
-export interface Module {
-  id: string;
-  title: string;
-  description?: string;
-  lessons: Lesson[];
-}
-
 export interface Course {
   id: string;
   name: string;
   description: string;
   objectives: string;
-  targetAudience: string;
-  estimatedDuration: number;
+  target_audience: string;
+  estimated_duration: number;
   thumbnail?: string;
-  status: CourseStatus;
-  modules: Module[];
+  created_at: string;
+  updated_at: string;
   tags: string[];
-  createdAt: Date;
-  updatedAt: Date;
-  createdBy: string;
-  collaborators?: string[];
+  status: string;
+  created_by: string;
   department?: string;
-  format?: CourseFormat;
+  format?: "EAD" | "Ao vivo" | "Híbrido";
+  modules: Module[];
+  collaborators: string[];
+  approval_requests?: ApprovalRequest[];
+}
+
+export interface Module {
+  id: string;
+  course_id: string;
+  title: string;
+  description?: string;
+  position: number;
+  lessons: Lesson[];
+}
+
+export interface Lesson {
+  id: string;
+  module_id: string;
+  title: string;
+  description: string;
+  duration: number;
+  activity_type: string;
+  notes?: string;
+  status: string;
+  position: number;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  course_id: string;
+  request_date: string;
+  requested_by: string;
+  approver_id: string;
+  approval_type: string;
+  item_id?: string;
+  status: string;
+  comments?: string;
+  review_date?: string;
 }
