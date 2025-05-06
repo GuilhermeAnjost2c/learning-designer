@@ -3,9 +3,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { DepartmentName } from '@/types/course';
 
 export type UserRole = 'admin' | 'instructor' | 'student' | 'manager';
-export type DepartmentName = 'Marketing' | 'Vendas' | 'RH' | 'TI' | 'Operações';
 
 export interface User {
   id: string;
@@ -42,27 +42,43 @@ export const useUserStore = create<UserState>()(
       
       login: async (email, password) => {
         try {
+          // Clear any previous error state
+          console.log("Login attempt with:", email);
+          
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
           });
           
-          if (error) throw error;
+          if (error) {
+            console.error("Supabase auth error:", error);
+            toast.error("Falha no login: " + error.message);
+            return false;
+          }
           
           if (data?.user) {
             // Fetch profile data
-            const { data: profileData } = await supabase
+            const { data: profileData, error: profileError } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', data.user.id)
               .single();
             
+            if (profileError) {
+              console.error("Profile fetch error:", profileError);
+              toast.error("Erro ao buscar perfil do usuário");
+              // Still authenticate but with limited data
+            }
+            
+            const userRole = profileData?.role as UserRole || 'student';
+            const userDept = profileData?.department as DepartmentName;
+            
             const userData: User = {
               id: data.user.id,
               name: profileData?.name || email,
               email: data.user.email!,
-              role: (profileData?.role as UserRole) || 'student',
-              department: profileData?.department as DepartmentName,
+              role: userRole,
+              department: userDept,
               createdAt: data.user.created_at ? new Date(data.user.created_at) : new Date(),
             };
             
@@ -71,12 +87,15 @@ export const useUserStore = create<UserState>()(
               isAuthenticated: true
             });
             
+            console.log("Login successful:", userData);
             return true;
           }
           
+          toast.error("Dados de login inválidos");
           return false;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Login error:', error);
+          toast.error("Erro de login: " + error.message);
           return false;
         }
       },
@@ -84,6 +103,7 @@ export const useUserStore = create<UserState>()(
       logout: async () => {
         await supabase.auth.signOut();
         set({ currentUser: null, isAuthenticated: false });
+        toast.info("Logout realizado");
       },
       
       setCurrentUser: (user) => {
@@ -108,7 +128,7 @@ export const useUserStore = create<UserState>()(
           
           set({ users });
           return users;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error fetching users:', error);
           return [];
         }

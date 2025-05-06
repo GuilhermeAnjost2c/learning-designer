@@ -13,47 +13,24 @@ const Login = () => {
   const [password, setPassword] = useState("admin123");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
-  const { setCurrentUser } = useUserStore(); // Add this method to userStore if needed
+  const { login } = useUserStore();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const success = await login(email, password);
       
-      if (error) {
-        throw error;
-      }
-
-      if (data?.user) {
-        // Fetch user profile data
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        // Set user in store if needed (you might want to add this to userStore)
-        if (typeof setCurrentUser === 'function') {
-          setCurrentUser({
-            id: data.user.id,
-            email: data.user.email!,
-            name: profileData?.name || email,
-            role: profileData?.role || 'user',
-            department: profileData?.department,
-          });
-        }
-        
-        toast.success("Login successful");
+      if (success) {
+        toast.success("Login realizado com sucesso");
         navigate("/dashboard");
+      } else {
+        toast.error("Credenciais inválidas");
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Failed to sign in");
+      toast.error(error.message || "Falha ao realizar login");
     } finally {
       setIsLoggingIn(false);
     }
@@ -65,7 +42,7 @@ const Login = () => {
         <div className="text-center">
           <h1 className="text-2xl font-bold tracking-tight">Login</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Sign in to your account
+            Entre em sua conta
           </p>
         </div>
 
@@ -90,10 +67,10 @@ const Login = () => {
                 className="text-sm text-primary hover:underline"
                 onClick={(e) => {
                   e.preventDefault();
-                  toast.info("Please contact your administrator to reset your password");
+                  toast.info("Por favor, entre em contato com o administrador para redefinir sua senha");
                 }}
               >
-                Forgot password?
+                Esqueceu a senha?
               </a>
             </div>
             <Input
@@ -107,14 +84,14 @@ const Login = () => {
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoggingIn}>
-            {isLoggingIn ? "Signing in..." : "Sign In"}
+            {isLoggingIn ? "Entrando..." : "Entrar"}
           </Button>
         </form>
         
         <div className="text-center text-sm text-muted-foreground mt-6">
-          <p>Default admin credentials:</p>
+          <p>Credenciais de administrador:</p>
           <p>Email: admin@example.com</p>
-          <p>Password: admin123</p>
+          <p>Senha: admin123</p>
         </div>
       </div>
     </div>

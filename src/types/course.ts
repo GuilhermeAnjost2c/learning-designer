@@ -5,6 +5,7 @@ export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquiva
 export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
 export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
 export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
+export type DepartmentName = 'Marketing' | 'Vendas' | 'RH' | 'TI' | 'Operações';
 
 export interface Course {
   id: string;

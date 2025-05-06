@@ -3,6 +3,7 @@ import { CourseForm } from "@/components/courses/CourseForm";
 import { useNavigate } from "react-router-dom";
 import { useUserStore } from "@/store/userStore";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 const CreateCourse = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const CreateCourse = () => {
   useEffect(() => {
     // Redirect to login if not authenticated
     if (!isAuthenticated) {
+      toast.error("Você precisa estar logado para criar cursos");
       navigate("/login");
     }
   }, [isAuthenticated, navigate]);

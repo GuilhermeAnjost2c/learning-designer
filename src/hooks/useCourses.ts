@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Course, Module, Lesson } from '@/types/course';
@@ -50,7 +49,8 @@ export const useCourses = () => {
       return courses;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to fetch courses: ' + err.message);
+      console.error("Error fetching courses:", err);
+      toast.error('Falha ao carregar cursos: ' + err.message);
       return [];
     } finally {
       setLoading(false);
@@ -62,7 +62,7 @@ export const useCourses = () => {
     setError(null);
     
     if (!currentUser) {
-      toast.error('You must be logged in to create courses');
+      toast.error('Você precisa estar logado para criar cursos');
       setLoading(false);
       return null;
     }
@@ -87,13 +87,17 @@ export const useCourses = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating course:", error);
+        throw error;
+      }
       
-      toast.success('Course created successfully!');
+      toast.success('Curso criado com sucesso!');
       return data;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to create course: ' + err.message);
+      console.error("Error creating course:", err);
+      toast.error('Falha ao criar curso: ' + err.message);
       return null;
     } finally {
       setLoading(false);
@@ -116,11 +120,11 @@ export const useCourses = () => {
 
       if (error) throw error;
       
-      toast.success('Course updated successfully!');
+      toast.success('Curso atualizado com sucesso!');
       return data;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to update course: ' + err.message);
+      toast.error('Falha ao atualizar curso: ' + err.message);
       return null;
     } finally {
       setLoading(false);
@@ -138,11 +142,11 @@ export const useCourses = () => {
 
       if (error) throw error;
       
-      toast.success('Course deleted successfully!');
+      toast.success('Curso deletado com sucesso!');
       return true;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to delete course: ' + err.message);
+      toast.error('Falha ao deletar curso: ' + err.message);
       return false;
     } finally {
       setLoading(false);
@@ -176,11 +180,11 @@ export const useCourses = () => {
 
       if (error) throw error;
       
-      toast.success('Module added successfully!');
+      toast.success('Módulo adicionado com sucesso!');
       return data;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to add module: ' + err.message);
+      toast.error('Falha ao adicionar módulo: ' + err.message);
       return null;
     } finally {
       setLoading(false);
@@ -218,11 +222,11 @@ export const useCourses = () => {
 
       if (error) throw error;
       
-      toast.success('Lesson added successfully!');
+      toast.success('Aula adicionada com sucesso!');
       return data;
     } catch (err: any) {
       setError(err.message);
-      toast.error('Failed to add lesson: ' + err.message);
+      toast.error('Falha ao adicionar aula: ' + err.message);
       return null;
     } finally {
       setLoading(false);

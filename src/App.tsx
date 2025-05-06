@@ -14,6 +14,7 @@ import Admin from "./pages/Admin";
 import { useUserStore, UserRole } from "./store/userStore";
 import { useEffect } from "react";
 import { supabase } from "./integrations/supabase/client";
+import { DepartmentName } from "./types/course";
 
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
@@ -95,7 +96,7 @@ function App() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [setCurrentUser, logout]);
 
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">

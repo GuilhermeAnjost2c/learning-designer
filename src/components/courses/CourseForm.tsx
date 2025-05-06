@@ -24,6 +24,7 @@ import { Course, CourseFormat } from "@/types/course";
 import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useUserStore } from "@/store/userStore";
+import { useNavigate } from "react-router-dom";
 
 interface CourseFormProps {
   course?: Course;
@@ -33,6 +34,7 @@ interface CourseFormProps {
 export const CourseForm = ({ course, onClose }: CourseFormProps) => {
   const { addCourse, updateCourse } = useCourses();
   const { currentUser } = useUserStore();
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     name: course?.name || "",
@@ -68,37 +70,47 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       return;
     }
     
-    // Parse tags from comma-separated string
-    const tags = formData.tags
-      .split(",")
-      .map(tag => tag.trim())
-      .filter(tag => tag);
+    try {
+      // Parse tags from comma-separated string
+      const tags = formData.tags
+        .split(",")
+        .map(tag => tag.trim())
+        .filter(tag => tag);
+        
+      // Parse numeric values
+      const estimated_duration = parseInt(formData.estimated_duration) || 60;
       
-    // Parse numeric values
-    const estimated_duration = parseInt(formData.estimated_duration) || 60;
-    
-    const courseData = {
-      name: formData.name,
-      description: formData.description,
-      objectives: formData.objectives,
-      target_audience: formData.target_audience,
-      estimated_duration,
-      department: formData.department,
-      tags,
-      format: formData.format,
-      status: formData.status,
-    };
-    
-    if (course) {
-      // Update existing course
-      await updateCourse(course.id, courseData);
-    } else {
-      // Add new course
-      await addCourse(courseData);
+      const courseData = {
+        name: formData.name,
+        description: formData.description,
+        objectives: formData.objectives,
+        target_audience: formData.target_audience,
+        estimated_duration,
+        department: formData.department,
+        tags,
+        format: formData.format,
+        status: formData.status,
+        created_by: currentUser?.id || ''
+      };
+      
+      if (course) {
+        // Update existing course
+        await updateCourse(course.id, courseData);
+      } else {
+        // Add new course
+        const result = await addCourse(courseData);
+        if (result) {
+          toast.success("Curso criado com sucesso!");
+          navigate("/courses");
+        }
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast.error("Ocorreu um erro ao salvar o curso.");
+    } finally {
+      setIsSubmitting(false);
+      onClose();
     }
-    
-    setIsSubmitting(false);
-    onClose();
   };
   
   return (
