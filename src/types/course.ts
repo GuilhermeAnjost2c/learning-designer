@@ -1,4 +1,11 @@
 
+export type ActivityType = "Exposição" | "Dinâmica" | "Avaliação" | "Prática" | "Debate";
+export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
+export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
+export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
+export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
+export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";
+
 export interface Course {
   id: string;
   name: string;
@@ -10,10 +17,10 @@ export interface Course {
   created_at: string;
   updated_at: string;
   tags: string[];
-  status: string;
+  status: CourseStatus;
   created_by: string;
   department?: string;
-  format?: "EAD" | "Ao vivo" | "Híbrido";
+  format?: CourseFormat;
   modules: Module[];
   collaborators: string[];
   approval_requests?: ApprovalRequest[];
@@ -34,9 +41,9 @@ export interface Lesson {
   title: string;
   description: string;
   duration: number;
-  activity_type: string;
+  activity_type: ActivityType;
   notes?: string;
-  status: string;
+  status: LessonStatus;
   position: number;
 }
 
@@ -46,9 +53,9 @@ export interface ApprovalRequest {
   request_date: string;
   requested_by: string;
   approver_id: string;
-  approval_type: string;
+  approval_type: ApprovalItemType;
   item_id?: string;
-  status: string;
+  status: ApprovalStatus;
   comments?: string;
   review_date?: string;
 }

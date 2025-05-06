@@ -12,6 +12,8 @@ import DynamicsBank from "./pages/DynamicsBank";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
 import { useUserStore, UserRole } from "./store/userStore";
+import { useEffect } from "react";
+import { supabase } from "./integrations/supabase/client";
 
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
@@ -35,6 +37,66 @@ const ProtectedRoute = ({
 };
 
 function App() {
+  const { setCurrentUser, logout } = useUserStore();
+
+  useEffect(() => {
+    // Check for existing session
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      if (data?.session?.user) {
+        // Fetch profile data
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.session.user.id)
+          .single();
+        
+        if (profileData) {
+          setCurrentUser({
+            id: data.session.user.id,
+            name: profileData.name || data.session.user.email!,
+            email: data.session.user.email!,
+            role: profileData.role as UserRole,
+            department: profileData.department as DepartmentName,
+          });
+        }
+      }
+    };
+    
+    checkSession();
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          logout();
+        } else if (event === 'SIGNED_IN' && session) {
+          // Fetch profile data
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileData) {
+            setCurrentUser({
+              id: session.user.id,
+              name: profileData.name || session.user.email!,
+              email: session.user.email!,
+              role: profileData.role as UserRole,
+              department: profileData.department as DepartmentName,
+            });
+          }
+        }
+      }
+    );
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <Router>
@@ -47,6 +109,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
             <Route path="courses" element={<CoursesList />} />
             <Route path="courses/new" element={
               <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>

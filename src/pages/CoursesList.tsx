@@ -1,49 +1,67 @@
 
-import { useCourseStore } from "@/store/courseStore";
-import { useUserStore } from "@/store/userStore";
-import { CourseCard } from "@/components/courses/CourseCard";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { PlusCircle, Search, Filter, Tag, X, Users } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { CourseCard } from "@/components/courses/CourseCard";
+import { useUserStore } from "@/store/userStore";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { AddCourseButton } from "@/components/courses/AddCourseButton";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { Course } from "@/types/course";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { useCourses } from "@/hooks/useCourses";
 
 const CoursesList = () => {
-  const { courses } = useCourseStore();
-  const { currentUser } = useUserStore();
   const navigate = useNavigate();
+  const { currentUser, isAuthenticated } = useUserStore();
+  const { fetchCourses, loading } = useCourses();
+  const [courses, setCourses] = useState<Course[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "name" | "modules">("date");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAllCourses, setShowAllCourses] = useState(false);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
+    }
+
+    const loadCourses = async () => {
+      const data = await fetchCourses();
+      if (data) {
+        setCourses(data);
+      }
+    };
+
+    loadCourses();
+  }, [fetchCourses, isAuthenticated, navigate]);
+
   const handleAddCourse = () => {
     navigate("/courses/new");
   };
 
   // Get all visible courses for the current user
-  const visibleCourses = currentUser 
-    ? (showAllCourses && currentUser.role === 'admin'
-        ? courses 
-        : courses.filter(course => 
-            // User is creator
-            course.createdBy === currentUser.id ||
-            // User is collaborator
-            (course.collaborators && course.collaborators.includes(currentUser.id)) ||
-            // Course is in user's department
-            (currentUser.department && course.department === currentUser.department)
-          ))
+  const visibleCourses = currentUser
+    ? showAllCourses && currentUser.role === 'admin'
+      ? courses
+      : courses.filter(course =>
+          // User is creator
+          course.created_by === currentUser.id ||
+          // User is collaborator
+          (course.collaborators && course.collaborators.includes(currentUser.id)) ||
+          // Course is in user's department
+          (currentUser.department && course.department === currentUser.department)
+        )
     : [];
 
   // Get all unique tags across all visible courses
@@ -65,7 +83,7 @@ const CoursesList = () => {
   );
 
   // Filter by tag if one is selected
-  const tagFiltered = selectedTag 
+  const tagFiltered = selectedTag
     ? searchFiltered.filter(course => course.tags && course.tags.includes(selectedTag))
     : searchFiltered;
 
@@ -73,8 +91,8 @@ const CoursesList = () => {
   const filteredCourses = tagFiltered.sort((a, b) => {
     if (sortBy === "date") {
       return sortOrder === "asc"
-        ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     }
     if (sortBy === "name") {
       return sortOrder === "asc"
@@ -199,7 +217,11 @@ const CoursesList = () => {
           </DropdownMenu>
         </div>
 
-        {filteredCourses.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <p className="text-muted-foreground">Carregando cursos...</p>
+          </div>
+        ) : filteredCourses.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

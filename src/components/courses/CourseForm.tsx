@@ -20,29 +20,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCourseStore, Course } from "@/store/courseStore";
+import { Course, CourseFormat } from "@/types/course";
 import { toast } from "sonner";
+import { useCourses } from "@/hooks/useCourses";
+import { useUserStore } from "@/store/userStore";
 
 interface CourseFormProps {
   course?: Course;
   onClose: () => void;
 }
 
-export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
-
 export const CourseForm = ({ course, onClose }: CourseFormProps) => {
-  const { addCourse, updateCourse } = useCourseStore();
+  const { addCourse, updateCourse } = useCourses();
+  const { currentUser } = useUserStore();
   
   const [formData, setFormData] = useState({
     name: course?.name || "",
     description: course?.description || "",
     objectives: course?.objectives || "",
-    targetAudience: course?.targetAudience || "",
-    estimatedDuration: course?.estimatedDuration?.toString() || "60",
-    department: course?.department || "",
+    target_audience: course?.target_audience || "",
+    estimated_duration: course?.estimated_duration?.toString() || "60",
+    department: course?.department || (currentUser?.department || ""),
     tags: course?.tags?.join(", ") || "",
     format: (course?.format as CourseFormat) || "EAD" as CourseFormat,
+    status: course?.status || "Rascunho",
   });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -53,12 +57,14 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
     setFormData(prev => ({ ...prev, [key]: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     // Simple validation
     if (!formData.name.trim()) {
       toast.error("O nome do curso é obrigatório.");
+      setIsSubmitting(false);
       return;
     }
     
@@ -69,29 +75,29 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       .filter(tag => tag);
       
     // Parse numeric values
-    const estimatedDuration = parseInt(formData.estimatedDuration) || 60;
+    const estimated_duration = parseInt(formData.estimated_duration) || 60;
     
     const courseData = {
       name: formData.name,
       description: formData.description,
       objectives: formData.objectives,
-      targetAudience: formData.targetAudience,
-      estimatedDuration,
+      target_audience: formData.target_audience,
+      estimated_duration,
       department: formData.department,
       tags,
       format: formData.format,
+      status: formData.status,
     };
     
     if (course) {
       // Update existing course
-      updateCourse(course.id, courseData);
-      toast.success("Curso atualizado com sucesso!");
+      await updateCourse(course.id, courseData);
     } else {
       // Add new course
-      addCourse(courseData);
-      toast.success("Curso criado com sucesso!");
+      await addCourse(courseData);
     }
     
+    setIsSubmitting(false);
     onClose();
   };
   
@@ -142,11 +148,11 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="targetAudience">Público-Alvo</Label>
+                <Label htmlFor="target_audience">Público-Alvo</Label>
                 <Textarea
-                  id="targetAudience"
-                  name="targetAudience"
-                  value={formData.targetAudience}
+                  id="target_audience"
+                  name="target_audience"
+                  value={formData.target_audience}
                   onChange={handleChange}
                   placeholder="Para quem este curso é destinado?"
                   rows={3}
@@ -156,12 +162,12 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="estimatedDuration">Duração Estimada (minutos)</Label>
+                <Label htmlFor="estimated_duration">Duração Estimada (minutos)</Label>
                 <Input
-                  id="estimatedDuration"
-                  name="estimatedDuration"
+                  id="estimated_duration"
+                  name="estimated_duration"
                   type="number"
-                  value={formData.estimatedDuration}
+                  value={formData.estimated_duration}
                   onChange={handleChange}
                   placeholder="60"
                   min="1"
@@ -215,11 +221,11 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancelar
             </Button>
-            <Button type="submit">
-              {course ? "Salvar Alterações" : "Criar Curso"}
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Salvando..." : course ? "Salvar Alterações" : "Criar Curso"}
             </Button>
           </DialogFooter>
         </form>
