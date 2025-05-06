@@ -1,12 +1,13 @@
+
 import { create } from "zustand";
 import { sampleCourses } from "@/utils/sampleData";
 import { devtools } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import { ActivityType } from "@/types/course";
+import type { ActivityType } from "@/types/course";
 
 export type CourseStatus = "Rascunho" | "Em andamento" | "Concluído" | "Arquivado";
 export type LessonStatus = "Fazer" | "Fazendo" | "Finalizando";
-export { ActivityType };
+export type { ActivityType };
 export type CourseFormat = "EAD" | "Ao vivo" | "Híbrido";
 export type ApprovalStatus = "Pendente" | "Aprovado" | "Rejeitado";
 export type ApprovalItemType = "curso_completo" | "estrutura" | "modulo" | "aula";

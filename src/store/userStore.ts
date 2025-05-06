@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { DepartmentName } from '@/types/course';
+import type { DepartmentName } from '@/types/course';
 
 export type UserRole = 'admin' | 'instructor' | 'student' | 'manager';
 
@@ -37,7 +37,7 @@ interface UserState {
   deleteUser: (id: string) => Promise<boolean>;
 }
 
-export { DepartmentName };
+export type { DepartmentName };
 
 export const useUserStore = create<UserState>()(
   persist(

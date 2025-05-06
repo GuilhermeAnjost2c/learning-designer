@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useUserStore, User, UserRole, DepartmentName } from "@/store/userStore";
 import { useCourseStore, ApprovalRequest } from "@/store/courseStore";
@@ -178,6 +177,58 @@ const Admin = () => {
     );
   }
 
+  const renderApprovalRequests = () => {
+    return approvalRequests.map((request) => {
+      const course = courses.find(c => c.id === request.courseId);
+      return (
+        <TableRow key={request.id}>
+          <TableCell className="font-medium">{course?.name || 'Curso desconhecido'}</TableCell>
+          <TableCell>
+            {users.find(u => u.id === request.requestedBy)?.name || 'Usuário desconhecido'}
+          </TableCell>
+          <TableCell>
+            {request.approvalType === 'curso_completo' ? 'Curso completo' : 
+             request.approvalType === 'estrutura' ? 'Estrutura' :
+             request.approvalType === 'modulo' ? 'Módulo' : 'Aula'}
+          </TableCell>
+          <TableCell>
+            {new Date(request.requestDate).toLocaleDateString('pt-BR')}
+          </TableCell>
+          <TableCell>
+            {getStatusBadge(request.status)}
+          </TableCell>
+          <TableCell className="text-right space-x-2">
+            {request.status === 'Pendente' && (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-green-500 text-green-500 hover:bg-green-50"
+                  onClick={() => handleApproveRequest(request.id)}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Aprovar
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-red-500 text-red-500 hover:bg-red-50"
+                  onClick={() => handleRejectRequest(request.id)}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Rejeitar
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="sm">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8">Painel Administrativo</h1>
@@ -263,55 +314,7 @@ const Admin = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  approvalRequests.map((request) => {
-                    const course = courses.find(c => c.id === request.courseId);
-                    return (
-                      <TableRow key={request.id}>
-                        <TableCell className="font-medium">{course?.name || 'Curso desconhecido'}</TableCell>
-                        <TableCell>
-                          {users.find(u => u.id === request.requestedBy)?.name || 'Usuário desconhecido'}
-                        </TableCell>
-                        <TableCell>
-                          {request.approval_type === 'curso_completo' ? 'Curso completo' : 
-                           request.approval_type === 'estrutura' ? 'Estrutura' :
-                           request.approval_type === 'modulo' ? 'Módulo' : 'Aula'}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(request.request_date).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(request.status)}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          {request.status === 'Pendente' && (
-                            <>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="border-green-500 text-green-500 hover:bg-green-50"
-                                onClick={() => handleApproveRequest(request.id)}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Aprovar
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="border-red-500 text-red-500 hover:bg-red-50"
-                                onClick={() => handleRejectRequest(request.id)}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Rejeitar
-                              </Button>
-                            </>
-                          )}
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
+                  renderApprovalRequests()
                 )}
               </TableBody>
             </Table>

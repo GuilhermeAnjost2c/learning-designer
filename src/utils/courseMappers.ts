@@ -19,9 +19,33 @@ export function mapCourseToStoreModel(course: CourseType): CourseStoreType {
     createdBy: course.created_by,
     department: course.department,
     format: course.format,
-    modules: course.modules,
+    modules: course.modules.map(module => ({
+      id: module.id,
+      title: module.title,
+      description: module.description,
+      lessons: module.lessons.map(lesson => ({
+        id: lesson.id,
+        title: lesson.title,
+        description: lesson.description,
+        duration: lesson.duration,
+        activityType: lesson.activity_type,
+        status: lesson.status,
+        notes: lesson.notes || ''
+      }))
+    })),
     collaborators: course.collaborators || [],
-    approvalRequests: course.approval_requests
+    approvalRequests: course.approval_requests ? course.approval_requests.map(request => ({
+      id: request.id,
+      courseId: request.course_id,
+      requestedBy: request.requested_by,
+      approverId: request.approver_id,
+      requestDate: new Date(request.request_date),
+      approvalType: request.approval_type,
+      itemId: request.item_id,
+      status: request.status,
+      comments: request.comments,
+      reviewDate: request.review_date ? new Date(request.review_date) : undefined
+    })) : []
   };
 }
 
@@ -42,8 +66,36 @@ export function mapStoreToTypeModel(course: CourseStoreType): CourseType {
     created_by: course.createdBy,
     department: course.department,
     format: course.format,
-    modules: course.modules,
+    modules: course.modules.map(module => ({
+      id: module.id,
+      course_id: course.id,
+      title: module.title,
+      description: module.description,
+      position: 0, // Default position
+      lessons: module.lessons.map((lesson, index) => ({
+        id: lesson.id,
+        module_id: module.id,
+        title: lesson.title,
+        description: lesson.description,
+        duration: lesson.duration,
+        activity_type: lesson.activityType,
+        status: lesson.status,
+        position: index, // Use index as position
+        notes: lesson.notes
+      }))
+    })),
     collaborators: course.collaborators || [],
-    approval_requests: course.approvalRequests
+    approval_requests: course.approvalRequests ? course.approvalRequests.map(request => ({
+      id: request.id,
+      course_id: request.courseId,
+      request_date: request.requestDate.toISOString(),
+      requested_by: request.requestedBy,
+      approver_id: request.approverId,
+      approval_type: request.approvalType,
+      item_id: request.itemId,
+      status: request.status,
+      comments: request.comments,
+      review_date: request.reviewDate ? request.reviewDate.toISOString() : undefined
+    })) : undefined
   };
 }
