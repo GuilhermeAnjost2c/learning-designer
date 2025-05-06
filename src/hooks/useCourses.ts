@@ -1,8 +1,10 @@
+
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Course, Module, Lesson } from '@/types/course';
 import { toast } from 'sonner';
 import { useUserStore } from '@/store/userStore';
+import { mapCourseToStoreModel } from '@/utils/courseMappers';
 
 export const useCourses = () => {
   const [loading, setLoading] = useState(false);
@@ -13,6 +15,7 @@ export const useCourses = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('Fetching courses from Supabase...');
       const { data, error } = await supabase
         .from('courses')
         .select(`
@@ -28,7 +31,12 @@ export const useCourses = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error when fetching courses:', error);
+        throw error;
+      }
+      
+      console.log('Courses data from Supabase:', data);
       
       // Transform the data to match our Course interface
       const courses = data.map(course => {
@@ -68,6 +76,9 @@ export const useCourses = () => {
     }
     
     try {
+      console.log('Creating course with data:', courseData);
+      console.log('Current user ID:', currentUser.id);
+      
       // Insert the course
       const { data, error } = await supabase
         .from('courses')
@@ -84,16 +95,16 @@ export const useCourses = () => {
           department: courseData.department,
           format: courseData.format || 'EAD'
         })
-        .select()
-        .single();
+        .select();
 
       if (error) {
         console.error("Error creating course:", error);
         throw error;
       }
       
+      console.log('Course created successfully:', data);
       toast.success('Curso criado com sucesso!');
-      return data;
+      return data[0];
     } catch (err: any) {
       setError(err.message);
       console.error("Error creating course:", err);

@@ -6,6 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,8 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
     }
     
     try {
+      console.log("Submitting course form with data:", formData);
+      
       // Parse tags from comma-separated string
       const tags = formData.tags
         .split(",")
@@ -93,12 +96,20 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         created_by: currentUser?.id || ''
       };
       
+      console.log("Prepared course data:", courseData);
+      
       if (course) {
         // Update existing course
-        await updateCourse(course.id, courseData);
+        const result = await updateCourse(course.id, courseData);
+        if (result) {
+          toast.success("Curso atualizado com sucesso!");
+          navigate("/courses");
+        }
       } else {
         // Add new course
         const result = await addCourse(courseData);
+        console.log("Result from addCourse:", result);
+        
         if (result) {
           toast.success("Curso criado com sucesso!");
           navigate("/courses");
@@ -109,7 +120,6 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       toast.error("Ocorreu um erro ao salvar o curso.");
     } finally {
       setIsSubmitting(false);
-      onClose();
     }
   };
   
@@ -120,6 +130,9 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           <DialogTitle>
             {course ? "Editar Curso" : "Novo Curso"}
           </DialogTitle>
+          <DialogDescription>
+            Preencha os campos abaixo para {course ? "editar" : "criar"} um curso
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4">

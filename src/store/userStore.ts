@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
@@ -48,7 +49,6 @@ export const useUserStore = create<UserState>()(
       
       login: async (email, password) => {
         try {
-          // Clear any previous error state
           console.log("Login attempt with:", email);
           
           const { data, error } = await supabase.auth.signInWithPassword({
@@ -62,6 +62,8 @@ export const useUserStore = create<UserState>()(
             return false;
           }
           
+          console.log("Auth data from Supabase:", data);
+          
           if (data?.user) {
             // Fetch profile data
             const { data: profileData, error: profileError } = await supabase
@@ -69,6 +71,8 @@ export const useUserStore = create<UserState>()(
               .select('*')
               .eq('id', data.user.id)
               .single();
+            
+            console.log("Profile data from Supabase:", profileData, "Error:", profileError);
             
             if (profileError) {
               console.error("Profile fetch error:", profileError);
@@ -94,6 +98,7 @@ export const useUserStore = create<UserState>()(
             });
             
             console.log("Login successful:", userData);
+            toast.success(`Bem-vindo, ${userData.name}!`);
             return true;
           }
           
@@ -107,12 +112,19 @@ export const useUserStore = create<UserState>()(
       },
       
       logout: async () => {
-        await supabase.auth.signOut();
-        set({ currentUser: null, isAuthenticated: false });
-        toast.info("Logout realizado");
+        try {
+          console.log("Logging out user");
+          await supabase.auth.signOut();
+          set({ currentUser: null, isAuthenticated: false });
+          toast.info("Logout realizado");
+        } catch (error: any) {
+          console.error("Error during logout:", error);
+          toast.error("Erro ao fazer logout: " + error.message);
+        }
       },
       
       setCurrentUser: (user) => {
+        console.log("Setting current user:", user);
         set({ currentUser: user, isAuthenticated: true });
       },
       
@@ -155,6 +167,7 @@ export const useUserStore = create<UserState>()(
       // Implement missing methods for user management
       addUser: async (userData) => {
         try {
+          console.log("Adding new user:", userData);
           // In a real app, we'd call Supabase to create a user
           // For now, just add to the local store
           const newUser = {
@@ -176,6 +189,7 @@ export const useUserStore = create<UserState>()(
       
       updateUser: async (id, userData) => {
         try {
+          console.log("Updating user:", id, userData);
           set(state => ({
             users: state.users.map(user => 
               user.id === id ? { ...user, ...userData } : user
@@ -191,6 +205,7 @@ export const useUserStore = create<UserState>()(
       
       deleteUser: async (id) => {
         try {
+          console.log("Deleting user:", id);
           set(state => ({
             users: state.users.filter(user => user.id !== id)
           }));
