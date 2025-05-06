@@ -60,3 +60,6 @@ export interface ApprovalRequest {
   comments?: string;
   review_date?: string;
 }
+
+// Explicitamente exportar DepartmentName
+export { DepartmentName };

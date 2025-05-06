@@ -38,6 +38,7 @@ interface UserState {
   deleteUser: (id: string) => Promise<boolean>;
 }
 
+// Re-export DepartmentName
 export type { DepartmentName };
 
 export const useUserStore = create<UserState>()(
@@ -164,12 +165,12 @@ export const useUserStore = create<UserState>()(
         return get().users.filter(user => user.role === 'manager' || user.role === 'admin');
       },
       
-      // Implement missing methods for user management
+      // Implementação completa dos métodos de gerenciamento de usuários
       addUser: async (userData) => {
         try {
           console.log("Adding new user:", userData);
-          // In a real app, we'd call Supabase to create a user
-          // For now, just add to the local store
+          // Em um app real, chamaríamos Supabase para criar um usuário
+          // Por enquanto, apenas adicionamos ao armazenamento local
           const newUser = {
             ...userData,
             id: Math.random().toString(36).substring(2, 9),

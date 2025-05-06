@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { PlusCircle, Grid3X3, List, Tag, X, Folder, Users, BookOpen, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { AddCourseButton } from "@/components/courses/AddCourseButton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 import {
   PieChart,
   Pie,
@@ -27,14 +29,27 @@ import {
 
 const Dashboard = () => {
   const { courses, addCourse } = useCourseStore();
-  const { users, currentUser } = useUserStore();
+  const { users, currentUser, isAuthenticated } = useUserStore();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check authentication
+  useEffect(() => {
+    console.log("Dashboard - Auth status:", { isAuthenticated, currentUser });
+    if (!isAuthenticated) {
+      toast.error("Você precisa estar logado para acessar o dashboard");
+      navigate("/login");
+    } else {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, navigate, currentUser]);
 
   // Add sample courses if there are none (for demo purposes)
   useEffect(() => {
     if (courses.length === 0 && currentUser) {
+      console.log("Adding sample courses for demo");
       // Adicionar cursos de demonstração com tags padrão
       sampleCourses.forEach((course, index) => {
         const defaultTags = [];
@@ -160,6 +175,17 @@ const Dashboard = () => {
       macc + module.lessons.length, 0), 0);
   const totalUsers = users.length;
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-12 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-4">Carregando dashboard...</h2>
+          <p className="text-muted-foreground">Aguarde enquanto carregamos seus dados.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="container mx-auto">
@@ -242,29 +268,35 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={courseStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {courseStatusData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={COURSE_STATUS_COLORS[entry.name as CourseStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {courseStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={courseStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {courseStatusData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={COURSE_STATUS_COLORS[entry.name as CourseStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">Nenhum dado disponível</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -276,29 +308,35 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={lessonStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {lessonStatusData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={LESSON_STATUS_COLORS[entry.name as LessonStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {lessonStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={lessonStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {lessonStatusData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={LESSON_STATUS_COLORS[entry.name as LessonStatus] || CHART_COLORS[index % CHART_COLORS.length]} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">Nenhum dado disponível</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -310,26 +348,32 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={userRoleData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {userRoleData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              {userRoleData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={userRoleData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {userRoleData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">Nenhum dado disponível</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -341,14 +385,20 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={departmentData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#9b87f5" name="Usuários" />
-                </BarChart>
-              </ResponsiveContainer>
+              {departmentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={departmentData}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#9b87f5" name="Usuários" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-muted-foreground">Nenhum dado disponível</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
