@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Course, CourseFormat } from "@/types/course";
+import { Course, CourseFormat, DepartmentName } from "@/types/course";
 import { toast } from "sonner";
 import { useCourses } from "@/hooks/useCourses";
 import { useUserStore } from "@/store/userStore";
@@ -33,7 +33,7 @@ interface CourseFormProps {
 }
 
 export const CourseForm = ({ course, onClose }: CourseFormProps) => {
-  const { addCourse, updateCourse } = useCourses();
+  const { addCourse, updateCourse, loading } = useCourses();
   const { currentUser } = useUserStore();
   const navigate = useNavigate();
   
@@ -50,14 +50,20 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    console.log("CourseForm rendered with data:", { formData, currentUser });
+  }, []);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    console.log(`Field ${name} changed to:`, value);
   };
   
   const handleSelectChange = (key: string, value: string) => {
     setFormData(prev => ({ ...prev, [key]: value }));
+    console.log(`Select ${key} changed to:`, value);
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,7 +95,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         objectives: formData.objectives,
         target_audience: formData.target_audience,
         estimated_duration,
-        department: formData.department,
+        department: formData.department as DepartmentName | undefined,
         tags,
         format: formData.format,
         status: formData.status,
@@ -101,18 +107,23 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
       if (course) {
         // Update existing course
         const result = await updateCourse(course.id, courseData);
+        console.log("Update result:", result);
         if (result) {
           toast.success("Curso atualizado com sucesso!");
           navigate("/courses");
+        } else {
+          toast.error("Erro ao atualizar o curso.");
         }
       } else {
         // Add new course
         const result = await addCourse(courseData);
-        console.log("Result from addCourse:", result);
+        console.log("Add result:", result);
         
         if (result) {
           toast.success("Curso criado com sucesso!");
           navigate("/courses");
+        } else {
+          toast.error("Erro ao criar o curso.");
         }
       }
     } catch (error) {
@@ -201,13 +212,24 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
               
               <div className="space-y-2">
                 <Label htmlFor="department">Departamento</Label>
-                <Input
-                  id="department"
-                  name="department"
+                <Select
                   value={formData.department}
-                  onChange={handleChange}
-                  placeholder="Opcional"
-                />
+                  onValueChange={(value) => handleSelectChange("department", value)}
+                >
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder="Selecione o departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Departamentos</SelectLabel>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Vendas">Vendas</SelectItem>
+                      <SelectItem value="RH">RH</SelectItem>
+                      <SelectItem value="TI">TI</SelectItem>
+                      <SelectItem value="Operações">Operações</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
@@ -246,11 +268,11 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
           </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || loading}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Salvando..." : course ? "Salvar Alterações" : "Criar Curso"}
+            <Button type="submit" disabled={isSubmitting || loading}>
+              {isSubmitting || loading ? "Salvando..." : course ? "Salvar Alterações" : "Criar Curso"}
             </Button>
           </DialogFooter>
         </form>

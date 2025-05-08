@@ -14,10 +14,10 @@ const CreateCourse = () => {
     // Check authentication status
     console.log("CreateCourse - Auth status:", { isAuthenticated, currentUser });
     
-    // Redirecionar para login se não estiver autenticado
     if (!isAuthenticated) {
       toast.error("Você precisa estar logado para criar cursos");
       navigate("/login");
+      return;
     } else {
       setLoading(false);
     }
@@ -30,14 +30,16 @@ const CreateCourse = () => {
 
   if (loading) {
     return (
-      <div className="container max-w-4xl mx-auto py-8 text-center">
-        <p className="text-lg">Carregando...</p>
+      <div className="container max-w-4xl mx-auto py-8 px-4">
+        <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
+          <p className="text-lg">Carregando...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8">
+    <div className="container max-w-4xl mx-auto py-8 px-4">
       <div className="bg-white rounded-lg shadow-sm border">
         <CourseForm onClose={handleClose} />
       </div>

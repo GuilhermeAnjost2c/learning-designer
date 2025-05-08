@@ -1,4 +1,3 @@
-
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "./components/ui/toaster";
@@ -19,18 +18,22 @@ import { DepartmentName } from "./types/course";
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
   children, 
-  allowedRoles = ['admin', 'manager', 'instructor', 'student']  
+  allowedRoles = ['admin', 'manager', 'instructor', 'student', 'user']  
 }: { 
   children: JSX.Element, 
   allowedRoles?: UserRole[] 
 }) => {
   const { isAuthenticated, currentUser } = useUserStore();
   
+  console.log("Protected route check:", { isAuthenticated, currentUser, allowedRoles });
+  
   if (!isAuthenticated) {
+    console.log("User not authenticated, redirecting to login");
     return <Navigate to="/login" />;
   }
   
   if (currentUser && !allowedRoles.includes(currentUser.role)) {
+    console.log("User role not allowed:", currentUser.role);
     return <Navigate to="/" />;
   }
   
@@ -43,15 +46,21 @@ function App() {
   useEffect(() => {
     // Check for existing session
     const checkSession = async () => {
+      console.log("Checking for existing Supabase session");
       const { data } = await supabase.auth.getSession();
       
+      console.log("Session data:", data);
+      
       if (data?.session?.user) {
+        console.log("Found existing session for user:", data.session.user.id);
         // Fetch profile data
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.session.user.id)
           .single();
+        
+        console.log("Profile data:", profileData);
         
         if (profileData) {
           setCurrentUser({
@@ -62,6 +71,8 @@ function App() {
             department: profileData.department as DepartmentName,
           });
         }
+      } else {
+        console.log("No session found");
       }
     };
     
@@ -70,15 +81,21 @@ function App() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change:", event, session?.user?.id);
+        
         if (event === 'SIGNED_OUT') {
+          console.log("User signed out");
           logout();
         } else if (event === 'SIGNED_IN' && session) {
+          console.log("User signed in:", session.user.id);
           // Fetch profile data
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
+          
+          console.log("Profile data after sign in:", profileData);
           
           if (profileData) {
             setCurrentUser({
@@ -113,13 +130,13 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="courses" element={<CoursesList />} />
             <Route path="courses/new" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager', 'user']}>
                 <CreateCourse />
               </ProtectedRoute>
             } />
             <Route path="courses/:courseId" element={<CourseDetail />} />
             <Route path="dynamics" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager', 'user']}>
                 <DynamicsBank />
               </ProtectedRoute>
             } />
