@@ -61,5 +61,5 @@ export interface ApprovalRequest {
   review_date?: string;
 }
 
-// Explicitamente exportar DepartmentName
-export { DepartmentName };
+// Remove the conflicting export statement at the bottom
+// The type is already exported properly at the top of the file

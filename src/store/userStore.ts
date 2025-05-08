@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
@@ -38,7 +37,7 @@ interface UserState {
   deleteUser: (id: string) => Promise<boolean>;
 }
 
-// Re-export DepartmentName
+// Re-export DepartmentName as a type
 export type { DepartmentName };
 
 export const useUserStore = create<UserState>()(
