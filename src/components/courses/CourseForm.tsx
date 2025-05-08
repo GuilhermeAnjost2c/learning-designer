@@ -111,6 +111,8 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         if (result) {
           toast.success("Curso atualizado com sucesso!");
           navigate("/courses");
+        } else {
+          toast.error("Erro ao atualizar o curso.");
         }
       } else {
         // Add new course
@@ -120,6 +122,8 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         if (result) {
           toast.success("Curso criado com sucesso!");
           navigate("/courses");
+        } else {
+          toast.error("Erro ao criar o curso.");
         }
       }
     } catch (error) {
@@ -131,147 +135,148 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
   };
   
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">
-          {course ? "Editar Curso" : "Novo Curso"}
-        </h1>
-        <p className="text-muted-foreground">
-          Preencha os campos abaixo para {course ? "editar" : "criar"} um curso
-        </p>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome do Curso</Label>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Digite o nome do curso"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
-            <Textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              placeholder="Descreva o curso brevemente"
-              rows={3}
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>
+            {course ? "Editar Curso" : "Novo Curso"}
+          </DialogTitle>
+          <DialogDescription>
+            Preencha os campos abaixo para {course ? "editar" : "criar"} um curso
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="objectives">Objetivos de Aprendizagem</Label>
-              <Textarea
-                id="objectives"
-                name="objectives"
-                value={formData.objectives}
+              <Label htmlFor="name">Nome do Curso</Label>
+              <Input
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
-                placeholder="O que os alunos aprenderão?"
+                placeholder="Digite o nome do curso"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Descreva o curso brevemente"
                 rows={3}
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="target_audience">Público-Alvo</Label>
-              <Textarea
-                id="target_audience"
-                name="target_audience"
-                value={formData.target_audience}
-                onChange={handleChange}
-                placeholder="Para quem este curso é destinado?"
-                rows={3}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="objectives">Objetivos de Aprendizagem</Label>
+                <Textarea
+                  id="objectives"
+                  name="objectives"
+                  value={formData.objectives}
+                  onChange={handleChange}
+                  placeholder="O que os alunos aprenderão?"
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="target_audience">Público-Alvo</Label>
+                <Textarea
+                  id="target_audience"
+                  name="target_audience"
+                  value={formData.target_audience}
+                  onChange={handleChange}
+                  placeholder="Para quem este curso é destinado?"
+                  rows={3}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="estimated_duration">Duração Estimada (minutos)</Label>
+                <Input
+                  id="estimated_duration"
+                  name="estimated_duration"
+                  type="number"
+                  value={formData.estimated_duration}
+                  onChange={handleChange}
+                  placeholder="60"
+                  min="1"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="department">Departamento</Label>
+                <Select
+                  value={formData.department}
+                  onValueChange={(value) => handleSelectChange("department", value)}
+                >
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder="Selecione o departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Departamentos</SelectLabel>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Vendas">Vendas</SelectItem>
+                      <SelectItem value="RH">RH</SelectItem>
+                      <SelectItem value="TI">TI</SelectItem>
+                      <SelectItem value="Operações">Operações</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="format">Formato do Curso</Label>
+                <Select
+                  value={formData.format}
+                  onValueChange={(value) => handleSelectChange("format", value)}
+                >
+                  <SelectTrigger id="format">
+                    <SelectValue placeholder="Selecione o formato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>Formato</SelectLabel>
+                      <SelectItem value="EAD">EAD</SelectItem>
+                      <SelectItem value="Ao vivo">Ao vivo</SelectItem>
+                      <SelectItem value="Híbrido">Híbrido</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
+                <Input
+                  id="tags"
+                  name="tags"
+                  value={formData.tags}
+                  onChange={handleChange}
+                  placeholder="Ex: liderança, comunicação"
+                />
+              </div>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="estimated_duration">Duração Estimada (minutos)</Label>
-              <Input
-                id="estimated_duration"
-                name="estimated_duration"
-                type="number"
-                value={formData.estimated_duration}
-                onChange={handleChange}
-                placeholder="60"
-                min="1"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="department">Departamento</Label>
-              <Select
-                value={formData.department}
-                onValueChange={(value) => handleSelectChange("department", value)}
-              >
-                <SelectTrigger id="department">
-                  <SelectValue placeholder="Selecione o departamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Departamentos</SelectLabel>
-                    <SelectItem value="Marketing">Marketing</SelectItem>
-                    <SelectItem value="Vendas">Vendas</SelectItem>
-                    <SelectItem value="RH">RH</SelectItem>
-                    <SelectItem value="TI">TI</SelectItem>
-                    <SelectItem value="Operações">Operações</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="format">Formato do Curso</Label>
-              <Select
-                value={formData.format}
-                onValueChange={(value) => handleSelectChange("format", value)}
-              >
-                <SelectTrigger id="format">
-                  <SelectValue placeholder="Selecione o formato" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Formato</SelectLabel>
-                    <SelectItem value="EAD">EAD</SelectItem>
-                    <SelectItem value="Ao vivo">Ao vivo</SelectItem>
-                    <SelectItem value="Híbrido">Híbrido</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags (separadas por vírgula)</Label>
-              <Input
-                id="tags"
-                name="tags"
-                value={formData.tags}
-                onChange={handleChange}
-                placeholder="Ex: liderança, comunicação"
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || loading}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={isSubmitting || loading}>
-            {isSubmitting || loading ? "Salvando..." : course ? "Salvar Alterações" : "Criar Curso"}
-          </Button>
-        </div>
-      </form>
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSubmitting || loading}>
+              {isSubmitting || loading ? "Salvando..." : course ? "Salvar Alterações" : "Criar Curso"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };

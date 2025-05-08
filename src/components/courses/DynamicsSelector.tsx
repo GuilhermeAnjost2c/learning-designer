@@ -14,13 +14,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { sampleDynamics } from "@/utils/sampleDynamics";
 
 interface DynamicsSelectorProps {
   onSelectDynamic: (dynamic: Dynamic) => void;
 }
 
 export const DynamicsSelector = ({ onSelectDynamic }: DynamicsSelectorProps) => {
-  const { dynamics, addDynamic, fetchDynamics, loading } = useDynamicsStore();
+  const { dynamics, addDynamic } = useDynamicsStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<DynamicCategory | "all">("all");
   const [newDynamic, setNewDynamic] = useState<Omit<Dynamic, "id" | "createdAt">>({
@@ -34,10 +35,14 @@ export const DynamicsSelector = ({ onSelectDynamic }: DynamicsSelectorProps) => 
     maximumParticipants: 30
   });
 
-  // Fetch dynamics from Supabase when component mounts
+  // Add sample dynamics if there are none
   useEffect(() => {
-    fetchDynamics();
-  }, [fetchDynamics]);
+    if (dynamics.length === 0) {
+      sampleDynamics.forEach(dynamic => {
+        addDynamic(dynamic);
+      });
+    }
+  }, [dynamics.length, addDynamic]);
 
   // Get all categories
   const categories = [
@@ -148,11 +153,7 @@ export const DynamicsSelector = ({ onSelectDynamic }: DynamicsSelectorProps) => 
                 
                 <ScrollArea className="h-[400px] pr-4">
                   <div className="grid grid-cols-1 gap-4">
-                    {loading ? (
-                      <div className="flex flex-col items-center justify-center p-10">
-                        <p className="text-muted-foreground">Carregando dinâmicas...</p>
-                      </div>
-                    ) : filteredDynamics.length === 0 ? (
+                    {filteredDynamics.length === 0 ? (
                       <div className="flex flex-col items-center justify-center p-10 bg-muted/40 rounded-lg border border-dashed">
                         <p className="text-muted-foreground text-center">
                           Nenhuma dinâmica encontrada com esses filtros.
