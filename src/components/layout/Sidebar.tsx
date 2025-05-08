@@ -13,6 +13,7 @@ interface SidebarProps {
 
 export const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
   const { currentUser } = useUserStore();
+  
   // Only display the admin link for admin or manager users
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'manager';
   

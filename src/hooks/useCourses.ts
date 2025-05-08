@@ -273,14 +273,14 @@ export const useCourses = () => {
         
         if (error) throw error;
         console.log('Course updated:', data);
+        setLoading(false);
         return data?.[0] || null;
       } catch (err: any) {
         console.error('Error updating course:', err);
         setError(err.message);
         toast.error('Falha ao atualizar curso: ' + err.message);
-        return null;
-      } finally {
         setLoading(false);
+        return null;
       }
     },
     deleteCourse: async (id: string) => {
@@ -294,14 +294,14 @@ export const useCourses = () => {
         
         if (error) throw error;
         toast.success('Curso deletado com sucesso!');
+        setLoading(false);
         return true;
       } catch (err: any) {
         console.error('Error deleting course:', err);
         setError(err.message);
         toast.error('Falha ao deletar curso: ' + err.message);
-        return false;
-      } finally {
         setLoading(false);
+        return false;
       }
     },
     addModule,

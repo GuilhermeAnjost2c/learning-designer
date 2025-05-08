@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -110,6 +109,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         console.log("Update result:", result);
         if (result) {
           toast.success("Curso atualizado com sucesso!");
+          onClose();
           navigate("/courses");
         } else {
           toast.error("Erro ao atualizar o curso.");
@@ -121,6 +121,7 @@ export const CourseForm = ({ course, onClose }: CourseFormProps) => {
         
         if (result) {
           toast.success("Curso criado com sucesso!");
+          onClose();
           navigate("/courses");
         } else {
           toast.error("Erro ao criar o curso.");
