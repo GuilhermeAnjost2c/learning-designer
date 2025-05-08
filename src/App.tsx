@@ -1,3 +1,4 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "./components/ui/toaster";
@@ -18,7 +19,7 @@ import { DepartmentName } from "./types/course";
 // Protected route component with role-based access control
 const ProtectedRoute = ({ 
   children, 
-  allowedRoles = ['admin', 'manager', 'instructor', 'student', 'user']  
+  allowedRoles = ['admin', 'manager', 'instructor', 'student']  
 }: { 
   children: JSX.Element, 
   allowedRoles?: UserRole[] 
@@ -130,13 +131,13 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="courses" element={<CoursesList />} />
             <Route path="courses/new" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager', 'user']}>
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
                 <CreateCourse />
               </ProtectedRoute>
             } />
             <Route path="courses/:courseId" element={<CourseDetail />} />
             <Route path="dynamics" element={
-              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager', 'user']}>
+              <ProtectedRoute allowedRoles={['admin', 'instructor', 'manager']}>
                 <DynamicsBank />
               </ProtectedRoute>
             } />

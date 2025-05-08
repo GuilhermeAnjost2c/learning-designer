@@ -7,30 +7,37 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUserStore } from "@/store/userStore";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("admin123");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { login } = useUserStore();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
+    setLoginError(null);
 
     try {
+      console.log(`Attempting login with email: ${email}`);
       const success = await login(email, password);
       
       if (success) {
+        console.log("Login successful, navigating to dashboard");
         toast.success("Login realizado com sucesso");
         navigate("/dashboard");
       } else {
-        toast.error("Credenciais inválidas");
+        console.log("Login failed");
+        setLoginError("Email ou senha incorretos. Por favor, tente novamente.");
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Falha ao realizar login");
+      setLoginError(error.message || "Falha ao realizar login");
     } finally {
       setIsLoggingIn(false);
     }
@@ -45,6 +52,13 @@ const Login = () => {
             Entre em sua conta
           </p>
         </div>
+
+        {loginError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{loginError}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
