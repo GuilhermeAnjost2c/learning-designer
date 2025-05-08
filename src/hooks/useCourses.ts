@@ -265,14 +265,19 @@ export const useCourses = () => {
       setLoading(true);
       try {
         console.log('Updating course:', id, courseData);
+        
+        // Remove properties that shouldn't be directly updated
+        const { modules, collaborators, approval_requests, ...updateData } = courseData;
+        
         const { data, error } = await supabase
           .from('courses')
-          .update(courseData)
+          .update(updateData)
           .eq('id', id)
           .select();
         
         if (error) throw error;
         console.log('Course updated:', data);
+        toast.success('Curso atualizado com sucesso!');
         return data?.[0] || null;
       } catch (err: any) {
         console.error('Error updating course:', err);

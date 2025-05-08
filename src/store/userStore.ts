@@ -25,7 +25,7 @@ interface UserState {
   logout: () => Promise<void>;
   setCurrentUser: (user: User) => void;
   
-  // User management
+  // User management functions
   fetchUsers: () => Promise<User[]>;
   getUserById: (id: string) => User | undefined;
   getUsersByDepartment: (department: DepartmentName) => User[];
@@ -51,28 +51,7 @@ export const useUserStore = create<UserState>()(
         try {
           console.log("Login attempt with:", email);
           
-          // Special case for admin@example.com for demo purposes
-          if (email === 'admin@example.com' && password === 'admin123') {
-            console.log("Using demo admin account");
-            const adminUser: User = {
-              id: 'admin-demo-id',
-              name: 'Admin Demo',
-              email: 'admin@example.com',
-              role: 'admin',
-              department: 'TI',
-              createdAt: new Date()
-            };
-            
-            set({ 
-              currentUser: adminUser,
-              isAuthenticated: true
-            });
-            
-            console.log("Demo admin login successful");
-            return true;
-          }
-          
-          // Regular Supabase authentication
+          // Try to authenticate with Supabase
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -80,7 +59,6 @@ export const useUserStore = create<UserState>()(
           
           if (error) {
             console.error("Supabase auth error:", error);
-            toast.error("Falha no login: " + error.message);
             return false;
           }
           
@@ -98,8 +76,6 @@ export const useUserStore = create<UserState>()(
             
             if (profileError) {
               console.error("Profile fetch error:", profileError);
-              toast.error("Erro ao buscar perfil do usuário");
-              // Still authenticate but with limited data
             }
             
             const userRole = profileData?.role as UserRole || 'student';
