@@ -1,31 +1,19 @@
 
-import { useState, useEffect } from 'react';
-import { PlusCircle, Filter, Search, Tag } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Card, 
+import { useState } from "react";
+import { useDynamicsStore, DynamicsActivity, DynamicsCategory } from "@/store/dynamicsStore";
+import {
+  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle 
-} from '@/components/ui/card';
-import { useDynamicsStore, DynamicCategory, Dynamic } from '@/store/dynamicsStore';
-import { useUserStore } from '@/store/userStore';
-import { cn } from '@/lib/utils';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -33,408 +21,236 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { toast } from 'sonner';
+} from "@/components/ui/select";
+import { Clock, Search, Users, Target, Plus, ChevronRight } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const DynamicsBank = () => {
-  const { currentUser } = useUserStore();
-  const { 
-    dynamics, 
-    dynamicsCategories,
-    addDynamic,
-    searchDynamics,
-    getDynamicsByCategory,
-    fetchAllDynamics,
-    isInitialized,
-    isLoading
-  } = useDynamicsStore();
+  const { dynamicsActivities, dynamicsCategories } = useDynamicsStore();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedDuration, setSelectedDuration] = useState<string>("all");
+  const [selectedTab, setSelectedTab] = useState<string>("all");
+  const [hoveredDynamic, setHoveredDynamic] = useState<string | null>(null);
 
-  const [filteredDynamics, setFilteredDynamics] = useState<Dynamic[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Filtered dynamics based on search term and filters
+  const filteredDynamics = dynamicsActivities.filter((dynamic) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      dynamic.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      dynamic.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-  useEffect(() => {
-    const initializeDynamics = async () => {
-      if (!isInitialized) {
-        await fetchAllDynamics();
-      }
-      setLoading(false);
-    };
+    const matchesCategory =
+      selectedCategory === "all" || dynamic.category === selectedCategory;
 
-    initializeDynamics();
-  }, [fetchAllDynamics, isInitialized]);
+    const matchesDuration =
+      selectedDuration === "all" ||
+      (selectedDuration === "short" && dynamic.duration <= 15) ||
+      (selectedDuration === "medium" &&
+        dynamic.duration > 15 &&
+        dynamic.duration <= 30) ||
+      (selectedDuration === "long" && dynamic.duration > 30);
 
-  useEffect(() => {
-    if (searchTerm) {
-      setFilteredDynamics(searchDynamics(searchTerm));
-    } else if (selectedCategory) {
-      setFilteredDynamics(getDynamicsByCategory(selectedCategory as DynamicCategory));
-    } else {
-      setFilteredDynamics(dynamics);
-    }
-  }, [searchTerm, selectedCategory, dynamics, searchDynamics, getDynamicsByCategory]);
+    const matchesTab =
+      selectedTab === "all" ||
+      (selectedTab === "team" && dynamic.teamSize > 1) ||
+      (selectedTab === "individual" && dynamic.teamSize === 1);
 
-  const [newDynamic, setNewDynamic] = useState({
-    name: '',
-    category: 'Quebra-gelo' as DynamicCategory,
-    objective: '',
-    materials: '',
-    description: '',
-    duration: 15,
-    minimumParticipants: 2,
-    maximumParticipants: 10,
+    return matchesSearch && matchesCategory && matchesDuration && matchesTab;
   });
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setNewDynamic(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewDynamic(prev => ({
-      ...prev,
-      [name]: parseInt(value) || 0
-    }));
-  };
-
-  const handleSelectChange = (value: string) => {
-    setNewDynamic(prev => ({
-      ...prev,
-      category: value as DynamicCategory
-    }));
-  };
-
-  const handleAddDynamic = async () => {
-    // Validation
-    if (!newDynamic.name.trim()) {
-      toast.error('O nome da dinâmica é obrigatório');
-      return;
-    }
-    
-    if (!newDynamic.description.trim()) {
-      toast.error('A descrição da dinâmica é obrigatória');
-      return;
-    }
-    
-    try {
-      const result = await addDynamic(newDynamic);
-      
-      if (result) {
-        // Reset form
-        setNewDynamic({
-          name: '',
-          category: 'Quebra-gelo' as DynamicCategory,
-          objective: '',
-          materials: '',
-          description: '',
-          duration: 15,
-          minimumParticipants: 2,
-          maximumParticipants: 10,
-        });
-        
-        // Close dialog
-        setDialogOpen(false);
-      }
-    } catch (error) {
-      console.error('Error adding dynamic:', error);
-    }
-  };
-
   return (
-    <div className="container mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 space-y-4 md:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Banco de Dinâmicas</h1>
-          <p className="text-muted-foreground">
-            Explore e gerencie dinâmicas para usar em seus treinamentos.
+          <h1 className="text-2xl font-bold">Banco de Dinâmicas</h1>
+          <p className="text-muted-foreground mt-1">
+            Explore e utilize dinâmicas em suas aulas e treinamentos
           </p>
         </div>
+        <Button className="flex items-center gap-2 w-full md:w-auto">
+          <Plus className="h-4 w-4" />
+          <span>Nova Dinâmica</span>
+        </Button>
+      </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="gap-2">
-              <PlusCircle className="h-5 w-5" />
-              <span>Nova Dinâmica</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[625px]">
-            <DialogHeader>
-              <DialogTitle>Nova Dinâmica</DialogTitle>
-              <DialogDescription>
-                Crie uma nova dinâmica para seu banco de atividades.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">
-                  Nome
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={newDynamic.name}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Filtros</CardTitle>
+              <CardDescription>Refine sua busca de dinâmicas</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="search">Buscar</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="search"
+                    placeholder="Buscar dinâmica..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="category" className="text-right">
-                  Categoria
-                </Label>
-                <Select 
-                  value={newDynamic.category} 
-                  onValueChange={handleSelectChange}
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Select
+                  value={selectedCategory}
+                  onValueChange={setSelectedCategory}
                 >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Selecione uma categoria" />
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Todas as categorias" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectGroup>
-                      {dynamicsCategories.map(category => (
-                        <SelectItem key={category.id} value={category.name}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {dynamicsCategories.map((category: DynamicsCategory) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="objective" className="text-right">
-                  Objetivo
-                </Label>
-                <Textarea
-                  id="objective"
-                  name="objective"
-                  value={newDynamic.objective}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  rows={2}
-                />
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duração</Label>
+                <Select
+                  value={selectedDuration}
+                  onValueChange={setSelectedDuration}
+                >
+                  <SelectTrigger id="duration">
+                    <SelectValue placeholder="Qualquer duração" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="all">Qualquer duração</SelectItem>
+                      <SelectItem value="short">Curta (até 15 min)</SelectItem>
+                      <SelectItem value="medium">
+                        Média (15-30 min)
+                      </SelectItem>
+                      <SelectItem value="long">Longa (30+ min)</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="materials" className="text-right">
-                  Materiais
-                </Label>
-                <Textarea
-                  id="materials"
-                  name="materials"
-                  value={newDynamic.materials}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  rows={2}
-                />
-              </div>
+            </CardContent>
+          </Card>
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Descrição
-                </Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={newDynamic.description}
-                  onChange={handleInputChange}
-                  className="col-span-3"
-                  rows={4}
-                />
+          <Card className="hidden lg:block">
+            <CardHeader className="pb-3">
+              <CardTitle>Estatísticas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total de dinâmicas:</span>
+                <span className="font-medium">{dynamicsActivities.length}</span>
               </div>
-              
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="duration" className="text-right">
-                  Duração (min)
-                </Label>
-                <Input
-                  type="number"
-                  id="duration"
-                  name="duration"
-                  value={newDynamic.duration}
-                  onChange={handleNumberChange}
-                  className="col-span-3"
-                  min={1}
-                />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Categorias:</span>
+                <span className="font-medium">{dynamicsCategories.length}</span>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <Label htmlFor="minimumParticipants" className="text-right text-xs sm:text-sm">
-                    Mín. Participantes
-                  </Label>
-                  <Input
-                    type="number"
-                    id="minimumParticipants"
-                    name="minimumParticipants"
-                    value={newDynamic.minimumParticipants}
-                    onChange={handleNumberChange}
-                    min={1}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <Label htmlFor="maximumParticipants" className="text-right text-xs sm:text-sm">
-                    Máx. Participantes
-                  </Label>
-                  <Input
-                    type="number"
-                    id="maximumParticipants"
-                    name="maximumParticipants"
-                    value={newDynamic.maximumParticipants}
-                    onChange={handleNumberChange}
-                    min={1}
-                  />
-                </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Filtradas:</span>
+                <span className="font-medium">{filteredDynamics.length}</span>
               </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="button" onClick={handleAddDynamic} disabled={isLoading}>
-                {isLoading ? "Adicionando..." : "Adicionar Dinâmica"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Filters */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar dinâmicas..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setSelectedCategory(null);
-            }}
-            className="pl-9"
-          />
+            </CardContent>
+          </Card>
         </div>
-        
-        <div className="flex-shrink-0">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSelectedCategory(null);
-              setSearchTerm('');
-            }}
-            className="w-full md:w-auto"
+
+        <div className="lg:col-span-3 space-y-6">
+          <Tabs
+            defaultValue="all"
+            value={selectedTab}
+            onValueChange={setSelectedTab}
+            className="w-full"
           >
-            Limpar filtros
-          </Button>
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="all">Todas</TabsTrigger>
+              <TabsTrigger value="team">Em grupo</TabsTrigger>
+              <TabsTrigger value="individual">Individual</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={selectedTab} className="mt-0">
+              <ScrollArea className="h-[calc(100vh-280px)]">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {filteredDynamics.length > 0 ? (
+                    filteredDynamics.map((dynamic: DynamicsActivity) => (
+                      <Card
+                        key={dynamic.id}
+                        className="overflow-hidden transition-all duration-200 hover:shadow-md"
+                        onMouseEnter={() => setHoveredDynamic(dynamic.id)}
+                        onMouseLeave={() => setHoveredDynamic(null)}
+                      >
+                        <CardHeader className="pb-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-lg leading-tight">
+                                {dynamic.title}
+                              </CardTitle>
+                              <CardDescription className="mt-1">
+                                {dynamicsCategories.find(
+                                  (c) => c.id === dynamic.category
+                                )?.name || "Categoria"}
+                              </CardDescription>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="text-xs bg-primary/5 border-primary/20"
+                            >
+                              {dynamic.format}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pb-3">
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {dynamic.description}
+                          </p>
+                        </CardContent>
+                        <CardFooter className="pt-0 flex justify-between items-center">
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <div className="flex items-center">
+                              <Clock className="h-3.5 w-3.5 mr-1" />
+                              <span>{dynamic.duration} min</span>
+                            </div>
+                            <div className="flex items-center">
+                              <Users className="h-3.5 w-3.5 mr-1" />
+                              <span>{dynamic.teamSize}</span>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`p-0 h-8 opacity-0 transition-opacity duration-200 ${
+                              hoveredDynamic === dynamic.id ? "opacity-100" : ""
+                            }`}
+                          >
+                            <span className="mr-1 text-xs">Ver</span>
+                            <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="col-span-full py-12 text-center">
+                      <Target className="h-12 w-12 mx-auto text-muted-foreground opacity-20" />
+                      <h3 className="mt-4 text-lg font-medium">
+                        Nenhuma dinâmica encontrada
+                      </h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Tente ajustar seus filtros ou criar uma nova dinâmica.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
-
-      {/* Categories */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-lg font-medium">Categorias</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {dynamicsCategories.map((category) => (
-            <Badge
-              key={category.id}
-              variant={selectedCategory === category.name ? 'default' : 'outline'}
-              className={cn(
-                'cursor-pointer',
-                selectedCategory === category.name ? 'bg-primary' : 'hover:bg-secondary'
-              )}
-              onClick={() => {
-                setSelectedCategory(
-                  selectedCategory === category.name ? null : category.name
-                );
-                setSearchTerm('');
-              }}
-            >
-              {category.name}
-            </Badge>
-          ))}
-        </div>
-      </div>
-
-      {/* Dynamics List */}
-      {loading ? (
-        <div className="text-center py-12">
-          <p>Carregando dinâmicas...</p>
-        </div>
-      ) : filteredDynamics.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg">
-          <h3 className="text-xl font-medium mb-2">Nenhuma dinâmica encontrada</h3>
-          <p className="text-muted-foreground mb-6">
-            {searchTerm || selectedCategory
-              ? 'Tente ajustar seus filtros ou criar uma nova dinâmica.'
-              : 'Comece adicionando sua primeira dinâmica ao banco.'}
-          </p>
-          <DialogTrigger asChild>
-            <Button>
-              <PlusCircle className="h-5 w-5 mr-2" />
-              Adicionar Dinâmica
-            </Button>
-          </DialogTrigger>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredDynamics.map((dynamic) => (
-            <Card key={dynamic.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle>{dynamic.name}</CardTitle>
-                    <CardDescription className="mt-1">
-                      {dynamic.category} · {dynamic.duration} min
-                    </CardDescription>
-                  </div>
-                  <Badge variant="outline">{dynamic.category}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-sm">Objetivo</h4>
-                  <p className="text-sm text-muted-foreground">{dynamic.objective}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-sm">Descrição</h4>
-                  <p className="text-sm text-muted-foreground line-clamp-3">
-                    {dynamic.description}
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <h4 className="font-medium">Participantes</h4>
-                    <p className="text-muted-foreground">
-                      {dynamic.minimumParticipants} a {dynamic.maximumParticipants}
-                    </p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Materiais</h4>
-                    <p className="text-muted-foreground line-clamp-2">
-                      {dynamic.materials || "Nenhum material necessário"}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="outline" size="sm">
-                  Ver detalhes
-                </Button>
-                <Button size="sm">Usar em curso</Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

@@ -1,9 +1,6 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { toast } from 'sonner';
-import { useDynamics } from '@/hooks/useDynamics';
-import { supabase } from '@/integrations/supabase/client';
 
 export type DynamicCategory = 
   | 'Quebra-gelo' 
@@ -50,15 +47,12 @@ interface DynamicsState {
   dynamics: Dynamic[];
   dynamicsActivities: DynamicsActivity[];
   dynamicsCategories: DynamicsCategory[];
-  isInitialized: boolean;
-  isLoading: boolean;
-  addDynamic: (dynamic: Omit<Dynamic, 'id' | 'createdAt'>) => Promise<string | null>;
-  updateDynamic: (id: string, dynamic: Partial<Omit<Dynamic, 'id' | 'createdAt'>>) => Promise<boolean>;
-  deleteDynamic: (id: string) => Promise<boolean>;
+  addDynamic: (dynamic: Omit<Dynamic, 'id' | 'createdAt'>) => string;
+  updateDynamic: (id: string, dynamic: Partial<Omit<Dynamic, 'id' | 'createdAt'>>) => void;
+  deleteDynamic: (id: string) => void;
   getDynamicsByCategory: (category: DynamicCategory) => Dynamic[];
   searchDynamics: (term: string) => Dynamic[];
   addDynamicToModule: (courseId: string, moduleId: string, dynamicId: string) => void;
-  fetchAllDynamics: () => Promise<void>;
 }
 
 // Generate a unique ID
@@ -110,192 +104,79 @@ const sampleActivities = [
   }
 ];
 
+// Sample dynamics data with proper typing for category
+const sampleDynamics: Dynamic[] = [
+  {
+    id: generateId(),
+    name: 'Círculo de Apresentação',
+    category: 'Quebra-gelo',
+    objective: 'Promover a integração do grupo e conhecimento mútuo',
+    materials: 'Nenhum material necessário',
+    description: 'Os participantes ficam em círculo e cada um se apresenta dizendo nome, função e uma curiosidade pessoal.',
+    duration: 20,
+    minimumParticipants: 5,
+    maximumParticipants: 20,
+    createdAt: new Date()
+  },
+  {
+    id: generateId(),
+    name: 'Desafio dos Marshmallows',
+    category: 'Trabalho em equipe',
+    objective: 'Desenvolver trabalho em equipe e pensamento criativo',
+    materials: 'Marshmallows, espaguete cru, fita adesiva, barbante',
+    description: 'Em grupos, os participantes devem construir a estrutura mais alta possível usando apenas os materiais fornecidos.',
+    duration: 30,
+    minimumParticipants: 8,
+    maximumParticipants: 24,
+    createdAt: new Date()
+  },
+  {
+    id: generateId(),
+    name: 'Feedback em Post-its',
+    category: 'Feedback',
+    objective: 'Promover a cultura de feedback construtivo',
+    materials: 'Post-its de três cores diferentes, canetas',
+    description: 'Cada participante escreve em post-its diferentes aspectos positivos, pontos a melhorar e sugestões para os colegas.',
+    duration: 25,
+    minimumParticipants: 4,
+    maximumParticipants: 15,
+    createdAt: new Date()
+  }
+];
+
 export const useDynamicsStore = create<DynamicsState>()(
   persist(
     (set, get) => ({
-      dynamics: [],
+      dynamics: sampleDynamics,
       dynamicsActivities: sampleActivities,
       dynamicsCategories: sampleCategories,
-      isInitialized: false,
-      isLoading: false,
       
-      fetchAllDynamics: async () => {
-        set({ isLoading: true });
-        try {
-          const { data, error } = await supabase
-            .from('dynamics')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-          if (error) {
-            console.error('Error fetching dynamics:', error);
-            toast.error('Erro ao carregar dinâmicas: ' + error.message);
-            return;
-          }
-
-          // Transform database data to match our Dynamic interface
-          const dynamicsData: Dynamic[] = data.map(item => ({
-            id: item.id,
-            name: item.name,
-            category: item.category as DynamicCategory,
-            objective: item.objective,
-            materials: item.materials,
-            description: item.description,
-            duration: item.duration,
-            minimumParticipants: item.minimum_participants,
-            maximumParticipants: item.maximum_participants,
-            createdAt: new Date(item.created_at)
-          }));
-
-          set({ 
-            dynamics: dynamicsData,
-            isInitialized: true,
-            isLoading: false
-          });
-        } catch (error: any) {
-          console.error('Error in fetchAllDynamics:', error);
-          set({ isLoading: false });
-        }
+      addDynamic: (dynamicData) => {
+        const id = generateId();
+        set((state) => ({
+          dynamics: [
+            ...state.dynamics,
+            {
+              ...dynamicData,
+              id,
+              createdAt: new Date(),
+            }
+          ]
+        }));
+        return id;
       },
       
-      addDynamic: async (dynamicData) => {
-        try {
-          set({ isLoading: true });
-          const { currentUser } = useUserStore.getState();
-          
-          if (!currentUser) {
-            toast.error('Você precisa estar logado para adicionar dinâmicas');
-            set({ isLoading: false });
-            return null;
-          }
-
-          const { data, error } = await supabase
-            .from('dynamics')
-            .insert({
-              name: dynamicData.name,
-              category: dynamicData.category,
-              objective: dynamicData.objective,
-              materials: dynamicData.materials,
-              description: dynamicData.description,
-              duration: dynamicData.duration,
-              minimum_participants: dynamicData.minimumParticipants,
-              maximum_participants: dynamicData.maximumParticipants,
-              created_by: currentUser.id
-            })
-            .select();
-
-          if (error) {
-            console.error('Error adding dynamic:', error);
-            toast.error('Erro ao adicionar dinâmica: ' + error.message);
-            set({ isLoading: false });
-            return null;
-          }
-
-          // Add to local state
-          const newDynamic: Dynamic = {
-            id: data[0].id,
-            name: dynamicData.name,
-            category: dynamicData.category,
-            objective: dynamicData.objective,
-            materials: dynamicData.materials,
-            description: dynamicData.description,
-            duration: dynamicData.duration,
-            minimumParticipants: dynamicData.minimumParticipants,
-            maximumParticipants: dynamicData.maximumParticipants,
-            createdAt: new Date()
-          };
-
-          set(state => ({
-            dynamics: [newDynamic, ...state.dynamics],
-            isLoading: false
-          }));
-
-          toast.success('Dinâmica adicionada com sucesso!');
-          return newDynamic.id;
-        } catch (error: any) {
-          console.error('Error in addDynamic:', error);
-          toast.error('Erro ao adicionar dinâmica');
-          set({ isLoading: false });
-          return null;
-        }
-      },
+      updateDynamic: (id, dynamicData) => set((state) => ({
+        dynamics: state.dynamics.map((dynamic) => 
+          dynamic.id === id 
+            ? { ...dynamic, ...dynamicData } 
+            : dynamic
+        ),
+      })),
       
-      updateDynamic: async (id, dynamicData) => {
-        try {
-          set({ isLoading: true });
-          
-          const updateData: any = {};
-          
-          if (dynamicData.name !== undefined) updateData.name = dynamicData.name;
-          if (dynamicData.category !== undefined) updateData.category = dynamicData.category;
-          if (dynamicData.objective !== undefined) updateData.objective = dynamicData.objective;
-          if (dynamicData.materials !== undefined) updateData.materials = dynamicData.materials;
-          if (dynamicData.description !== undefined) updateData.description = dynamicData.description;
-          if (dynamicData.duration !== undefined) updateData.duration = dynamicData.duration;
-          if (dynamicData.minimumParticipants !== undefined) updateData.minimum_participants = dynamicData.minimumParticipants;
-          if (dynamicData.maximumParticipants !== undefined) updateData.maximum_participants = dynamicData.maximumParticipants;
-
-          const { error } = await supabase
-            .from('dynamics')
-            .update(updateData)
-            .eq('id', id);
-
-          if (error) {
-            console.error('Error updating dynamic:', error);
-            toast.error('Erro ao atualizar dinâmica: ' + error.message);
-            set({ isLoading: false });
-            return false;
-          }
-
-          // Update local state
-          set(state => ({
-            dynamics: state.dynamics.map(dynamic => 
-              dynamic.id === id ? { ...dynamic, ...dynamicData } : dynamic
-            ),
-            isLoading: false
-          }));
-
-          toast.success('Dinâmica atualizada com sucesso!');
-          return true;
-        } catch (error: any) {
-          console.error('Error in updateDynamic:', error);
-          toast.error('Erro ao atualizar dinâmica');
-          set({ isLoading: false });
-          return false;
-        }
-      },
-      
-      deleteDynamic: async (id) => {
-        try {
-          set({ isLoading: true });
-          
-          const { error } = await supabase
-            .from('dynamics')
-            .delete()
-            .eq('id', id);
-
-          if (error) {
-            console.error('Error deleting dynamic:', error);
-            toast.error('Erro ao remover dinâmica: ' + error.message);
-            set({ isLoading: false });
-            return false;
-          }
-
-          // Update local state
-          set(state => ({
-            dynamics: state.dynamics.filter(dynamic => dynamic.id !== id),
-            isLoading: false
-          }));
-
-          toast.success('Dinâmica removida com sucesso!');
-          return true;
-        } catch (error: any) {
-          console.error('Error in deleteDynamic:', error);
-          toast.error('Erro ao remover dinâmica');
-          set({ isLoading: false });
-          return false;
-        }
-      },
+      deleteDynamic: (id) => set((state) => ({
+        dynamics: state.dynamics.filter((dynamic) => dynamic.id !== id),
+      })),
       
       getDynamicsByCategory: (category) => {
         const { dynamics } = get();
@@ -312,29 +193,24 @@ export const useDynamicsStore = create<DynamicsState>()(
         );
       },
 
+      // New method to add a dynamic to a module as a lesson
       addDynamicToModule: (courseId, moduleId, dynamicId) => {
         const { dynamics } = get();
         const dynamic = dynamics.find(d => d.id === dynamicId);
         
         if (!dynamic) return;
 
-        try {
-          // Get the courseStore to add a lesson
-          const courseStore = require('./courseStore').useCourseStore.getState();
-          
-          courseStore.addLesson(courseId, moduleId, {
-            title: `Dinâmica: ${dynamic.name}`,
-            description: `**Objetivo:** ${dynamic.objective}\n\n**Descrição:** ${dynamic.description}\n\n**Materiais:** ${dynamic.materials}\n\n**Participantes:** ${dynamic.minimumParticipants} a ${dynamic.maximumParticipants}`,
-            duration: dynamic.duration,
-            activityType: "Dinâmica",
-            notes: `Dinâmica importada do Banco de Dinâmicas: ${dynamic.name} (${dynamic.category})`
-          });
-          
-          toast.success('Dinâmica adicionada ao módulo com sucesso!');
-        } catch (error: any) {
-          console.error('Error adding dynamic to module:', error);
-          toast.error('Erro ao adicionar dinâmica ao módulo');
-        }
+        // We need to import the course store and add a lesson
+        // This is a simple implementation - you would integrate with the courseStore
+        const courseStore = require('./courseStore').useCourseStore.getState();
+        
+        courseStore.addLesson(courseId, moduleId, {
+          title: `Dinâmica: ${dynamic.name}`,
+          description: `**Objetivo:** ${dynamic.objective}\n\n**Descrição:** ${dynamic.description}\n\n**Materiais:** ${dynamic.materials}\n\n**Participantes:** ${dynamic.minimumParticipants} a ${dynamic.maximumParticipants}`,
+          duration: dynamic.duration,
+          activityType: "Dinâmica",
+          notes: `Dinâmica importada do Banco de Dinâmicas: ${dynamic.name} (${dynamic.category})`
+        });
       }
     }),
     {

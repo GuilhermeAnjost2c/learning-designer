@@ -18,16 +18,9 @@ const CreateCourse = () => {
       toast.error("Você precisa estar logado para criar cursos");
       navigate("/login");
       return;
+    } else {
+      setLoading(false);
     }
-    
-    // Check if user has permission to create courses (admin, instructor, manager)
-    if (currentUser && !['admin', 'instructor', 'manager'].includes(currentUser.role)) {
-      toast.error("Você não tem permissão para criar cursos");
-      navigate("/courses");
-      return;
-    }
-    
-    setLoading(false);
   }, [isAuthenticated, navigate, currentUser]);
   
   const handleClose = () => {

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { PlusCircle, Search, Filter, Tag, X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,6 @@ const CoursesList = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [showAllCourses, setShowAllCourses] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -39,13 +37,9 @@ const CoursesList = () => {
     }
 
     const loadCourses = async () => {
-      try {
-        const data = await fetchCourses();
-        setCourses(data || []);
-      } catch (error) {
-        console.error("Error loading courses:", error);
-      } finally {
-        setDataLoaded(true);
+      const data = await fetchCourses();
+      if (data) {
+        setCourses(data);
       }
     };
 
@@ -223,7 +217,7 @@ const CoursesList = () => {
           </DropdownMenu>
         </div>
 
-        {loading && !dataLoaded ? (
+        {loading ? (
           <div className="flex justify-center py-12">
             <p className="text-muted-foreground">Carregando cursos...</p>
           </div>
